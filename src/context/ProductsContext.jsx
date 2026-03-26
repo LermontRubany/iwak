@@ -10,7 +10,7 @@ export function ProductsProvider({ children }) {
   // Функция для загрузки товаров с API
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await fetch('http://5.42.114.121:3001/api/products');
+      const res = await fetch('/api/products');
       const data = await res.json();
       setProducts(Array.isArray(data) ? data : []);
     } catch {
@@ -25,7 +25,7 @@ export function ProductsProvider({ children }) {
 
   // Добавление товара через API
   const addProduct = useCallback(async (product) => {
-    await fetch('http://5.42.114.121:3001/api/products', {
+    await fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(product),

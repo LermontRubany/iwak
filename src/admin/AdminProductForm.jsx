@@ -1,71 +1,20 @@
-import { useState, useRef, useCallback } from 'react';
-import { genders } from '../data/products';
+import { useEffect, useState, useRef } from 'react';
 import { useProducts } from '../context/ProductsContext';
-import {
-  getCategories, getSubcategoryMap, addCategory, addSubcategory,
-  removeCategory, isCustomCategory, countProductsInCategory,
-  removeSubcategory, clearSubcategories, isCustomSubcategory,
-} from '../utils/categoryStorage';
+import { getCategories } from '../utils/categoryStorage';
 
-const PREF_KEY = 'iwak_admin_prefs';
-
-const GROUP_OPTIONS = [
-  { id: 'clothing', label: 'Одежда' },
-  { id: 'shoes', label: 'Обувь' },
-  { id: 'accessories', label: 'Аксессуары' },
-];
-
-const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const SHOE_SIZES = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45'];
-const KIDS_SIZES = ['4Y', '6Y', '8Y', '10Y', '12Y'];
-
-function loadPrefs() {
-  try { return JSON.parse(localStorage.getItem(PREF_KEY)) || {}; } catch { return {}; }
-}
-function savePrefs(p) {
-  try { localStorage.setItem(PREF_KEY, JSON.stringify(p)); } catch {}
-}
-
-function fileToDataURL(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.readAsDataURL(file);
-  });
-}
-
-function isLightColor(color) {
-  if (!color) return false;
-  let r, g, b;
-  if (color.startsWith('#')) {
-    const hex = color.replace('#', '');
-    r = parseInt(hex.substring(0, 2), 16);
-    g = parseInt(hex.substring(2, 4), 16);
-    b = parseInt(hex.substring(4, 6), 16);
-  } else if (color.startsWith('rgba') || color.startsWith('rgb')) {
-    const m = color.match(/[\d.]+/g);
-    if (!m) return false;
-    [r, g, b] = m.map(Number);
-  } else return false;
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
-}
 
 const EMPTY_FORM = {
   name: '', brand: '', price: '',
-  category: 'hoodies', subcategory: 'pullover',
-  gender: 'unisex', color: '', colorHex: '#1A1A1A',
+  category: '',
+  gender: '',
+  color: '', colorHex: '#1A1A1A',
   featured: false,
   sizes: [],
   images: [],
-  badge: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left', size: 'm' },
-  badge2: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left', size: 'm' },
 };
 
-const SHAPE_RADIUS = { rect: '1px', rounded: '4px', pill: '999px', circle: '50%' };
-
 export default function AdminProductForm({ initial, onSave, onCancel }) {
-  const { products } = useProducts();
-  const prefs = loadPrefs();
+  const { addProduct, updateProduct, uploadImage } = useProducts();
   const [form, setForm] = useState(() => {
     if (initial) {
       const imgs = initial.images?.length
@@ -73,35 +22,26 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         : initial.image ? [{ url: initial.image, preview: initial.image }] : [];
       return {
         name: initial.name || '',
-        brand: initial.brand || prefs.brand || '',
+        brand: initial.brand || '',
         price: String(initial.price || ''),
-        originalPrice: initial.originalPrice ? String(initial.originalPrice) : '',
-        category: initial.category || prefs.category || 'hoodies',
-        subcategory: initial.subcategory || 'pullover',
-        gender: initial.gender || prefs.gender || 'unisex',
+        category: initial.category || '',
+        gender: initial.gender || '',
         color: initial.color || '',
         colorHex: initial.colorHex || '#1A1A1A',
         featured: !!initial.featured,
-        sizes: initial.sizes || prefs.sizes || [],
+        sizes: initial.sizes || [],
         images: imgs,
-        badge: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left', size: 'm', ...initial.badge },
-        badge2: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left', size: 'm', ...initial.badge2 },
       };
     }
-    return {
-      ...EMPTY_FORM,
-      brand: prefs.brand || '',
-      category: prefs.category || 'hoodies',
-      subcategory: getSubcategoryMap()[prefs.category || 'hoodies']?.[0]?.id || 'pullover',
-      gender: prefs.gender || 'unisex',
-      sizes: prefs.sizes || [],
-    };
+    return { ...EMPTY_FORM };
   });
+  // ...existing code...
 
-  const fileRef = useRef();
-  const [saving, setSaving] = useState(false);
-  const [allCategories, setAllCategories] = useState(getCategories);
-  const [subcatMap, setSubcatMap] = useState(getSubcategoryMap);
+  useEffect(() => {
+    getCategories().then(setAllCategories);
+  }, []);
+
+  // ...existing code...
   const [showAddCat, setShowAddCat] = useState(false);
   const [newCatLabel, setNewCatLabel] = useState('');
   const [newCatGroup, setNewCatGroup] = useState('clothing');
@@ -174,12 +114,15 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     }));
   };
 
-  const handleFiles = useCallback(async (files) => {
-    const arr = Array.from(files).slice(0, 10);
-    const results = await Promise.all(arr.map(fileToDataURL));
-    const newImgs = results.map((preview) => ({ preview, url: preview }));
-    setForm((f) => ({ ...f, images: [...f.images, ...newImgs].slice(0, 10) }));
-  }, []);
+  // Загрузка фото на сервер
+  const handleFiles = async (files) => {
+    const arr = Array.from(files).slice(0, 10 - form.images.length);
+    const uploaded = await Promise.all(arr.map(async (file) => {
+      const path = await uploadImage(file);
+      return { preview: path, url: path };
+    }));
+    setForm((f) => ({ ...f, images: [...f.images, ...uploaded].slice(0, 10) }));
+  };
 
   const removeImage = (i) => {
     setForm((f) => ({ ...f, images: f.images.filter((_, idx) => idx !== i) }));
@@ -210,23 +153,17 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
     setSaving(true);
-
-    // Save prefs
-    savePrefs({ brand: form.brand, category: form.category, gender: form.gender, sizes: form.sizes });
-
     const image = form.images[0]?.url || '';
     const images = form.images.map((img) => img.url);
-
     const saveData = {
       name: form.name.trim(),
       brand: form.brand.trim(),
       price: Number(form.price),
       category: form.category,
-      subcategory: form.subcategory,
       gender: form.gender,
       color: form.color,
       colorHex: form.colorHex,
@@ -235,22 +172,13 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       image,
       images,
     };
-    if (form.originalPrice) {
-      saveData.originalPrice = Number(form.originalPrice);
+    if (initial && initial.id) {
+      await updateProduct(initial.id, saveData);
     } else {
-      saveData.originalPrice = undefined;
+      await addProduct(saveData);
     }
-    if (form.badge.enabled && form.badge.text.trim()) {
-      saveData.badge = { ...form.badge, text: form.badge.text.trim().toUpperCase() };
-    } else {
-      saveData.badge = { ...form.badge, enabled: false };
-    }
-    if (form.badge2.enabled && form.badge2.text.trim()) {
-      saveData.badge2 = { ...form.badge2, text: form.badge2.text.trim().toUpperCase() };
-    } else {
-      saveData.badge2 = { ...form.badge2, enabled: false };
-    }
-    onSave(saveData);
+    setSaving(false);
+    if (onSave) onSave(saveData);
   };
 
   const [customSize, setCustomSize] = useState('');

@@ -45,10 +45,13 @@ export default function AdminApp() {
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
-  const catLabels = useMemo(() => {
-    const map = {};
-    for (const c of getCategories()) map[c.id] = c.label;
-    return map;
+  const [catLabels, setCatLabels] = useState({});
+  useEffect(() => {
+    getCategories().then((cats) => {
+      const map = {};
+      for (const c of cats) map[c.id] = c.label;
+      setCatLabels(map);
+    });
   }, []);
   const genderLabels = useMemo(() => {
     const map = {};

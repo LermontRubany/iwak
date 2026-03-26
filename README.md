@@ -14,3 +14,38 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+---
+
+## Запуск проекта с PostgreSQL
+
+1. Установите PostgreSQL и создайте базу данных:
+
+   createdb fashion_store
+   
+   # или через psql:
+   psql -U postgres -c "CREATE DATABASE fashion_store;"
+
+2. Выполните SQL-скрипт для создания таблицы:
+
+   psql -U postgres -d fashion_store -f database/init.sql
+
+3. Скопируйте .env.example в /server/.env и укажите свои параметры подключения к базе.
+
+4. Установите зависимости:
+
+   npm install
+
+5. Соберите фронтенд:
+
+   npm run build
+
+6. Запустите сервер:
+
+   npm start
+
+7. Откройте сайт в браузере: http://localhost:3001
+
+---
+
+Всё работает на одном сервере. База — локальная PostgreSQL.
