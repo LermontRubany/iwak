@@ -1,30 +1,37 @@
 
+
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const ProductsContext = createContext(null);
 
-
-
 export function ProductsProvider({ children }) {
   const [products, setProducts] = useState([]);
 
-  // Загружаем товары из /products.json при инициализации
+  // Функция для загрузки товаров с API
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await fetch('http://5.42.114.121:3001/api/products');
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : []);
+    } catch {
+      setProducts([]);
+    }
+  }, []);
+
+  // Загружаем товары при инициализации
   useEffect(() => {
-    fetch('/products.json')
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => Array.isArray(data) ? setProducts(data) : setProducts([]))
-      .catch(() => setProducts([]));
-  }, []);
+    fetchProducts();
+  }, [fetchProducts]);
 
-
-  // addProduct теперь только обновляет state (реальное сохранение — через сервер/скрипт)
-  const addProduct = useCallback((product) => {
-    setProducts((prev) => {
-      const next = [...prev, { ...product, id: crypto.randomUUID?.() ?? Date.now() }];
-      // TODO: отправить next на сервер или обновить products.json через API/скрипт
-      return next;
+  // Добавление товара через API
+  const addProduct = useCallback(async (product) => {
+    await fetch('http://5.42.114.121:3001/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
     });
-  }, []);
+    await fetchProducts();
+  }, [fetchProducts]);
 
   const updateProduct = useCallback((id, data) => {
     setProducts((prev) => {
