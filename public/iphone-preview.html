@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>iPhone 15 Pro Max Preview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, sans-serif;
+    }
+    .device-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .device-label {
+      color: #888;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .phone-frame {
+      width: 393px;
+      height: 852px;
+      background: #000;
+      border-radius: 54px;
+      padding: 14px;
+      box-shadow:
+        0 0 0 2px #3a3a3a,
+        0 0 0 5px #111,
+        0 40px 80px rgba(0,0,0,0.9),
+        inset 0 0 0 1px #444;
+      position: relative;
+    }
+    /* Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 36px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 10;
+    }
+    /* Side buttons */
+    .btn-side {
+      position: absolute;
+      background: #2a2a2a;
+      border-radius: 3px;
+    }
+    .btn-power  { right: -4px; top: 180px; width: 4px; height: 80px; }
+    .btn-vol1   { left: -4px; top: 150px; width: 4px; height: 40px; }
+    .btn-vol2   { left: -4px; top: 205px; width: 4px; height: 70px; }
+    .btn-vol3   { left: -4px; top: 285px; width: 4px; height: 70px; }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 44px;
+      overflow: hidden;
+      background: #fff;
+      position: relative;
+    }
+    .status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      background: #fff;
+      z-index: 5;
+      display: flex;
+      align-items: flex-start;
+      padding: 14px 28px 0;
+      justify-content: space-between;
+    }
+    .status-time {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: #000;
+    }
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-icons svg { color: #000; }
+    iframe {
+      position: absolute;
+      top: 54px;
+      left: 0;
+      width: 100%;
+      height: calc(100% - 54px);
+      border: none;
+      display: block;
+    }
+    .home-indicator {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 130px;
+      height: 5px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 3px;
+      z-index: 6;
+    }
+  </style>
+</head>
+<body>
+  <div class="device-wrap">
+    <div class="device-label">iPhone 15 Pro Max · 430pt</div>
+    <div class="phone-frame">
+      <div class="btn-side btn-power"></div>
+      <div class="btn-side btn-vol1"></div>
+      <div class="btn-side btn-vol2"></div>
+      <div class="btn-side btn-vol3"></div>
+      <div class="screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <!-- Signal -->
+            <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor">
+              <rect x="0" y="7" width="3" height="5" rx="1"/>
+              <rect x="4.5" y="5" width="3" height="7" rx="1"/>
+              <rect x="9" y="3" width="3" height="9" rx="1"/>
+              <rect x="13.5" y="0" width="3" height="12" rx="1"/>
+            </svg>
+            <!-- WiFi -->
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
+              <path d="M8 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+              <path d="M4.5 7.5C5.6 6.4 6.7 5.8 8 5.8s2.4.6 3.5 1.7l1.1-1.1C11.2 5 9.7 4.3 8 4.3S4.8 5 3.4 6.4L4.5 7.5z"/>
+              <path d="M1.5 4.5C3.2 2.8 5.5 1.8 8 1.8s4.8 1 6.5 2.7l1.1-1.1C13.6 1.4 11 .3 8 .3S2.4 1.4.4 3.4l1.1 1.1z"/>
+            </svg>
+            <!-- Battery -->
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+              <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" strokeOpacity=".35"/>
+              <rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor"/>
+              <path d="M23 4v4a2 2 0 0 0 0-4z" fill="currentColor" fillOpacity=".4"/>
+            </svg>
+          </div>
+        </div>
+        <iframe src="http://localhost:5173" title="IWAK Store"></iframe>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
