@@ -16,16 +16,31 @@ function setMetaTag(attr, name, value) {
 }
 
 export default function ProductPage() {
+
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { products } = useProducts();
+
 
   // Находим товар по id, закодированному в slug (slug = name-id)
   const productId = idFromSlug(slug);
   const product = productId != null
     ? products.find((p) => String(p.id) === String(productId))
     : undefined;
+
+  if (!product) {
+    return (
+      <div className="overlay overlay--open">
+        <div className="product-page" style={{ textAlign: 'center', paddingTop: 120 }}>
+          <p style={{ fontSize: 14, color: '#999', letterSpacing: '0.05em' }}>Товар не найден</p>
+          <button className="btn-primary" style={{ marginTop: 24 }} onClick={() => navigate('/catalog', { replace: true })}>
+            ВЕРНУТЬСЯ В КАТАЛОГ
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const [selectedSize, setSelectedSize] = useState(null);
   const [currentImage, setCurrentImage] = useState(0);

@@ -19,25 +19,17 @@ function saveProducts(list) {
 
 const ProductsContext = createContext(null);
 
-export function ProductsProvider({ children }) {
-  const [products, setProducts] = useState(() => loadProducts());
 
-  // Синхронизация между вкладками: если другая вкладка (админка или каталог)
-  // записала новые данные в localStorage, обновляем state в текущей вкладке.
-  // storage-событие НЕ срабатывает в той вкладке, что сама сделала запись.
+export function ProductsProvider({ children }) {
+  const [products, setProducts] = useState(() => {
+    const saved = localStorage.getItem('products');
+    return saved ? JSON.parse(saved) : seedProducts;
+  });
+
+  // Сохраняем товары в localStorage при каждом изменении
   useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key !== STORAGE_KEY) return;
-      try {
-        const data = e.newValue ? JSON.parse(e.newValue) : seedProducts;
-        setProducts(data);
-      } catch {
-        console.error('Invalid storage data');
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+    localStorage.setItem('products', JSON.stringify(products));
+  }, [products]);
 
   const addProduct = useCallback((product) => {
     setProducts((prev) => {
