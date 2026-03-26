@@ -1,0 +1,40 @@
+[
+  {
+    "id": 1,
+    "brand": "Nike",
+    "name": "Худи оверсайз с капюшоном — чёрный",
+    "price": 4990,
+    "category": "hoodies",
+    "subcategory": "pullover",
+    "gender": "unisex",
+    "color": "чёрный",
+    "colorHex": "#1A1A1A",
+    "sizes": ["XS", "S", "M", "L", "XL", "XXL"],
+    "image": "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=600&q=85&fit=crop",
+    "images": [
+      "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=900&q=85&fit=crop",
+      "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=900&q=85&fit=crop"
+    ],
+    "featured": true,
+    "collection": "базовая"
+  },
+  {
+    "id": 2,
+    "brand": "Stone Island",
+    "name": "Худи с вышивкой Essential — серый",
+    "price": 5490,
+    "category": "hoodies",
+    "subcategory": "pullover",
+    "gender": "mens",
+    "color": "серый",
+    "colorHex": "#9B9B9B",
+    "sizes": ["S", "M", "L", "XL"],
+    "image": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&q=85&fit=crop",
+    "images": [
+      "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=900&q=85&fit=crop",
+      "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=900&q=85&fit=crop"
+    ],
+    "featured": false,
+    "collection": "базовая"
+  }
+]

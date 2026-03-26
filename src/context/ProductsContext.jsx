@@ -1,40 +1,27 @@
+
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { products as seedProducts } from '../data/products';
-
-const STORAGE_KEY = 'iwak_products';
-
-function loadProducts() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return seedProducts;
-}
-
-function saveProducts(list) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  } catch {}
-}
 
 const ProductsContext = createContext(null);
 
 
+
 export function ProductsProvider({ children }) {
-  const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('products');
-    return saved ? JSON.parse(saved) : seedProducts;
-  });
+  const [products, setProducts] = useState([]);
 
-  // Сохраняем товары в localStorage при каждом изменении
+  // Загружаем товары из /products.json при инициализации
   useEffect(() => {
-    localStorage.setItem('products', JSON.stringify(products));
-  }, [products]);
+    fetch('/products.json')
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => Array.isArray(data) ? setProducts(data) : setProducts([]))
+      .catch(() => setProducts([]));
+  }, []);
 
+
+  // addProduct теперь только обновляет state (реальное сохранение — через сервер/скрипт)
   const addProduct = useCallback((product) => {
     setProducts((prev) => {
       const next = [...prev, { ...product, id: crypto.randomUUID?.() ?? Date.now() }];
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
@@ -44,13 +31,12 @@ export function ProductsProvider({ children }) {
       const next = prev.map((p) => {
         if (p.id !== id) return p;
         const updated = { ...p, ...data, id };
-        // Удаляем ключи, явно установленные в undefined
         Object.keys(data).forEach((k) => {
           if (data[k] === undefined) delete updated[k];
         });
         return updated;
       });
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
@@ -58,7 +44,7 @@ export function ProductsProvider({ children }) {
   const deleteProduct = useCallback((id) => {
     setProducts((prev) => {
       const next = prev.filter((p) => p.id !== id);
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
@@ -72,7 +58,7 @@ export function ProductsProvider({ children }) {
         if (newPrice === p.price) return p;
         return { ...p, originalPrice: p.originalPrice ?? p.price, price: newPrice };
       });
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
@@ -81,7 +67,7 @@ export function ProductsProvider({ children }) {
     setProducts((prev) => {
       const idSet = new Set(ids);
       const next = prev.filter((p) => !idSet.has(p.id));
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
@@ -94,7 +80,7 @@ export function ProductsProvider({ children }) {
         const { originalPrice, ...rest } = p;
         return { ...rest, price: originalPrice };
       });
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
@@ -103,14 +89,14 @@ export function ProductsProvider({ children }) {
     setProducts((prev) => {
       const idSet = new Set(ids);
       const next = prev.map((p) => (idSet.has(p.id) ? { ...p, featured } : p));
-      saveProducts(next);
+      // TODO: отправить next на сервер или обновить products.json через API/скрипт
       return next;
     });
   }, []);
 
   const resetToSeed = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setProducts(seedProducts);
+    // TODO: сбросить products.json на дефолтный набор через сервер/скрипт
+    setProducts([]);
   }, []);
 
   return (
