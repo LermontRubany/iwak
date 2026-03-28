@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
 import { makeProductSlug } from '../utils/slug';
@@ -19,58 +19,62 @@ function useHandleClose() {
 }
 
 export default function CartPage() {
-  const { items, removeItem, updateQty, mergeItems } = useCart();
+  const { items, removeItem, updateQty } = useCart();
   const { products } = useProducts();
   const { closing, handleClose } = useHandleClose();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [copied, setCopied] = useState(false);
 
-  // Обогащаем элементы корзины актуальными ценами из products
-  const enrichedItems = useMemo(() => items.map((item) => {
-    const current = products.find((p) => String(p.id) === String(item.id));
-    if (!current) return item;
-    return { ...item, price: current.price, originalPrice: current.originalPrice, image: current.image, name: current.name, brand: current.brand };
-  }), [items, products]);
+  // Shared cart: парсим ?items= НЕ трогая локальную корзину
+  const sharedParam = searchParams.get('items');
+  const isSharedCart = Boolean(sharedParam);
 
-  const totalPrice = useMemo(
-    () => enrichedItems.reduce((acc, i) => acc + i.price * i.qty, 0), [enrichedItems]
-  );
-
-  const totalOriginalPrice = useMemo(
-    () => enrichedItems.reduce((acc, i) => acc + (i.originalPrice && i.originalPrice > i.price ? i.originalPrice : i.price) * i.qty, 0), [enrichedItems]
-  );
-
-  const hasTotalDiscount = totalOriginalPrice > totalPrice;
-
-  // Загружаем товары из shared-ссылки /cart?items=id:size,id:size
-  useEffect(() => {
-    const param = searchParams.get('items');
-    if (!param) return;
-    const toMerge = [];
-    for (const pair of param.split(',')) {
+  const sharedItems = useMemo(() => {
+    if (!sharedParam || products.length === 0) return [];
+    const result = [];
+    for (const pair of sharedParam.split(',')) {
       const colonIdx = pair.indexOf(':');
       if (colonIdx === -1) continue;
       const rawId = pair.slice(0, colonIdx).trim();
       const size = pair.slice(colonIdx + 1).trim();
       if (!rawId || !size) continue;
-      // id может быть числом (seed) или UUID (crypto.randomUUID)
       const id = /^\d+$/.test(rawId) ? Number(rawId) : rawId;
       const product = products.find((p) => String(p.id) === String(id));
-      if (product) toMerge.push({ ...product, size });
+      if (product) result.push({ ...product, size, qty: 1 });
     }
-    if (toMerge.length > 0) mergeItems(toMerge);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // только при монтировании
+    return result;
+  }, [sharedParam, products]);
+
+  // Показываемые товары: shared ИЛИ свои
+  const displayItems = isSharedCart ? sharedItems : items;
+
+  // Обогащаем элементы корзины актуальными ценами из products
+  const enrichedItems = useMemo(() => displayItems.map((item) => {
+    const current = products.find((p) => String(p.id) === String(item.id));
+    if (!current) return item;
+    return { ...item, price: current.price, originalPrice: current.originalPrice, image: current.image, name: current.name, brand: current.brand };
+  }), [displayItems, products]);
+
+  const totalPrice = useMemo(
+    () => enrichedItems.reduce((acc, i) => acc + i.price * (i.qty || 1), 0), [enrichedItems]
+  );
+
+  const totalOriginalPrice = useMemo(
+    () => enrichedItems.reduce((acc, i) => acc + (i.originalPrice && i.originalPrice > i.price ? i.originalPrice : i.price) * (i.qty || 1), 0), [enrichedItems]
+  );
+
+  const hasTotalDiscount = totalOriginalPrice > totalPrice;
 
   const handleShare = useCallback(() => {
-    if (items.length === 0) return;
-    const param = items.map((i) => `${i.id}:${i.size}`).join(',');
+    const src = isSharedCart ? sharedItems : items;
+    if (src.length === 0) return;
+    const param = src.map((i) => `${i.id}:${i.size}`).join(',');
     const url = `${window.location.origin}/cart?items=${param}`;
-    const text = `Моя корзина IWAK — ${enrichedItems.length} товар(а) на ₽${totalPrice.toLocaleString('ru-RU')}`;
+    const text = `Корзина IWAK — ${enrichedItems.length} товар(а) на ₽${totalPrice.toLocaleString('ru-RU')}`;
 
     if (navigator.share) {
-      navigator.share({ title: 'Моя корзина IWAK', text, url }).catch(() => {});
+      navigator.share({ title: 'Корзина IWAK', text, url }).catch(() => {});
     } else {
       navigator.clipboard
         .writeText(url)
@@ -82,17 +86,17 @@ export default function CartPage() {
           window.prompt('Скопируйте ссылку на корзину:', url);
         });
     }
-  }, [enrichedItems, totalPrice]);
+  }, [isSharedCart, sharedItems, items, enrichedItems, totalPrice]);
 
   // Фоновая локация для overlay товара: каталог или то, что было до корзины
   const bgLocation = location.state?.backgroundLocation || { pathname: '/catalog', search: '' };
 
-  if (items.length === 0) {
+  if (enrichedItems.length === 0) {
     return (
       <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
         <div className="cart-empty">
           <h2 className="cart-title">КОРЗИНА</h2>
-          <p className="cart-empty__text">Ваша корзина пуста</p>
+          <p className="cart-empty__text">{isSharedCart ? 'Товары не найдены' : 'Ваша корзина пуста'}</p>
           <button className="btn-primary" onClick={handleClose}>
             ПРОДОЛЖИТЬ ПОКУПКИ
           </button>
@@ -104,6 +108,9 @@ export default function CartPage() {
   return (
     <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
     <div className="cart-page">
+      {isSharedCart && (
+        <div className="cart-shared-banner">Чужая корзина</div>
+      )}
       <div className="cart-header-row">
         <h2 className="cart-title">КОРЗИНА</h2>
         <button
@@ -154,6 +161,7 @@ export default function CartPage() {
                 <span className="cart-item__name">{item.name}</span>
               </Link>
               <span className="cart-item__meta">Размер: {item.size}</span>
+              {!isSharedCart && (
               <div className="cart-item__qty">
                 <span>Кол-во:</span>
                 <button
@@ -171,6 +179,7 @@ export default function CartPage() {
                   +
                 </button>
               </div>
+              )}
             </div>
             <div className="cart-item__right">
               <div className="cart-item__prices">
@@ -183,12 +192,14 @@ export default function CartPage() {
                   </span>
                 )}
               </div>
+              {!isSharedCart && (
               <button
                 className="cart-item__remove"
                 onClick={() => removeItem(item.id, item.size)}
               >
                 Удалить
               </button>
+              )}
             </div>
           </li>
           );

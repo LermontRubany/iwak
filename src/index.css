@@ -143,8 +143,10 @@ img {
   flex-shrink: 0;
 }
 
-.header-icon-btn:hover {
-  opacity: 0.45;
+@media (hover: hover) {
+  .header-icon-btn:hover {
+    opacity: 0.45;
+  }
 }
 
 /* ---- Mobile header ---- */
@@ -614,13 +616,11 @@ img {
 .cart-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.3);
   z-index: 599;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.25s ease;
   touch-action: none;
   -webkit-touch-callout: none;
 }
@@ -634,15 +634,16 @@ img {
   position: fixed;
   top: 0;
   right: 0;
-  bottom: 0;
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
+  height: 100vh;
+  height: 100dvh;
   background: #fff;
   z-index: 700;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s ease;
   will-change: transform;
 }
 
@@ -1651,13 +1652,11 @@ img {
 .filter-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.2);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0,0,0,0.3);
   z-index: 799;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.25s ease;
   touch-action: none;
   -webkit-touch-callout: none;
 }
@@ -1671,16 +1670,24 @@ img {
   position: fixed;
   top: 0;
   right: 0;
-  bottom: 0;
+  left: 0;
   width: 100%;
-  max-width: 420px;
+  height: 100vh;
+  height: 100dvh;
   background: #fff;
   z-index: 800;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
   will-change: transform;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s ease;
+}
+
+@media (min-width: 768px) {
+  .filter-panel {
+    left: auto;
+    max-width: 480px;
+  }
 }
 
 .filter-panel--open {
@@ -1992,17 +1999,21 @@ img {
   scroll-snap-align: start;
   -webkit-user-select: none;
   user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pp-main-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  object-fit: contain;
+  transition: transform 0.3s ease;
   will-change: transform;
 }
 
 .pp-main-img--zoomed {
+  object-fit: cover;
   transform: scale(1.3);
 }
 
@@ -2404,6 +2415,17 @@ img {
   padding-top: calc(40px + env(safe-area-inset-top, 0px));
   max-width: 760px;
   margin: 0 auto;
+}
+
+.cart-shared-banner {
+  background: #111;
+  color: #fff;
+  text-align: center;
+  padding: 10px 16px;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
 }
 
 .cart-empty {
