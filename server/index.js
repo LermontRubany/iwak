@@ -8,6 +8,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import pg from 'pg';
 import path from 'path';
+import pino from 'pino';
 
 // ── PostgreSQL NUMERIC → number (не string) ─
 pg.types.setTypeParser(1700, (val) => parseFloat(val));
@@ -24,6 +25,14 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ── Logger (pino) ───────────────────────────
+const logDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+}, pino.destination(path.join(logDir, 'app.log')));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -86,6 +95,41 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '1mb' }));
+
+// ── API Rate Limit (100 req / 15 min per IP) ──
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
+});
+app.use('/api', apiLimiter);
+
+// ── Request logging ─────────────────────────
+app.use((req, _res, next) => {
+  logger.info({ method: req.method, url: req.url });
+  next();
+});
+
+// ── In-memory cache ─────────────────────────
+const cache = new Map();
+const CACHE_TTL = 90 * 1000; // 90 seconds
+
+function cacheGet(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) { cache.delete(key); return null; }
+  return entry.data;
+}
+
+function cacheSet(key, data) {
+  cache.set(key, { data, ts: Date.now() });
+}
+
+function cacheInvalidate() {
+  cache.clear();
+}
 
 // Раздача загруженных изображений
 const uploadDir = path.join(__dirname, '../uploads');
@@ -151,8 +195,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, login: user.login });
   } catch (err) {
-    console.error('Auth error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    logger.error({ err }, 'Auth error');
+    res.status(500).json({ success: false, error: 'Ошибка сервера' });
   }
 });
 
@@ -173,8 +217,8 @@ app.post('/api/auth/setup', async (req, res) => {
     await pool.query('INSERT INTO admin_users (login, password_hash) VALUES ($1, $2)', [login, hash]);
     res.status(201).json({ ok: true });
   } catch (err) {
-    console.error('Setup error:', err);
-    res.status(500).json({ error: 'Ошибка создания admin' });
+    logger.error({ err }, 'Setup error');
+    res.status(500).json({ success: false, error: 'Ошибка создания admin' });
   }
 });
 
@@ -190,6 +234,10 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // Query: q, category, gender, brand, sizes, sale, featured, sort, limit, offset
 app.get('/api/products', async (req, res) => {
   try {
+    const cacheKey = 'products:' + JSON.stringify(req.query);
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
     const conditions = [];
     const params = [];
     let paramIdx = 0;
@@ -264,27 +312,39 @@ app.get('/api/products', async (req, res) => {
       pool.query(`SELECT count(*) FROM products ${where}`, params),
     ]);
 
-    res.json({
+    const result = {
       items: dataResult.rows.map(rowToCamel),
       total: parseInt(countResult.rows[0].count),
       limit,
       offset,
-    });
+    };
+    cacheSet(cacheKey, result);
+    res.json(result);
   } catch (err) {
-    console.error('GET /api/products error:', err);
-    res.status(500).json({ error: 'Ошибка получения товаров' });
+    logger.error({ err, endpoint: 'GET /api/products' }, 'Products list error');
+    res.status(500).json({ success: false, error: 'Ошибка получения товаров' });
   }
 });
 
 // GET /api/products/:id
 app.get('/api/products/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) {
+    return res.status(400).json({ success: false, error: 'id должен быть положительным числом' });
+  }
   try {
-    const result = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Товар не найден' });
-    res.json(rowToCamel(result.rows[0]));
+    const cacheKey = `product:${id}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const result = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Товар не найден' });
+    const product = rowToCamel(result.rows[0]);
+    cacheSet(cacheKey, product);
+    res.json(product);
   } catch (err) {
-    console.error('GET /api/products/:id error:', err);
-    res.status(500).json({ error: 'Ошибка получения товара' });
+    logger.error({ err, endpoint: 'GET /api/products/:id' }, 'Product detail error');
+    res.status(500).json({ success: false, error: 'Ошибка получения товара' });
   }
 });
 
@@ -313,9 +373,10 @@ app.post('/api/products', requireAuth, async (req, res) => {
        badge2 ? JSON.stringify(badge2) : null]
     );
     res.status(201).json(rowToCamel(result.rows[0]));
+    cacheInvalidate();
   } catch (err) {
-    console.error('POST /api/products error:', err);
-    res.status(500).json({ error: 'Ошибка создания товара' });
+    logger.error({ err }, 'POST /api/products error');
+    res.status(500).json({ success: false, error: 'Ошибка создания товара' });
   }
 });
 
@@ -348,11 +409,12 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
        hasBadge2, hasBadge2 ? (badge2 ? JSON.stringify(badge2) : null) : null,
        id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Товар не найден' });
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Товар не найден' });
     res.json(rowToCamel(result.rows[0]));
+    cacheInvalidate();
   } catch (err) {
-    console.error('PUT /api/products/:id error:', err);
-    res.status(500).json({ error: 'Ошибка обновления товара' });
+    logger.error({ err }, 'PUT /api/products/:id error');
+    res.status(500).json({ success: false, error: 'Ошибка обновления товара' });
   }
 });
 
@@ -370,9 +432,10 @@ app.delete('/api/products/:id', requireAuth, async (req, res) => {
       }
     }
     res.json({ success: true });
+    cacheInvalidate();
   } catch (err) {
-    console.error('DELETE /api/products/:id error:', err);
-    res.status(500).json({ error: 'Ошибка удаления товара' });
+    logger.error({ err }, 'DELETE /api/products/:id error');
+    res.status(500).json({ success: false, error: 'Ошибка удаления товара' });
   }
 });
 
@@ -393,9 +456,10 @@ app.post('/api/products/bulk-delete', requireAuth, async (req, res) => {
       }
     }
     res.json({ deleted: result.rowCount });
+    cacheInvalidate();
   } catch (err) {
-    console.error('POST /api/products/bulk-delete error:', err);
-    res.status(500).json({ error: 'Ошибка массового удаления' });
+    logger.error({ err }, 'POST /api/products/bulk-delete error');
+    res.status(500).json({ success: false, error: 'Ошибка массового удаления' });
   }
 });
 
@@ -427,6 +491,7 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
           `UPDATE products SET price = COALESCE(original_price, price), original_price = NULL WHERE id = ANY($1)`, [ids]);
       }
       const updated = await pool.query('SELECT * FROM products WHERE id = ANY($1)', [ids]);
+      cacheInvalidate();
       return res.json({ updated: updated.rows.map(rowToCamel) });
     }
 
@@ -453,13 +518,14 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
       }
       await pool.query(`UPDATE products SET ${setClauses.join(', ')} WHERE id = ANY($1)`, params);
       const updated = await pool.query('SELECT * FROM products WHERE id = ANY($1)', [ids]);
+      cacheInvalidate();
       return res.json({ updated: updated.rows.map(rowToCamel) });
     }
 
-    return res.status(400).json({ error: 'Нужен data или priceTransform' });
+    return res.status(400).json({ success: false, error: 'Нужен data или priceTransform' });
   } catch (err) {
-    console.error('POST /api/products/bulk-update error:', err);
-    res.status(500).json({ error: 'Ошибка массового обновления' });
+    logger.error({ err }, 'POST /api/products/bulk-update error');
+    res.status(500).json({ success: false, error: 'Ошибка массового обновления' });
   }
 });
 
@@ -479,18 +545,18 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
       .toFile(outPath);
     res.json({ path: `/uploads/${filename}` });
   } catch (err) {
-    console.error('Sharp error:', err);
-    res.status(422).json({ error: 'Не удалось обработать изображение' });
+    logger.error({ err }, 'Sharp error');
+    res.status(422).json({ success: false, error: 'Не удалось обработать изображение' });
   }
 });
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл слишком большой (макс. 5 МБ)' });
-    return res.status(400).json({ error: err.message });
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ success: false, error: 'Файл слишком большой (макс. 5 МБ)' });
+    return res.status(400).json({ success: false, error: err.message });
   }
   if (err.message?.includes('Недопустимый тип файла')) {
-    return res.status(415).json({ error: err.message });
+    return res.status(415).json({ success: false, error: err.message });
   }
   next(err);
 });
@@ -514,8 +580,8 @@ app.get('/api/filters', async (_req, res) => {
       sizes: sizes.rows.map(r => r.size),
     });
   } catch (err) {
-    console.error('GET /api/filters error:', err);
-    res.status(500).json({ error: 'Ошибка получения фильтров' });
+    logger.error({ err }, 'GET /api/filters error');
+    res.status(500).json({ success: false, error: 'Ошибка получения фильтров' });
   }
 });
 
@@ -589,7 +655,7 @@ app.get('/og-image/:id', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(buf);
   } catch (err) {
-    console.error('OG image generation error:', err);
+    logger.error({ err }, 'OG image generation error');
     res.status(500).end();
   }
 });
@@ -659,7 +725,7 @@ app.get('/product/:slug', async (req, res, next) => {
       url: `${SITE_ORIGIN}/product/${slug}`,
     }));
   } catch (err) {
-    console.error('OG prerender error:', err);
+    logger.error({ err }, 'OG prerender error');
     next();
   }
 });
@@ -672,9 +738,18 @@ if (fs.existsSync(distPath)) {
 }
 
 // ════════════════════════════════════════════
+// GLOBAL ERROR HANDLER
+// ════════════════════════════════════════════
+
+app.use((err, _req, res, _next) => {
+  logger.error({ err }, 'Unhandled error');
+  res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+});
+
+// ════════════════════════════════════════════
 // START
 // ════════════════════════════════════════════
 
 app.listen(PORT, () => {
-  console.log(`IWAK API server running on http://localhost:${PORT}`);
+  logger.info(`IWAK API server running on http://localhost:${PORT}`);
 });
