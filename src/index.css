@@ -1151,7 +1151,7 @@ img {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  gap: 1px;
 }
 
 .product-card {
@@ -1334,7 +1334,7 @@ img {
    CATALOG PAGE
    ============================================= */
 .catalog-page {
-  background: #f7f7f7;
+  background: #fff;
 }
 
 .catalog-toolbar {
