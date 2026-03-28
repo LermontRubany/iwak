@@ -1164,6 +1164,8 @@ img {
   background: #fff;
   border-right: 1px solid #f0f0f0;
   border-bottom: 1px solid #f0f0f0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
 }
 
 .product-card__image-wrap {

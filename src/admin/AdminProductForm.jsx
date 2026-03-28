@@ -1,20 +1,49 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useProducts } from '../context/ProductsContext';
-import { getCategories } from '../utils/categoryStorage';
 
+// Gender enum mirrors DB CHECK constraint — not product data
+const GENDER_ENUM = [
+  { id: 'mens', label: 'Мужское' },
+  { id: 'womens', label: 'Женское' },
+  { id: 'kids', label: 'Детское' },
+  { id: 'unisex', label: 'Унисекс' },
+];
+
+// Standard industry sizes — admin input helpers, not filters
+const CLOTHING_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+const SHOE_SIZES = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
+const KIDS_SIZES = ['92', '98', '104', '110', '116', '122', '128', '134', '140', '146', '152', '158'];
+
+const SHAPE_RADIUS = { rect: '1px', rounded: '4px', pill: '999px', circle: '50%' };
+function isLightColor(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+}
+
+
+const EMPTY_BADGE = {
+  enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)',
+  textColor: '#000', shape: 'rect', type: 'outline',
+  position: 'top-left', size: 'm',
+};
 
 const EMPTY_FORM = {
-  name: '', brand: '', price: '',
+  name: '', brand: '', price: '', originalPrice: '',
   category: '',
   gender: '',
   color: '', colorHex: '#1A1A1A',
   featured: false,
   sizes: [],
   images: [],
+  badge: { ...EMPTY_BADGE },
+  badge2: { ...EMPTY_BADGE },
 };
 
 export default function AdminProductForm({ initial, onSave, onCancel }) {
-  const { addProduct, updateProduct, uploadImage } = useProducts();
+  const { products, addProduct, updateProduct, uploadImage } = useProducts();
   const [form, setForm] = useState(() => {
     if (initial) {
       const imgs = initial.images?.length
@@ -24,6 +53,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         name: initial.name || '',
         brand: initial.brand || '',
         price: String(initial.price || ''),
+        originalPrice: initial.originalPrice ? String(initial.originalPrice) : '',
         category: initial.category || '',
         gender: initial.gender || '',
         color: initial.color || '',
@@ -31,76 +61,33 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         featured: !!initial.featured,
         sizes: initial.sizes || [],
         images: imgs,
+        badge: initial.badge ? { ...EMPTY_BADGE, ...initial.badge } : { ...EMPTY_BADGE },
+        badge2: initial.badge2 ? { ...EMPTY_BADGE, ...initial.badge2 } : { ...EMPTY_BADGE },
       };
     }
     return { ...EMPTY_FORM };
   });
-  // ...existing code...
 
-  useEffect(() => {
-    getCategories().then(setAllCategories);
-  }, []);
+  // Derive category options from existing products
+  const existingCategories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef(null);
 
-  // ...existing code...
   const [showAddCat, setShowAddCat] = useState(false);
-  const [newCatLabel, setNewCatLabel] = useState('');
-  const [newCatGroup, setNewCatGroup] = useState('clothing');
-  const [showAddSub, setShowAddSub] = useState(false);
-  const [newSubLabel, setNewSubLabel] = useState('');
+  const [newCatValue, setNewCatValue] = useState('');
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleCategoryChange = (cat) => {
-    const firstSub = subcatMap[cat]?.[0]?.id || '';
-    setForm((f) => ({ ...f, category: cat, subcategory: firstSub }));
+    setForm((f) => ({ ...f, category: cat }));
   };
 
   const handleAddCategory = () => {
-    const label = newCatLabel.trim();
-    if (!label) return;
-    const created = addCategory(label, newCatGroup);
-    setAllCategories(getCategories());
+    const val = newCatValue.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
+    if (!val) return;
+    handleCategoryChange(val);
     setShowAddCat(false);
-    setNewCatLabel('');
-    handleCategoryChange(created.id);
-  };
-
-  const handleAddSubcategory = () => {
-    const label = newSubLabel.trim();
-    if (!label) return;
-    const created = addSubcategory(form.category, label);
-    setSubcatMap(getSubcategoryMap());
-    setShowAddSub(false);
-    setNewSubLabel('');
-    set('subcategory', created.id);
-  };
-
-  const handleRemoveCategory = (id) => {
-    const count = countProductsInCategory(products, id);
-    if (count > 0) {
-      if (!window.confirm(`Категория используется в ${count} товар(ах). Удалить?`)) return;
-    }
-    removeCategory(id);
-    const updated = getCategories();
-    setAllCategories(updated);
-    setSubcatMap(getSubcategoryMap());
-    if (form.category === id) {
-      handleCategoryChange(updated[0]?.id || 'hoodies');
-    }
-  };
-
-  const handleRemoveSubcategory = (subId) => {
-    removeSubcategory(form.category, subId);
-    setSubcatMap(getSubcategoryMap());
-    if (form.subcategory === subId) {
-      const updated = getSubcategoryMap()[form.category] || [];
-      set('subcategory', updated[0]?.id || '');
-    }
-  };
-
-  const handleClearSubcategories = () => {
-    clearSubcategories(form.category);
-    setSubcatMap(getSubcategoryMap());
+    setNewCatValue('');
   };
 
   const handleColorChange = (value) => {
@@ -146,13 +133,6 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     });
   };
 
-  const handleUrlAdd = () => {
-    const url = window.prompt('URL изображения:');
-    if (url?.trim()) {
-      setForm((f) => ({ ...f, images: [...f.images, { preview: url.trim(), url: url.trim() }].slice(0, 10) }));
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
@@ -163,6 +143,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       name: form.name.trim(),
       brand: form.brand.trim(),
       price: Number(form.price),
+      originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
       category: form.category,
       gender: form.gender,
       color: form.color,
@@ -171,6 +152,8 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       sizes: form.sizes,
       image,
       images,
+      badge: form.badge.enabled ? form.badge : null,
+      badge2: form.badge2.enabled ? form.badge2 : null,
     };
     if (initial && initial.id) {
       await updateProduct(initial.id, saveData);
@@ -183,11 +166,11 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   const [customSize, setCustomSize] = useState('');
 
-  const sizeOptions = form.category === 'shoes' ? SHOE_SIZES
+  const SHOE_CATEGORIES = ['shoes', 'sneakers', 'boots', 'sandals'];
+  const sizeOptions = SHOE_CATEGORIES.includes(form.category)
+    ? SHOE_SIZES
     : form.gender === 'kids' ? KIDS_SIZES
     : CLOTHING_SIZES;
-
-  const subcats = subcatMap[form.category] || [];
 
   const addCustomSize = () => {
     const s = customSize.trim().toUpperCase();
@@ -255,20 +238,14 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <div className="adm-field">
           <label className="adm-label">КАТЕГОРИЯ</label>
           <div className="adm-chips">
-            {allCategories.map((c) => (
+            {existingCategories.map((c) => (
               <button
-                key={c.id}
+                key={c}
                 type="button"
-                className={`adm-chip${form.category === c.id ? ' adm-chip--active' : ''}`}
-                onClick={() => handleCategoryChange(c.id)}
+                className={`adm-chip${form.category === c ? ' adm-chip--active' : ''}`}
+                onClick={() => handleCategoryChange(c)}
               >
-                {c.label}
-                {isCustomCategory(c.id) && (
-                  <span
-                    className="adm-chip__del"
-                    onClick={(e) => { e.stopPropagation(); handleRemoveCategory(c.id); }}
-                  >✕</span>
-                )}
+                {c}
               </button>
             ))}
             <button type="button" className="adm-chip adm-chip--add" onClick={() => setShowAddCat((v) => !v)}>+ Своя</button>
@@ -278,70 +255,16 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
               <input
                 className="adm-input adm-input--small"
                 type="text"
-                placeholder="Название категории"
-                value={newCatLabel}
-                onChange={(e) => setNewCatLabel(e.target.value)}
+                placeholder="Новая категория (slug)"
+                value={newCatValue}
+                onChange={(e) => setNewCatValue(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); } }}
                 autoFocus
               />
-              <div className="adm-chips">
-                {GROUP_OPTIONS.map((g) => (
-                  <button
-                    key={g.id}
-                    type="button"
-                    className={`adm-chip adm-chip--sm${newCatGroup === g.id ? ' adm-chip--active' : ''}`}
-                    onClick={() => setNewCatGroup(g.id)}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
               <button type="button" className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCategory}>Добавить</button>
             </div>
           )}
         </div>
-
-        {subcats.length > 0 || form.category ? (
-          <div className="adm-field">
-            <label className="adm-label">ПОДКАТЕГОРИЯ</label>
-            <div className="adm-chips">
-              {subcats.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`adm-chip${form.subcategory === s.id ? ' adm-chip--active' : ''}`}
-                  onClick={() => set('subcategory', s.id)}
-                >
-                  {s.label}
-                  {isCustomSubcategory(form.category, s.id) && (
-                    <span
-                      className="adm-chip__del"
-                      onClick={(e) => { e.stopPropagation(); handleRemoveSubcategory(s.id); }}
-                    >✕</span>
-                  )}
-                </button>
-              ))}
-              <button type="button" className="adm-chip adm-chip--add" onClick={() => setShowAddSub((v) => !v)}>+ Своя</button>
-              {subcats.some((s) => isCustomSubcategory(form.category, s.id)) && (
-                <button type="button" className="adm-chip adm-chip--clear" onClick={handleClearSubcategories}>Очистить</button>
-              )}
-            </div>
-            {showAddSub && (
-              <div className="adm-inline-add">
-                <input
-                  className="adm-input adm-input--small"
-                  type="text"
-                  placeholder="Название подкатегории"
-                  value={newSubLabel}
-                  onChange={(e) => setNewSubLabel(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubcategory(); } }}
-                  autoFocus
-                />
-                <button type="button" className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddSubcategory}>Добавить</button>
-              </div>
-            )}
-          </div>
-        ) : null}
 
         <div className="adm-field">
           <label className="adm-label">НАЗВАНИЕ</label>
@@ -383,7 +306,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <div className="adm-field">
           <label className="adm-label">ПОЛ</label>
           <div className="adm-chips">
-            {genders.map((g) => (
+            {GENDER_ENUM.map((g) => (
               <button
                 key={g.id}
                 type="button"

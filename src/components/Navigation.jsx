@@ -8,9 +8,7 @@ const NAV_CATEGORIES = [
   { label: 'ДЕТСКОЕ', gender: 'kids' },
 ];
 
-const secondaryLinks = [
-  { label: 'КОНТАКТЫ', to: '/contact' },
-];
+const secondaryLinks = [];
 
 export default function Navigation({ isOpen, onClose }) {
   const navigate = useNavigate();

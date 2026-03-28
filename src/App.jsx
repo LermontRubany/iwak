@@ -10,8 +10,6 @@ import CartPage from './pages/CartPage';
 import './index.css';
 import './admin/admin.css';
 
-const ADMIN_AUTH_KEY = 'iwak_admin_auth';
-
 function AppRoutes() {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
@@ -54,7 +52,9 @@ function App() {
   const isAdmin = window.location.pathname.startsWith('/adminpanel');
 
   if (isAdmin) {
-    const authed = localStorage.getItem(ADMIN_AUTH_KEY) === '1';
+    // Проверяем наличие JWT-токена (валидность проверится при первом API-запросе)
+    const token = localStorage.getItem('iwak_admin_token');
+    const authed = !!token;
     return (
       <ProductsProvider>
         {authed

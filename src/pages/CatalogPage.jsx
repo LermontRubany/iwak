@@ -1,17 +1,15 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductsContext';
-import { getExpandedGroups } from '../utils/categoryStorage';
 import ProductCard from '../components/ProductCard';
 import FilterPanel from '../components/FilterPanel';
 import MiniPlayer from '../components/MiniPlayer';
 
-const SEARCH_FIELDS = ['name', 'brand', 'category', 'collection'];
+const SEARCH_FIELDS = ['name', 'brand', 'category'];
 
 const SIZE_PATTERN = /^[a-z]{1,3}$|^\d{1,3}$/;
 
 // Label maps for chips
-const TYPE_LABELS = { shoes: 'Кроссовки', clothing: 'Одежда', accessories: 'Аксессуары' };
 const GENDER_LABELS = { mens: 'Мужское', womens: 'Женское', kids: 'Дети' };
 
 function applySearch(items, query) {
@@ -39,28 +37,21 @@ function applySearch(items, query) {
 
 /**
  * Pure filter function — used both for catalog grid and matchCount preview.
+ * Filters derive from product data — no preset groups.
  */
-function applyFilters(products, filters, sortBy, categoryGroups, query, categoryGroup, gendersFromURL, sale) {
+function applyFilters(products, filters, sortBy, query, categoryFromURL, gendersFromURL, sale) {
   let result = applySearch(products, query);
 
   if (sale) {
     result = result.filter((p) => p.originalPrice && p.originalPrice > p.price);
   }
 
-  if (categoryGroup && categoryGroups[categoryGroup]) {
-    const allowed = categoryGroups[categoryGroup];
-    if (allowed.length > 0) {
-      result = result.filter((p) => allowed.includes(p.category));
-    }
+  if (categoryFromURL) {
+    result = result.filter((p) => p.category === categoryFromURL);
   }
 
-  if (filters.types.length > 0) {
-    const allowedCategories = new Set();
-    for (const type of filters.types) {
-      const group = categoryGroups[type];
-      if (group) group.forEach((id) => allowedCategories.add(id));
-    }
-    result = result.filter((p) => allowedCategories.has(p.category));
+  if (filters.categories.length > 0) {
+    result = result.filter((p) => filters.categories.includes(p.category));
   }
 
   if (filters.genders.length > 0) {
@@ -102,20 +93,14 @@ export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
-  useEffect(() => {
-    console.log('MOUNT CatalogPage');
-  }, []);
-
-  const categoryGroups = getExpandedGroups();
-
   const query = searchParams.get('q') || '';
-  const categoryGroup = searchParams.get('category') || '';
+  const categoryFromURL = searchParams.get('category') || '';
   const genderParam = searchParams.get('gender') || '';
   const gendersFromURL = genderParam ? [genderParam] : [];
   const saleParam = searchParams.get('sale') === 'true';
 
   const [filters, setFilters] = useState({
-    types: [],
+    categories: [],
     genders: [],
     sizes: [],
     brands: [],
@@ -123,19 +108,39 @@ export default function CatalogPage() {
 
   const [sortBy, setSortBy] = useState('default');
 
+  // Derive all filter options from product data
+  const productCategories = useMemo(() =>
+    [...new Set(products.map((p) => p.category).filter(Boolean))].sort(),
+    [products]
+  );
+
   const brands = useMemo(() =>
     [...new Set(products.map((p) => p.brand).filter(Boolean))].sort(),
     [products]
   );
 
+  const productGenders = useMemo(() =>
+    [...new Set(products.map((p) => p.gender).filter(Boolean))].sort(),
+    [products]
+  );
+
+  const productSizes = useMemo(() =>
+    [...new Set(products.flatMap((p) => p.sizes || []))].sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    }),
+    [products]
+  );
+
   const filtered = useMemo(() =>
-    applyFilters(products, filters, sortBy, categoryGroups, query, categoryGroup, gendersFromURL, saleParam),
-    [filters, sortBy, query, categoryGroup, genderParam, saleParam]
+    applyFilters(products, filters, sortBy, query, categoryFromURL, gendersFromURL, saleParam),
+    [products, filters, sortBy, query, categoryFromURL, genderParam, saleParam]
   );
 
   const getMatchCount = useCallback((draftFilters, draftSort) => {
-    return applyFilters(products, draftFilters, draftSort, categoryGroups, query, categoryGroup, gendersFromURL, saleParam).length;
-  }, [products, query, categoryGroup, genderParam, saleParam]);
+    return applyFilters(products, draftFilters, draftSort, query, categoryFromURL, gendersFromURL, saleParam).length;
+  }, [products, query, categoryFromURL, genderParam, saleParam]);
 
   const toggleFilter = (key, value, bulk) => {
     if (bulk) {
@@ -167,7 +172,7 @@ export default function CatalogPage() {
   };
 
   const clearFilters = () => {
-    setFilters({ types: [], genders: [], sizes: [], brands: [] });
+    setFilters({ categories: [], genders: [], sizes: [], brands: [] });
     setSortBy('default');
   };
 
@@ -177,15 +182,15 @@ export default function CatalogPage() {
   };
 
   const activeCount =
-    filters.types.length + filters.genders.length + filters.sizes.length + filters.brands.length +
+    filters.categories.length + filters.genders.length + filters.sizes.length + filters.brands.length +
     (genderParam ? 1 : 0) + (saleParam ? 1 : 0);
 
-  // Build chips in fixed order: URL gender → Type → Gender → Brand → Size
+  // Build chips in fixed order: URL gender → Category → Gender → Brand → Size
   const chips = useMemo(() => {
     const list = [];
     if (saleParam) list.push({ key: 'url-sale', id: 'sale', label: 'Скидки' });
     if (genderParam) list.push({ key: 'url-gender', id: genderParam, label: GENDER_LABELS[genderParam] || genderParam });
-    for (const id of filters.types) list.push({ key: 'types', id, label: TYPE_LABELS[id] || id });
+    for (const id of filters.categories) list.push({ key: 'categories', id, label: id });
     for (const id of filters.genders) list.push({ key: 'genders', id, label: GENDER_LABELS[id] || id });
     for (const id of filters.brands) list.push({ key: 'brands', id, label: id });
     for (const id of filters.sizes) list.push({ key: 'sizes', id, label: id });
@@ -259,6 +264,9 @@ export default function CatalogPage() {
         sortBy={sortBy}
         onSort={setSortBy}
         brands={brands}
+        categories={productCategories}
+        genders={productGenders}
+        sizes={productSizes}
         getMatchCount={getMatchCount}
       />
     </div>

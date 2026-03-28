@@ -1,34 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
 
-const TYPE_OPTIONS = [
-  { id: 'shoes', label: 'Кроссовки' },
-  { id: 'clothing', label: 'Одежда' },
-  { id: 'accessories', label: 'Аксессуары' },
-];
-
-const GENDER_OPTIONS = [
-  { id: 'mens', label: 'Мужское' },
-  { id: 'womens', label: 'Женское' },
-  { id: 'kids', label: 'Дети' },
-];
-
-const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const SHOE_SIZES = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45'];
+const GENDER_LABELS = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
 
 const sortOptions = [
   { id: 'default', label: 'По умолчанию' },
   { id: 'price-asc', label: 'Дешевле' },
   { id: 'price-desc', label: 'Дороже' },
 ];
-
-function getSizeOptions(types) {
-  const hasShoes = types.includes('shoes');
-  const hasClothing = types.includes('clothing') || types.includes('accessories');
-  if (hasShoes && !hasClothing) return SHOE_SIZES;
-  if (hasClothing && !hasShoes) return CLOTHING_SIZES;
-  return [...CLOTHING_SIZES, ...SHOE_SIZES];
-}
 
 export default function FilterPanel({
   isOpen,
@@ -39,6 +18,9 @@ export default function FilterPanel({
   sortBy,
   onSort,
   brands,
+  categories,
+  genders,
+  sizes,
   getMatchCount,
 }) {
   const panelRef = useRef(null);
@@ -57,7 +39,7 @@ export default function FilterPanel({
     if (!isOpen) setClosing(false);
   }, [isOpen]);
 
-  const [draft, setDraft] = useState({ types: [], genders: [], sizes: [], brands: [], sortBy });
+  const [draft, setDraft] = useState({ categories: [], genders: [], sizes: [], brands: [], sortBy });
 
   useEffect(() => {
     if (isOpen) {
@@ -103,13 +85,7 @@ export default function FilterPanel({
     setDraft((prev) => {
       const arr = prev[key];
       const next = arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
-      const updated = { ...prev, [key]: next };
-      // Clear invalid sizes when type changes
-      if (key === 'types') {
-        const validSizes = getSizeOptions(next);
-        updated.sizes = updated.sizes.filter((s) => validSizes.includes(s));
-      }
-      return updated;
+      return { ...prev, [key]: next };
     });
   }, []);
 
@@ -125,11 +101,11 @@ export default function FilterPanel({
   };
 
   const handleClear = () => {
-    setDraft({ types: [], genders: [], sizes: [], brands: [], sortBy: 'default' });
+    setDraft({ categories: [], genders: [], sizes: [], brands: [], sortBy: 'default' });
   };
 
   const totalSelected = useMemo(() => {
-    return draft.types.length + draft.genders.length + draft.sizes.length + draft.brands.length + (draft.sortBy !== 'default' ? 1 : 0);
+    return draft.categories.length + draft.genders.length + draft.sizes.length + draft.brands.length + (draft.sortBy !== 'default' ? 1 : 0);
   }, [draft]);
 
   const hasChanges = useMemo(() => {
@@ -142,7 +118,9 @@ export default function FilterPanel({
     return getMatchCount(draftFilters, draft.sortBy);
   }, [draft, getMatchCount]);
 
-  const sizeOptions = useMemo(() => getSizeOptions(draft.types), [draft.types]);
+  const categoryOptions = useMemo(() => (categories || []).map((c) => ({ id: c, label: c })), [categories]);
+  const genderOptions = useMemo(() => (genders || []).map((g) => ({ id: g, label: GENDER_LABELS[g] || g })), [genders]);
+  const sizeOptions = useMemo(() => sizes || [], [sizes]);
   const brandOptions = useMemo(() => (brands || []).map((b) => ({ id: b, label: b })), [brands]);
 
   const renderCheckboxes = (items, draftKey) =>
@@ -180,26 +158,31 @@ export default function FilterPanel({
         </div>
 
         <div className="filter-panel__body">
+          {categoryOptions.length > 0 && (
           <div className="filter-section">
             <div className="filter-section__label">
-              ТИП ТОВАРА
-              {draft.types.length > 0 && <span className="filter-section__count"> ({draft.types.length})</span>}
+              КАТЕГОРИЯ
+              {draft.categories.length > 0 && <span className="filter-section__count"> ({draft.categories.length})</span>}
             </div>
             <ul className="filter-options filter-options--open">
-              {renderCheckboxes(TYPE_OPTIONS, 'types')}
+              {renderCheckboxes(categoryOptions, 'categories')}
             </ul>
           </div>
+          )}
 
+          {genderOptions.length > 0 && (
           <div className="filter-section">
             <div className="filter-section__label">
               ПОЛ
               {draft.genders.length > 0 && <span className="filter-section__count"> ({draft.genders.length})</span>}
             </div>
             <ul className="filter-options filter-options--open">
-              {renderCheckboxes(GENDER_OPTIONS, 'genders')}
+              {renderCheckboxes(genderOptions, 'genders')}
             </ul>
           </div>
+          )}
 
+          {sizeOptions.length > 0 && (
           <div className="filter-section">
             <div className="filter-section__label">
               РАЗМЕР
@@ -220,6 +203,7 @@ export default function FilterPanel({
               ))}
             </ul>
           </div>
+          )}
 
           {brandOptions.length > 0 && (
             <div className="filter-section">

@@ -1,28 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useProducts } from '../context/ProductsContext';
-import { genders } from '../data/products';
-import { getCategories } from '../utils/categoryStorage';
 import AdminProductForm from './AdminProductForm';
-import AdminCategories from './AdminCategories';
 
-const AUTH_KEY = 'iwak_admin_auth';
-
-const CATEGORY_FILTERS = [
-  { id: '', label: 'Все' },
-  { id: 'shoes', label: 'Обувь' },
-  { id: 'clothing', label: 'Одежда' },
-  { id: 'accessories', label: 'Аксессуары' },
-];
-
-const GENDER_FILTERS = [
-  { id: '', label: 'Все' },
-  { id: 'mens', label: 'М' },
-  { id: 'womens', label: 'Ж' },
-  { id: 'kids', label: 'Дети' },
-];
+const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
 export default function AdminApp() {
-  const { products, addProduct, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, resetToSeed } = useProducts();
+  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, reloadProducts } = useProducts();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
   const [search, setSearch] = useState('');
@@ -34,7 +17,6 @@ export default function AdminApp() {
   const [priceValue, setPriceValue] = useState('');
   const [showBadgePanel, setShowBadgePanel] = useState(false);
   const [bulkBadge, setBulkBadge] = useState({ enabled: true, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left', size: 'm' });
-  const [tab, setTab] = useState('products'); // 'products' | 'categories'
 
   // Inline editing
   const [editingField, setEditingField] = useState(null); // {id, field}
@@ -45,31 +27,20 @@ export default function AdminApp() {
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
-  const [catLabels, setCatLabels] = useState({});
-  useEffect(() => {
-    getCategories().then((cats) => {
-      const map = {};
-      for (const c of cats) map[c.id] = c.label;
-      setCatLabels(map);
-    });
-  }, []);
-  const genderLabels = useMemo(() => {
-    const map = {};
-    for (const g of genders) map[g.id] = g.label;
-    return map;
-  }, []);
+  const GENDER_DISPLAY = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
+
+  // Derive gender filter chips from product data
+  const genderFilterOptions = useMemo(() => {
+    const gs = [...new Set(products.map((p) => p.gender).filter(Boolean))].sort();
+    return [{ id: '', label: 'Все' }, ...gs.map((g) => ({ id: g, label: GENDER_LABELS[g] || g }))];
+  }, [products]);
 
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('iwak_admin_token');
     window.location.reload();
   };
 
-  const handleSave = (data) => {
-    if (editTarget) {
-      updateProduct(editTarget.id, data);
-    } else {
-      addProduct(data);
-    }
+  const handleSave = () => {
     setView('list');
     setEditTarget(null);
   };
@@ -87,8 +58,8 @@ export default function AdminApp() {
   };
 
   const handleReset = () => {
-    if (window.confirm('Сбросить все товары к исходным? Это удалит все изменения.')) {
-      resetToSeed();
+    if (window.confirm('Перезагрузить все товары из базы?')) {
+      reloadProducts();
       setSelected(new Set());
     }
   };
@@ -104,16 +75,7 @@ export default function AdminApp() {
     const val = Number(priceValue);
     if (!val || val <= 0) return;
     const ids = [...selected];
-    if (priceMode === 'discount') {
-      bulkUpdatePrices(ids, (p) => p * (1 - val / 100));
-    } else if (priceMode === 'markup') {
-      bulkUpdatePrices(ids, (p) => p * (1 + val / 100));
-    } else {
-      // Фикс. цена — просто устанавливаем новую цену, убираем originalPrice
-      ids.forEach((id) => {
-        updateProduct(id, { price: val, originalPrice: undefined });
-      });
-    }
+    bulkUpdatePrices(ids, { type: priceMode, value: val });
     setShowPricePanel(false);
     setPriceValue('');
   };
@@ -138,6 +100,7 @@ export default function AdminApp() {
     setShowBadgePanel(false);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleBulkFeatured = (featured) => {
     bulkSetFeatured([...selected], featured);
   };
@@ -242,6 +205,12 @@ export default function AdminApp() {
     });
   }, []);
 
+  // Derive category filter chips from product data
+  const categoryFilterOptions = useMemo(() => {
+    const cats = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+    return [{ id: '', label: 'Все' }, ...cats.map((c) => ({ id: c, label: c }))];
+  }, [products]);
+
   const filtered = useMemo(() => {
     let list = products;
     if (search) {
@@ -251,12 +220,7 @@ export default function AdminApp() {
       );
     }
     if (catFilter) {
-      list = list.filter((p) => {
-        if (catFilter === 'shoes') return p.category === 'shoes';
-        if (catFilter === 'clothing') return !['shoes', 'accessories'].includes(p.category);
-        if (catFilter === 'accessories') return p.category === 'accessories';
-        return true;
-      });
+      list = list.filter((p) => p.category === catFilter);
     }
     if (genderFilter) {
       list = list.filter((p) => p.gender === genderFilter);
@@ -301,17 +265,6 @@ export default function AdminApp() {
         <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
       </div>
 
-      {/* Tabs */}
-      <div className="adm-tabs">
-        <button className={`adm-tab${tab === 'products' ? ' adm-tab--active' : ''}`} onClick={() => setTab('products')}>ТОВАРЫ</button>
-        <button className={`adm-tab${tab === 'categories' ? ' adm-tab--active' : ''}`} onClick={() => setTab('categories')}>КАТЕГОРИИ</button>
-      </div>
-
-      {tab === 'categories' ? (
-        <AdminCategories />
-      ) : (
-      <>
-
       <div className="adm-toolbar">
         <input
           className="adm-input adm-search"
@@ -328,7 +281,7 @@ export default function AdminApp() {
       {/* Category + Gender filter chips */}
       <div className="adm-filters">
         <div className="adm-filter-row">
-          {CATEGORY_FILTERS.map((c) => (
+          {categoryFilterOptions.map((c) => (
             <button
               key={c.id}
               className={`adm-filter-chip${catFilter === c.id ? ' adm-filter-chip--active' : ''}`}
@@ -339,7 +292,7 @@ export default function AdminApp() {
           ))}
         </div>
         <div className="adm-filter-row">
-          {GENDER_FILTERS.map((g) => (
+          {genderFilterOptions.map((g) => (
             <button
               key={g.id}
               className={`adm-filter-chip${genderFilter === g.id ? ' adm-filter-chip--active' : ''}`}
@@ -393,7 +346,7 @@ export default function AdminApp() {
               {renderInlineField(product, 'brand', 'adm-card__brand')}
               {renderInlineField(product, 'name', 'adm-card__name')}
               <span className="adm-card__meta">
-                {catLabels[product.category] || product.category} · {genderLabels[product.gender] || product.gender} · {product.sizes?.join(', ')}
+                {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {product.sizes?.join(', ')}
               </span>
               {editingField?.id === product.id && editingField?.field === 'price' ? (
                 <input
@@ -534,7 +487,7 @@ export default function AdminApp() {
 
       <div className="adm-footer">
         <button className="adm-btn adm-btn--ghost adm-reset-btn" onClick={handleReset}>
-          Сбросить к исходным
+          Перезагрузить товары
         </button>
       </div>
 
@@ -548,8 +501,6 @@ export default function AdminApp() {
             </div>
           </div>
         </div>
-      )}
-      </>
       )}
     </div>
   );

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { products } from '../data/products';
+import { useProducts } from '../context/ProductsContext';
 import ProductCard from './ProductCard';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
 
 const MAX_SUGGESTIONS = 6;
 
 export default function SearchOverlay({ isOpen, onClose }) {
+  const { products } = useProducts();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [closing, setClosing] = useState(false);
