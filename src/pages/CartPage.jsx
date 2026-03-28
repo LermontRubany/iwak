@@ -108,11 +108,11 @@ export default function CartPage() {
   return (
     <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
     <div className="cart-page">
-      {isSharedCart && (
-        <div className="cart-shared-banner">Чужая корзина</div>
-      )}
       <div className="cart-header-row">
         <h2 className="cart-title">КОРЗИНА</h2>
+        {isSharedCart && (
+          <span className="cart-shared-chip">Мой выбор{enrichedItems.length > 0 ? ` · ${enrichedItems.length}` : ''}</span>
+        )}
         <button
           className={`cart-share-btn ${copied ? 'cart-share-btn--copied' : ''}`}
           onClick={handleShare}
@@ -225,13 +225,15 @@ export default function CartPage() {
           onClick={() => {
             const param = enrichedItems.map((i) => `${i.id}:${i.size}`).join(',');
             const cartUrl = `${window.location.origin}/cart?items=${param}`;
-            const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.name} (${item.size})`);
+            const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.brand} ${item.name} — ${item.size}`);
             const text = [
               'Здравствуйте!',
               '',
               'Хочу заказать:',
               '',
               ...lines,
+              '',
+              `Итого: ₽${totalPrice.toLocaleString('ru-RU')}`,
               '',
               'Корзина:',
               cartUrl,

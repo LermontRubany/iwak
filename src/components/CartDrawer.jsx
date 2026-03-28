@@ -87,13 +87,16 @@ export default function CartDrawer({ isOpen, onClose }) {
   const handleCheckout = () => {
     const param = enrichedItems.map((i) => `${i.id}:${i.size}`).join(',');
     const cartUrl = `${window.location.origin}/cart?items=${param}`;
-    const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.name} (${item.size})`);
+    const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.brand} ${item.name} — ${item.size}`);
+    const total = enrichedItems.reduce((acc, i) => acc + i.price * i.qty, 0);
     const text = [
       'Здравствуйте!',
       '',
       'Хочу заказать:',
       '',
       ...lines,
+      '',
+      `Итого: ₽${total.toLocaleString('ru-RU')}`,
       '',
       'Корзина:',
       cartUrl,

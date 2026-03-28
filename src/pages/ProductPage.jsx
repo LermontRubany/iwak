@@ -29,10 +29,6 @@ export default function ProductPage() {
   const [closing, setClosing] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Zoom state (desktop only)
-  const [zoomed, setZoomed] = useState(false);
-  const [origin, setOrigin] = useState('50% 50%');
-
   // Gallery scroll-snap ref
   const galleryRef = useRef(null);
 
@@ -219,13 +215,6 @@ export default function ProductPage() {
     galleryRef.current?.scrollTo({ left: index * galleryRef.current.clientWidth, behavior: 'instant' });
   };
 
-  const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setOrigin(`${x}% ${y}%`);
-  };
-
   return (
     <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
     <div className="product-page">
@@ -285,15 +274,11 @@ export default function ProductPage() {
             <div
               key={i}
               className="pp-gallery-slide"
-              onMouseEnter={() => setZoomed(true)}
-              onMouseLeave={() => setZoomed(false)}
-              onMouseMove={handleMouseMove}
             >
               <img
                 src={img}
                 alt={`${product.name} ${i + 1}`}
-                className={`pp-main-img ${zoomed && currentImage === i ? 'pp-main-img--zoomed' : ''}`}
-                style={zoomed && currentImage === i ? { transformOrigin: origin } : undefined}
+                className="pp-main-img"
                 draggable={false}
                 loading={i === 0 ? 'eager' : 'lazy'}
                 decoding="async"
@@ -438,7 +423,9 @@ export default function ProductPage() {
               '',
               'Хочу заказать:',
               '',
-              `${product.name} (${selectedSize})`,
+              `${product.brand} ${product.name} — ${selectedSize}`,
+              '',
+              `Итого: ₽${product.price.toLocaleString('ru-RU')}`,
               '',
               productUrl,
             ].join('\n');
@@ -461,30 +448,10 @@ export default function ProductPage() {
       {/* Sticky mobile CTA */}
       <div className={`pp-sticky-cta ${showSticky ? 'pp-sticky-cta--visible' : ''}`}>
         <button
-          className={selectedSize ? 'btn-buy-now' : 'btn-add-to-cart'}
-          onClick={() => {
-            if (!selectedSize) {
-              setSizeShake(true);
-              setTimeout(() => setSizeShake(false), 600);
-              return;
-            }
-            const productUrl = `${window.location.origin}/product/${makeProductSlug(product)}`;
-            const text = [
-              'Здравствуйте!',
-              '',
-              'Хочу заказать:',
-              '',
-              `${product.name} (${selectedSize})`,
-              '',
-              productUrl,
-            ].join('\n');
-            window.open(`https://t.me/IWAKm?text=${encodeURIComponent(text)}`, '_blank');
-          }}
+          className={`btn-add-to-cart ${added ? 'btn-add-to-cart--added' : ''}`}
+          onClick={handleAddToCart}
         >
-          {selectedSize ? `КУПИТЬ — ₽${product.price.toLocaleString('ru-RU')}` : 'ВЫБЕРИТЕ РАЗМЕР'}
-          {selectedSize && product.originalPrice && product.originalPrice > product.price && (
-            <span className="pp-sticky__old-price">₽{product.originalPrice.toLocaleString('ru-RU')}</span>
-          )}
+          {added ? '✓ ДОБАВЛЕНО' : selectedSize ? `ДОБАВИТЬ В КОРЗИНУ — ₽${product.price.toLocaleString('ru-RU')}` : 'ДОБАВИТЬ В КОРЗИНУ'}
         </button>
       </div>
     </div>
