@@ -18,6 +18,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -41,8 +42,11 @@ const BCRYPT_ROUNDS = 10;
 
 // ── PostgreSQL ──────────────────────────────
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,  max: 10,
 });
+
+pool.on('error', (err) => {
+  logger.error({ err }, 'Unexpected PostgreSQL pool error');});
 
 // ── snake_case ↔ camelCase маппинг ──────────
 // БД хранит snake_case (original_price, color_hex),
@@ -79,7 +83,7 @@ function bodyToSnake(data) {
 
 // ── Middleware ───────────────────────────────
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
+app.use(compression());
 app.use(helmet({
   contentSecurityPolicy: IS_PRODUCTION ? undefined : false,
   crossOriginEmbedderPolicy: false,
