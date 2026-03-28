@@ -28,6 +28,7 @@ export default function ProductPage() {
   const [sizeShake, setSizeShake] = useState(false);
   const [closing, setClosing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
 
   // Gallery scroll-snap ref
   const galleryRef = useRef(null);
@@ -52,6 +53,7 @@ export default function ProductPage() {
     setCurrentImage(0);
     setSelectedSize(null);
     setAdded(false);
+    setLightboxIdx(null);
     galleryRef.current?.scrollTo({ left: 0 });
   }, [slug]);
 
@@ -274,6 +276,7 @@ export default function ProductPage() {
             <div
               key={i}
               className="pp-gallery-slide"
+              onClick={() => setLightboxIdx(i)}
             >
               <img
                 src={img}
@@ -455,6 +458,19 @@ export default function ProductPage() {
         </button>
       </div>
     </div>
+
+    {/* Fullscreen lightbox */}
+    {lightboxIdx !== null && (
+      <div className="pp-lightbox" onClick={() => setLightboxIdx(null)}>
+        <button className="pp-lightbox__close" onClick={() => setLightboxIdx(null)} aria-label="Закрыть">✕</button>
+        <img
+          src={allImages[lightboxIdx]}
+          alt={product.name}
+          className="pp-lightbox__img"
+          draggable={false}
+        />
+      </div>
+    )}
     </div>
   );
 }
