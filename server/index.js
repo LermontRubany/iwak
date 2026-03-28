@@ -520,6 +520,81 @@ app.get('/api/filters', async (_req, res) => {
 });
 
 // ════════════════════════════════════════════
+// OG IMAGE GENERATION (1200×630)
+// ════════════════════════════════════════════
+
+const ogCacheDir = path.join(__dirname, '../uploads/og');
+if (!fs.existsSync(ogCacheDir)) fs.mkdirSync(ogCacheDir, { recursive: true });
+
+app.get('/og-image/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || id <= 0) return res.status(400).end();
+
+  // Serve cached version if exists
+  const cachePath = path.join(ogCacheDir, `${id}.jpg`);
+  if (fs.existsSync(cachePath)) {
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(cachePath);
+  }
+
+  try {
+    const result = await pool.query('SELECT image FROM products WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).end();
+
+    const imgRelPath = result.rows[0].image;
+    const imgPath = imgRelPath ? path.join(__dirname, '..', imgRelPath) : null;
+
+    const OG_W = 1200;
+    const OG_H = 630;
+
+    // White canvas
+    const canvas = sharp({ create: { width: OG_W, height: OG_H, channels: 3, background: '#ffffff' } });
+
+    if (imgPath && fs.existsSync(imgPath)) {
+      // Resize product image to fit inside canvas with padding
+      const productImg = await sharp(imgPath)
+        .resize(OG_H - 60, OG_H - 60, { fit: 'inside', withoutEnlargement: false })
+        .toBuffer();
+
+      const meta = await sharp(productImg).metadata();
+      const left = Math.round((OG_W - meta.width) / 2);
+      const top = Math.round((OG_H - meta.height) / 2);
+
+      const buf = await canvas
+        .composite([{ input: productImg, left, top }])
+        .jpeg({ quality: 85 })
+        .toBuffer();
+
+      fs.writeFileSync(cachePath, buf);
+      res.set('Content-Type', 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(buf);
+    }
+
+    // No source image — white placeholder with text via SVG overlay
+    const svgText = `<svg width="${OG_W}" height="${OG_H}">
+      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+        font-family="Helvetica, Arial, sans-serif" font-size="48" font-weight="700"
+        letter-spacing="12" fill="#ccc">IWAK</text>
+    </svg>`;
+
+    const buf = await canvas
+      .composite([{ input: Buffer.from(svgText), left: 0, top: 0 }])
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    fs.writeFileSync(cachePath, buf);
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch (err) {
+    console.error('OG image generation error:', err);
+    res.status(500).end();
+  }
+});
+
+// ════════════════════════════════════════════
 // STATIC (production) + OG prerender for bots
 // ════════════════════════════════════════════
 
@@ -575,9 +650,7 @@ app.get('/product/:slug', async (req, res, next) => {
     if (result.rows.length === 0) return next();
 
     const p = result.rows[0];
-    const imgUrl = p.image
-      ? (p.image.startsWith('http') ? p.image : `${SITE_ORIGIN}${p.image}`)
-      : `${SITE_ORIGIN}/og-main.jpg`;
+    const imgUrl = `${SITE_ORIGIN}/og-image/${match[1]}`;
 
     res.send(buildOgHtml({
       title: `${p.brand ? p.brand + ' ' : ''}${p.name} — IWAK`,
