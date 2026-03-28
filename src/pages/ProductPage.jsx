@@ -26,7 +26,6 @@ export default function ProductPage() {
   const [currentImage, setCurrentImage] = useState(0);
   const [added, setAdded] = useState(false);
   const [sizeShake, setSizeShake] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(null);
 
@@ -119,16 +118,12 @@ export default function ProductPage() {
   }, [product]);
 
   const handleBack = useCallback(() => {
-    if (closing) return;
-    setClosing(true);
-    setTimeout(() => {
-      if (window.history.length > 1) {
-        navigate(-1);
-      } else {
-        navigate('/catalog', { replace: true });
-      }
-    }, 300);
-  }, [navigate, closing]);
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/catalog', { replace: true });
+    }
+  }, [navigate]);
 
   // Swipe-back gesture (left-to-right)
   const onTouchStart = useCallback((e) => {
@@ -218,7 +213,7 @@ export default function ProductPage() {
   };
 
   return (
-    <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
+    <div className="overlay overlay--open">
     <div className="product-page">
       <div
         className="product-page__gallery"

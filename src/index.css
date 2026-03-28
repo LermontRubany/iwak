@@ -1621,22 +1621,15 @@ img {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  transform: translateY(100%);
-  opacity: 0;
-  transition:
-    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.25s ease;
-  will-change: transform;
+  display: none;
 }
 
 .overlay--open {
-  transform: translateY(0);
-  opacity: 1;
+  display: block;
 }
 
 .overlay--closing {
-  transform: translateY(100%);
-  opacity: 0;
+  display: none;
 }
 
 /* =============================================
