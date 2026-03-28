@@ -2142,39 +2142,36 @@ img {
   opacity: 0.45;
 }
 
-/* Кнопка шаринга (unified) */
+/* Кнопка шаринга (pill, text-only) */
 .share-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
+  display: inline-block;
+  background: transparent;
+  border: 1px solid #e5e5e5;
+  border-radius: 999px;
   cursor: pointer;
-  color: #666;
+  color: #333;
   font-size: 13px;
+  font-weight: 400;
   font-family: inherit;
   letter-spacing: 0.04em;
-  padding: 0;
+  padding: 6px 12px;
   min-height: 44px;
   touch-action: manipulation;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: border-color 0.2s ease;
 }
 
 .share-btn:hover {
-  color: #111;
+  border-color: #d0d0d0;
+}
+
+.share-btn:active {
+  background: #f7f7f7;
 }
 
 .share-btn--copied {
   color: #111;
-}
-
-.share-btn__icon {
-  opacity: 0.7;
-}
-
-.share-btn:hover .share-btn__icon {
-  opacity: 1;
 }
 
 .product-page__name {
