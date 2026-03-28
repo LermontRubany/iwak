@@ -1402,20 +1402,6 @@ img {
   opacity: 0.85;
 }
 
-.toolbar-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  color: #111;
-  font-size: 9px;
-  font-weight: 700;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  line-height: 1;
-}
-
 /* ─── FILTER CHIPS ─── */
 .filter-chips {
   display: flex;

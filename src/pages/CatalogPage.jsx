@@ -208,8 +208,7 @@ export default function CatalogPage() {
 
       <div className="catalog-toolbar">
         <button className={`toolbar-btn${activeCount > 0 ? ' toolbar-btn--active' : ''}`} onClick={() => setFilterOpen(true)}>
-          ФИЛЬТР &amp; СОРТИРОВКА
-          {activeCount > 0 && <span className="toolbar-count">{activeCount}</span>}
+          {activeCount > 0 ? `ПОДОБРАТЬ ТОВАРЫ (${activeCount})` : 'ПОДОБРАТЬ ТОВАРЫ +'}
         </button>
       </div>
 
