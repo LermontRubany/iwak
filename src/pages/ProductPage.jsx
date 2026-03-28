@@ -37,10 +37,6 @@ export default function ProductPage() {
   const touchStartY = useRef(0);
   const swiping = useRef(false);
 
-  // Sticky CTA visibility
-  const mainCtaRef = useRef(null);
-  const [showSticky, setShowSticky] = useState(false);
-
   // Находим товар по id, закодированному в slug (slug = name-id)
   const productId = idFromSlug(slug);
   const product = productId != null
@@ -103,18 +99,6 @@ export default function ProductPage() {
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
-  }, [product]);
-
-  // IntersectionObserver: show sticky only when main CTA is out of view
-  useEffect(() => {
-    const el = mainCtaRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowSticky(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
   }, [product]);
 
   const handleBack = useCallback(() => {
@@ -400,7 +384,6 @@ export default function ProductPage() {
         </div>
 
         <button
-          ref={mainCtaRef}
           className={`btn-add-to-cart ${added ? 'btn-add-to-cart--added' : ''}`}
           onClick={handleAddToCart}
         >
@@ -441,16 +424,6 @@ export default function ProductPage() {
              product.gender === 'kids' ? 'Детское' : 'Унисекс'}
           </strong></p>
         </div>
-      </div>
-
-      {/* Sticky mobile CTA */}
-      <div className={`pp-sticky-cta ${showSticky ? 'pp-sticky-cta--visible' : ''}`}>
-        <button
-          className={`btn-add-to-cart ${added ? 'btn-add-to-cart--added' : ''}`}
-          onClick={handleAddToCart}
-        >
-          {added ? '✓ ДОБАВЛЕНО' : selectedSize ? `ДОБАВИТЬ В КОРЗИНУ — ₽${product.price.toLocaleString('ru-RU')}` : 'ДОБАВИТЬ В КОРЗИНУ'}
-        </button>
       </div>
     </div>
 
