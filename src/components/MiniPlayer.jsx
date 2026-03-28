@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const TRACKS = [
   { src: '/audio/BATO - OD Member prod. Khanafi.mp3', label: 'Chill' },
@@ -13,13 +13,14 @@ export default function MiniPlayer() {
   const audioRef = useRef(null);
   const rafRef = useRef(null);
 
-  const updateProgress = useCallback(() => {
+  const updateProgressRef = useRef(null);
+  updateProgressRef.current = () => {
     const audio = audioRef.current;
     if (audio && audio.duration) {
       setProgress(audio.currentTime / audio.duration);
     }
-    rafRef.current = requestAnimationFrame(updateProgress);
-  }, []);
+    rafRef.current = requestAnimationFrame(updateProgressRef.current);
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -65,7 +66,7 @@ export default function MiniPlayer() {
     } else {
       audio.play().then(() => {
         setIsPlaying(true);
-        rafRef.current = requestAnimationFrame(updateProgress);
+        rafRef.current = requestAnimationFrame(updateProgressRef.current);
       }).catch(() => {});
     }
   };

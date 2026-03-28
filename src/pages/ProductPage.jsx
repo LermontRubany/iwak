@@ -20,27 +20,7 @@ export default function ProductPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { products } = useProducts();
-
-
-  // Находим товар по id, закодированному в slug (slug = name-id)
-  const productId = idFromSlug(slug);
-  const product = productId != null
-    ? products.find((p) => String(p.id) === String(productId))
-    : undefined;
-
-  if (!product) {
-    return (
-      <div className="overlay overlay--open">
-        <div className="product-page" style={{ textAlign: 'center', paddingTop: 120 }}>
-          <p style={{ fontSize: 14, color: '#999', letterSpacing: '0.05em' }}>Товар не найден</p>
-          <button className="btn-primary" style={{ marginTop: 24 }} onClick={() => navigate('/catalog', { replace: true })}>
-            ВЕРНУТЬСЯ В КАТАЛОГ
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const { products, loading } = useProducts();
 
   const [selectedSize, setSelectedSize] = useState(null);
   const [currentImage, setCurrentImage] = useState(0);
@@ -65,6 +45,12 @@ export default function ProductPage() {
   const mainCtaRef = useRef(null);
   const [showSticky, setShowSticky] = useState(false);
 
+  // Находим товар по id, закодированному в slug (slug = name-id)
+  const productId = idFromSlug(slug);
+  const product = productId != null
+    ? products.find((p) => String(p.id) === String(productId))
+    : undefined;
+
   // Reset on product change
   useEffect(() => {
     setCurrentImage(0);
@@ -72,20 +58,6 @@ export default function ProductPage() {
     setAdded(false);
     galleryRef.current?.scrollTo({ left: 0 });
   }, [slug]);
-
-  // Товар не найден — возврат на каталог
-  if (!product) {
-    return (
-      <div className="overlay overlay--open">
-        <div className="product-page" style={{ textAlign: 'center', paddingTop: 120 }}>
-          <p style={{ fontSize: 14, color: '#999', letterSpacing: '0.05em' }}>Товар не найден</p>
-          <button className="btn-primary" style={{ marginTop: 24 }} onClick={() => navigate('/catalog', { replace: true })}>
-            ВЕРНУТЬСЯ В КАТАЛОГ
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // OG meta tags — обновляем при каждом открытии товара
   useEffect(() => {
@@ -147,30 +119,6 @@ export default function ProductPage() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [product]);
-
-  if (!product) {
-    return (
-      <div className="not-found">
-        <p>Товар не найден</p>
-        <button onClick={() => navigate('/catalog', { replace: true })} className="btn-primary">
-          В каталог
-        </button>
-      </div>
-    );
-  }
-
-  const allImages = product.images?.length > 0 ? product.images : [product.image];
-
-  const goToSlide = (index) => {
-    galleryRef.current?.scrollTo({ left: index * galleryRef.current.clientWidth, behavior: 'instant' });
-  };
-
-  const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setOrigin(`${x}% ${y}%`);
-  };
 
   const handleBack = useCallback(() => {
     if (closing) return;
@@ -239,6 +187,44 @@ export default function ProductPage() {
         });
     }
   }, [product]);
+
+  // Загрузка
+  if (loading) {
+    return (
+      <div className="overlay overlay--open">
+        <div className="product-page" style={{ textAlign: 'center', paddingTop: 120 }}>
+          <p style={{ fontSize: 14, color: '#999', letterSpacing: '0.05em' }}>Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Товар не найден — возврат на каталог
+  if (!product) {
+    return (
+      <div className="overlay overlay--open">
+        <div className="product-page" style={{ textAlign: 'center', paddingTop: 120 }}>
+          <p style={{ fontSize: 14, color: '#999', letterSpacing: '0.05em' }}>Товар не найден</p>
+          <button className="btn-primary" style={{ marginTop: 24 }} onClick={() => navigate('/catalog', { replace: true })}>
+            ВЕРНУТЬСЯ В КАТАЛОГ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const allImages = product.images?.length > 0 ? product.images : [product.image];
+
+  const goToSlide = (index) => {
+    galleryRef.current?.scrollTo({ left: index * galleryRef.current.clientWidth, behavior: 'instant' });
+  };
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setOrigin(`${x}% ${y}%`);
+  };
 
   return (
     <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>

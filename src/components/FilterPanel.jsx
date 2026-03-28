@@ -43,6 +43,7 @@ export default function FilterPanel({
 
   useEffect(() => {
     if (isOpen) {
+      setDraft({ ...filters, sortBy });
       lockScroll();
     } else {
       unlockScroll();
@@ -123,17 +124,16 @@ export default function FilterPanel({
   const sizeOptions = useMemo(() => sizes || [], [sizes]);
   const brandOptions = useMemo(() => (brands || []).map((b) => ({ id: b, label: b })), [brands]);
 
-  const renderCheckboxes = (items, draftKey) =>
+  const renderChips = (items, draftKey) =>
     items.map((item) => (
       <li key={item.id}>
-        <label className="filter-option">
-          <input
-            type="checkbox"
-            checked={draft[draftKey].includes(item.id)}
-            onChange={() => toggleDraft(draftKey, item.id)}
-          />
-          <span>{item.label}</span>
-        </label>
+        <button
+          type="button"
+          className={`filter-chip-btn${draft[draftKey].includes(item.id) ? ' filter-chip-btn--selected' : ''}`}
+          onClick={() => toggleDraft(draftKey, item.id)}
+        >
+          {item.label}
+        </button>
       </li>
     ));
 
@@ -164,8 +164,8 @@ export default function FilterPanel({
               КАТЕГОРИЯ
               {draft.categories.length > 0 && <span className="filter-section__count"> ({draft.categories.length})</span>}
             </div>
-            <ul className="filter-options filter-options--open">
-              {renderCheckboxes(categoryOptions, 'categories')}
+            <ul className="filter-options">
+              {renderChips(categoryOptions, 'categories')}
             </ul>
           </div>
           )}
@@ -176,8 +176,8 @@ export default function FilterPanel({
               ПОЛ
               {draft.genders.length > 0 && <span className="filter-section__count"> ({draft.genders.length})</span>}
             </div>
-            <ul className="filter-options filter-options--open">
-              {renderCheckboxes(genderOptions, 'genders')}
+            <ul className="filter-options">
+              {renderChips(genderOptions, 'genders')}
             </ul>
           </div>
           )}
@@ -188,17 +188,16 @@ export default function FilterPanel({
               РАЗМЕР
               {draft.sizes.length > 0 && <span className="filter-section__count"> ({draft.sizes.length})</span>}
             </div>
-            <ul className="filter-options filter-options--open">
+            <ul className="filter-options filter-options--sizes">
               {sizeOptions.map((s) => (
                 <li key={s}>
-                  <label className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={draft.sizes.includes(s)}
-                      onChange={() => toggleDraft('sizes', s)}
-                    />
-                    <span>{s}</span>
-                  </label>
+                  <button
+                    type="button"
+                    className={`filter-size-btn${draft.sizes.includes(s) ? ' filter-size-btn--selected' : ''}`}
+                    onClick={() => toggleDraft('sizes', s)}
+                  >
+                    {s}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -211,8 +210,8 @@ export default function FilterPanel({
                 БРЕНД
                 {draft.brands.length > 0 && <span className="filter-section__count"> ({draft.brands.length})</span>}
               </div>
-              <ul className="filter-options filter-options--open">
-                {renderCheckboxes(brandOptions, 'brands')}
+              <ul className="filter-options">
+                {renderChips(brandOptions, 'brands')}
               </ul>
             </div>
           )}
@@ -222,18 +221,16 @@ export default function FilterPanel({
               СОРТИРОВКА
               {draft.sortBy !== 'default' && <span className="filter-section__count"> (1)</span>}
             </div>
-            <ul className="filter-options filter-options--open">
+            <ul className="filter-options">
               {sortOptions.map((s) => (
                 <li key={s.id}>
-                  <label className="filter-option">
-                    <input
-                      type="radio"
-                      name="sort"
-                      checked={draft.sortBy === s.id}
-                      onChange={() => setDraftSort(s.id)}
-                    />
-                    <span>{s.label}</span>
-                  </label>
+                  <button
+                    type="button"
+                    className={`filter-sort-btn${draft.sortBy === s.id ? ' filter-sort-btn--selected' : ''}`}
+                    onClick={() => setDraftSort(s.id)}
+                  >
+                    {s.label}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -242,17 +239,17 @@ export default function FilterPanel({
 
         <div className="filter-panel__footer">
           <button
+            className={`filter-btn-apply ${hasChanges ? '' : 'filter-btn-apply--inactive'}`}
+            onClick={handleApply}
+          >
+            {matchCount != null ? `ПОКАЗАТЬ ТОВАРЫ (${matchCount})` : 'ПРИМЕНИТЬ'}
+          </button>
+          <button
             className="filter-btn-clear"
             onClick={handleClear}
             disabled={totalSelected === 0}
           >
             СБРОСИТЬ
-          </button>
-          <button
-            className={`filter-btn-apply ${hasChanges ? '' : 'filter-btn-apply--inactive'}`}
-            onClick={handleApply}
-          >
-            {matchCount != null ? `ПОКАЗАТЬ ТОВАРЫ (${matchCount})` : 'ПРИМЕНИТЬ'}
           </button>
         </div>
       </aside>

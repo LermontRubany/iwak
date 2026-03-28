@@ -24,7 +24,6 @@ export default function CartPage() {
   const { closing, handleClose } = useHandleClose();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
   // Обогащаем элементы корзины актуальными ценами из products

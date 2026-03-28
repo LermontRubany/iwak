@@ -520,10 +520,77 @@ app.get('/api/filters', async (_req, res) => {
 });
 
 // ════════════════════════════════════════════
-// STATIC (production)
+// STATIC (production) + OG prerender for bots
 // ════════════════════════════════════════════
 
 const distPath = path.join(__dirname, '../dist');
+
+// Bot user-agent detection for OG/SEO prerender
+const BOT_UA = /facebookexternalhit|twitterbot|telegrambot|whatsapp|slackbot|linkedinbot|discordbot|pinterestbot|vkshare|snapchat|googlebot|bingbot|yandex/i;
+
+const SITE_ORIGIN = process.env.SITE_ORIGIN || 'https://iwak.ru';
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function buildOgHtml({ title, description, image, url }) {
+  const t = escapeHtml(title);
+  const d = escapeHtml(description);
+  const img = escapeHtml(image);
+  const u = escapeHtml(url);
+  return `<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="UTF-8">
+<title>${t}</title>
+<meta property="og:site_name" content="IWAK">
+<meta property="og:type" content="product">
+<meta property="og:title" content="${t}">
+<meta property="og:description" content="${d}">
+<meta property="og:image" content="${img}">
+<meta property="og:url" content="${u}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${t}">
+<meta name="twitter:description" content="${d}">
+<meta name="twitter:image" content="${img}">
+</head><body></body></html>`;
+}
+
+// Product page OG prerender — must be before static catch-all
+app.get('/product/:slug', async (req, res, next) => {
+  const ua = req.headers['user-agent'] || '';
+  if (!BOT_UA.test(ua)) return next();
+
+  // Extract product ID from slug: "some-name-123" → 123
+  const slug = req.params.slug;
+  const match = slug.match(/-(\d+)$/);
+  if (!match) return next();
+
+  try {
+    const result = await pool.query('SELECT name, brand, price, image FROM products WHERE id = $1', [match[1]]);
+    if (result.rows.length === 0) return next();
+
+    const p = result.rows[0];
+    const imgUrl = p.image
+      ? (p.image.startsWith('http') ? p.image : `${SITE_ORIGIN}${p.image}`)
+      : `${SITE_ORIGIN}/og-main.jpg`;
+
+    res.send(buildOgHtml({
+      title: `${p.brand ? p.brand + ' ' : ''}${p.name} — IWAK`,
+      description: `${p.name} — купить в IWAK за ${p.price} ₽`,
+      image: imgUrl,
+      url: `${SITE_ORIGIN}/product/${slug}`,
+    }));
+  } catch (err) {
+    console.error('OG prerender error:', err);
+    next();
+  }
+});
+
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
   app.get('*', (_req, res) => {

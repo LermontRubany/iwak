@@ -5,6 +5,18 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus,
+button:active,
+button:focus-visible,
+input:focus,
+input:focus-visible,
+select:focus,
+a:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 html {
@@ -643,7 +655,6 @@ img {
   align-items: center;
   justify-content: space-between;
   padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 20px;
-  border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
 }
 
@@ -920,13 +931,12 @@ img {
 .cart-drawer__footer {
   padding: 20px;
   padding-bottom: max(20px, calc(12px + env(safe-area-inset-bottom)));
-  border-top: 1px solid #f0f0f0;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
   background: #fff;
-  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
 }
 
 .cart-drawer__total-row {
@@ -1138,8 +1148,8 @@ img {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0;
-  background: #fff;
+  gap: 1px;
+  background: #f0f0f0;
 }
 
 .product-grid:has(.empty-state) {
@@ -1162,8 +1172,6 @@ img {
   display: block;
   cursor: pointer;
   background: #fff;
-  border-right: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
 }
@@ -1380,11 +1388,15 @@ img {
   text-transform: uppercase;
   font-weight: 400;
   color: #111;
-  transition: opacity 0.35s ease;
+  transition: opacity 0.25s ease, transform 0.15s ease;
 }
 
 .toolbar-btn:hover {
   opacity: 0.6;
+}
+
+.toolbar-btn:active {
+  transform: scale(0.96);
 }
 
 .toolbar-plus {
@@ -1421,12 +1433,16 @@ img {
   cursor: pointer;
   background: #fff;
   color: #111;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s ease;
 }
 
 .filter-chip:hover {
   background: #f5f5f5;
   border-color: #999;
+}
+
+.filter-chip:active {
+  transform: scale(0.95);
 }
 
 .filter-chip__x {
@@ -1654,17 +1670,17 @@ img {
 .filter-panel {
   position: fixed;
   top: 0;
-  left: 0;
+  right: 0;
   bottom: 0;
-  width: 100vw;
-  max-width: 380px;
+  width: 100%;
+  max-width: 420px;
   background: #fff;
   z-index: 800;
   display: flex;
   flex-direction: column;
-  transform: translateX(-100%);
+  transform: translateX(100%);
   will-change: transform;
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .filter-panel--open {
@@ -1675,25 +1691,27 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(72px + env(safe-area-inset-top, 0px)) 20px 18px;
-  border-bottom: 1px solid #e8e8e8;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px 20px;
 }
 
 .filter-panel__title {
-  font-size: 10px;
-  letter-spacing: 0.15em;
+  font-size: 13px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 .filter-close {
-  opacity: 0.5;
-  transition: opacity 0.35s ease;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  transition: opacity 0.25s ease;
 }
 
 .filter-close:hover {
-  opacity: 1;
+  opacity: 0.4;
 }
 
 .filter-panel__body {
@@ -1701,127 +1719,151 @@ img {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding-top: 12px;
+  padding: 8px 0;
 }
 
 .filter-section {
-  border-bottom: 1px solid #e8e8e8;
+  padding: 16px 24px 20px;
 }
 
 .filter-section__label {
   display: flex;
   align-items: center;
-  padding: 16px 20px 0;
   font-size: 10px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   font-weight: 400;
+  color: #888;
+  margin-bottom: 12px;
 }
 
 .filter-section__count {
   font-weight: 400;
-  opacity: 0.5;
+  margin-left: 4px;
 }
 
 .filter-options {
   list-style: none;
-  padding: 4px 20px 12px;
+  padding: 0;
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.filter-options--open {
-  /* always visible — no accordion */
+.filter-options--sizes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 8px;
 }
 
-.filter-option {
+/* ── Filter chip button (replaces checkboxes) ── */
+.filter-chip-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 0;
-  cursor: pointer;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #111;
   font-size: 12px;
-  letter-spacing: 0.05em;
-  transition: opacity 0.2s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.filter-option:hover {
-  opacity: 0.6;
-}
-
-.filter-option:active {
-  opacity: 0.4;
-}
-
-.filter-option input[type=checkbox],
-.filter-option input[type=radio] {
-  width: 16px;
-  height: 16px;
-  accent-color: #111;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
 }
 
-.filter-option input[type=checkbox]:checked,
-.filter-option input[type=radio]:checked {
-  animation: checkPop 0.25s ease;
+.filter-chip-btn:active {
+  transform: scale(0.95);
 }
 
-@keyframes checkPop {
-  0%   { transform: scale(0.85); }
-  50%  { transform: scale(1.1); }
-  100% { transform: scale(1); }
+.filter-chip-btn--selected {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 
-.filter-option--color {
-  gap: 12px;
+.filter-chip-btn--selected:hover {
+  background: #222;
 }
 
-.color-swatch {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  flex-shrink: 0;
+/* ── Size chip (square) ── */
+.filter-size-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 4px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #111;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.filter-size-btn:active {
+  transform: scale(0.95);
+}
+
+.filter-size-btn--selected {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.filter-size-btn--selected:hover {
+  background: #222;
+}
+
+/* ── Sort radio chip ── */
+.filter-sort-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #111;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.filter-sort-btn:active {
+  transform: scale(0.95);
+}
+
+.filter-sort-btn--selected {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 
 .filter-panel__footer {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-top: 1px solid #e8e8e8;
-  position: sticky;
-  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 16px 24px;
+  padding-bottom: max(16px, calc(12px + env(safe-area-inset-bottom)));
   background: #fff;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.filter-btn-clear {
-  padding: 18px;
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  border-right: 1px solid #e8e8e8;
-  transition: background 0.35s ease, opacity 0.35s ease;
-  text-align: center;
-}
-
-.filter-btn-clear:hover:not(:disabled) {
-  background: #f5f5f5;
-}
-
-.filter-btn-clear:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
 .filter-btn-apply {
-  padding: 18px;
-  font-size: 10px;
+  width: 100%;
+  padding: 16px;
+  font-size: 11px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   background: #111;
   color: #fff;
-  transition: background 0.4s ease, opacity 0.35s ease, transform 0.15s ease;
+  transition: background 0.3s ease, transform 0.15s ease;
   text-align: center;
 }
 
@@ -1836,6 +1878,26 @@ img {
 .filter-btn-apply--inactive {
   opacity: 0.35;
   pointer-events: none;
+}
+
+.filter-btn-clear {
+  padding: 12px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #999;
+  transition: color 0.25s ease;
+  text-align: center;
+  align-self: center;
+}
+
+.filter-btn-clear:hover:not(:disabled) {
+  color: #111;
+}
+
+.filter-btn-clear:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
 }
 
 /* =============================================
