@@ -109,10 +109,12 @@ export default function CartPage() {
     <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
     <div className="cart-page">
       <div className="cart-header-row">
-        <h2 className="cart-title">КОРЗИНА</h2>
-        {isSharedCart && (
-          <span className="cart-shared-chip">Мой выбор{enrichedItems.length > 0 ? ` · ${enrichedItems.length}` : ''}</span>
-        )}
+        <div className="cart-header-left">
+          <h2 className="cart-title">КОРЗИНА</h2>
+          {isSharedCart && (
+            <span className="cart-shared-chip">Мой выбор{enrichedItems.length > 0 ? ` · ${enrichedItems.length}` : ''}</span>
+          )}
+        </div>
         <button
           className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
           onClick={handleShare}

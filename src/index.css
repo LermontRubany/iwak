@@ -2403,12 +2403,8 @@ img {
 }
 
 .cart-shared-chip {
-  background: #f5f5f5;
-  color: #111;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  font-size: 13px;
+  color: #999;
   white-space: nowrap;
 }
 
@@ -2440,7 +2436,14 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   margin-bottom: 32px;
+}
+
+.cart-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Кликабельные элементы корзины */
