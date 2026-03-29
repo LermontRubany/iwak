@@ -25,6 +25,13 @@
   overflow-x: hidden;
 }
 
+/* iOS auto-zoom prevention: inputs must be ≥16px */
+@media screen and (max-width: 767px) {
+  .adm-root input,
+  .adm-root textarea,
+  .adm-root select { font-size: 16px !important; }
+}
+
 /* ─── HEADER ─── */
 .adm-header {
   position: sticky;
