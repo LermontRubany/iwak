@@ -1913,7 +1913,7 @@ img {
   width: 30%;
   height: 100%;
   z-index: 5;
-  cursor: pointer;
+  pointer-events: none;
   -webkit-tap-highlight-color: transparent;
 }
 

@@ -123,8 +123,8 @@ export default function ProductPage() {
     const t = e.touches[0];
     const dx = t.clientX - touchStartX.current;
     const dy = Math.abs(t.clientY - touchStartY.current);
-    // Only trigger if horizontal movement dominates and started from left 40%
-    if (dx > 60 && dy < 40 && touchStartX.current < window.innerWidth * 0.4) {
+    // Only trigger if horizontal swipe from left 12% edge zone
+    if (dx > 60 && dy < 40 && touchStartX.current < window.innerWidth * 0.12) {
       swiping.current = true;
       handleBack();
     }
@@ -203,8 +203,8 @@ export default function ProductPage() {
       <div
         className="product-page__gallery"
       >
-        {/* Invisible back zone (left 30%) */}
-        <div className="back-zone" onClick={handleBack} aria-label="Назад" role="button" tabIndex={-1} />
+        {/* Invisible back zone (left 30%) — tap disabled, use arrow */}
+        <div className="back-zone" aria-hidden="true" />
 
         {/* Minimal arrow hint */}
         <span className="back-arrow" onClick={handleBack} aria-hidden="true">←</span>
