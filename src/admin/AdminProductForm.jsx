@@ -384,7 +384,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
             {b.enabled && (
               <>
                 <div className="adm-badge-compact-row">
-                  <input className="adm-input adm-input--sm" type="text" placeholder="NEW IN..." maxLength={18} value={b.text} onChange={(e) => set(key, { ...b, text: e.target.value })} style={{ textTransform: 'uppercase', flex: 1 }} />
+                  <input className="adm-input adm-input--sm" type="text" placeholder="NEW IN..." maxLength={80} value={b.text} onChange={(e) => set(key, { ...b, text: e.target.value })} style={{ textTransform: 'uppercase', flex: 1 }} />
                   {b.text.trim() && (
                     <div className="adm-badge-compact-preview">
                       <span className={`product-badge product-badge--${b.size || 'm'}${b.type === 'filled' ? ' product-badge--filled' : ''}`} style={{ border: `1px solid ${b.borderColor}`, color: b.type === 'filled' ? undefined : b.textColor, borderRadius: SHAPE_RADIUS[b.shape] || '1px', ...(b.type === 'filled' ? { background: b.borderColor, color: isLightColor(b.borderColor) ? '#000' : '#fff' } : {}) }}>{b.text.trim().toUpperCase()}</span>

@@ -428,7 +428,7 @@ export default function AdminApp() {
                   <input
                     className="adm-input adm-input--dark"
                     type="text"
-                    maxLength={40}
+                    maxLength={80}
                     placeholder="NEW IN, LIMITED..."
                     value={bulkBadge.text}
                     onChange={(e) => setBulkBadge((b) => ({ ...b, text: e.target.value }))}
