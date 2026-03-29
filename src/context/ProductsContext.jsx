@@ -20,22 +20,49 @@ async function apiFetch(url, options = {}) {
   return res.json();
 }
 
-export function ProductsProvider({ children }) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+// ── sessionStorage cache helpers ──
+const CACHE_KEY = 'iwak_products';
 
-  // ── Загрузка товаров (публичный, без фильтров — для полного каталога) ──
+function readCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? arr : null;
+  } catch { return null; }
+}
+
+function writeCache(items) {
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(items)); } catch {}
+}
+
+export function ProductsProvider({ children }) {
+  const cached = readCache();
+  const [products, setProductsRaw] = useState(cached || []);
+  const [loading, setLoading] = useState(!cached);
+
+  // Wrapper: sync sessionStorage on every state change
+  const setProducts = useCallback((updater) => {
+    setProductsRaw((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      writeCache(next);
+      return next;
+    });
+  }, []);
+
+  // ── Загрузка товаров (stale-while-revalidate) ──
   const fetchProducts = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!readCache()) setLoading(true);
       const data = await apiFetch('/api/products?limit=2000');
-      setProducts(Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : []);
+      const items = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+      setProducts(items);
     } catch {
-      setProducts([]);
+      if (!readCache()) setProducts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setProducts]);
 
   useEffect(() => {
     fetchProducts();
