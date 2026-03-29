@@ -1154,6 +1154,40 @@ img {
   gap: 1px;
 }
 
+/* ─── Skeleton cards (loading state) ─── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.06; }
+  50% { opacity: 0.12; }
+}
+
+.product-card-skeleton {
+  background: #fff;
+}
+
+.product-card-skeleton__image {
+  aspect-ratio: 3/4;
+  background: #000;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.product-card-skeleton__info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.product-card-skeleton__line {
+  height: 10px;
+  border-radius: 4px;
+  background: #000;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+  width: 80%;
+}
+
+.product-card-skeleton__line--short { width: 40%; }
+.product-card-skeleton__line--medium { width: 55%; }
+
 .product-card {
   display: block;
   cursor: pointer;

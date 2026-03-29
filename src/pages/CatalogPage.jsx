@@ -89,7 +89,7 @@ function applyFilters(products, filters, sortBy, query, categoryFromURL, genders
 }
 
 export default function CatalogPage() {
-  const { products } = useProducts();
+  const { products, loading } = useProducts();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -233,7 +233,18 @@ export default function CatalogPage() {
       )}
 
       <div className="product-grid">
-        {filtered.length === 0 ? (
+        {loading ? (
+          Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="product-card-skeleton">
+              <div className="product-card-skeleton__image" />
+              <div className="product-card-skeleton__info">
+                <div className="product-card-skeleton__line product-card-skeleton__line--short" />
+                <div className="product-card-skeleton__line" />
+                <div className="product-card-skeleton__line product-card-skeleton__line--medium" />
+              </div>
+            </div>
+          ))
+        ) : filtered.length === 0 ? (
           saleParam ? (
             <div className="empty-state">
               <MiniPlayer />
