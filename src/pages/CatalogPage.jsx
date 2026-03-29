@@ -259,8 +259,8 @@ export default function CatalogPage() {
             </div>
           )
         ) : (
-          filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          filtered.map((product, i) => (
+            <ProductCard key={product.id} product={product} priority={i < 4} />
           ))
         )}
       </div>

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Component } from 'react';
 import { CartProvider } from './context/CartContext';
 import { ProductsProvider } from './context/ProductsContext';
 import AdminApp from './admin/AdminApp';
@@ -48,6 +49,25 @@ function AppRoutes() {
   );
 }
 
+class ErrorBoundary extends Component {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, textAlign: 'center' }}>
+          <h2>Что-то пошло не так</h2>
+          <button onClick={() => window.location.reload()}
+            style={{ marginTop: 16, padding: '8px 24px', cursor: 'pointer' }}>
+            Обновить страницу
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const isAdmin = window.location.pathname.startsWith('/adminpanel');
 
@@ -56,16 +76,19 @@ function App() {
     const token = localStorage.getItem('iwak_admin_token');
     const authed = !!token;
     return (
+      <ErrorBoundary>
       <ProductsProvider>
         {authed
           ? <AdminApp />
           : <AdminLogin onAuth={() => window.location.reload()} />
         }
       </ProductsProvider>
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary>
     <ProductsProvider>
       <CartProvider>
         <BrowserRouter>
@@ -73,6 +96,7 @@ function App() {
         </BrowserRouter>
       </CartProvider>
     </ProductsProvider>
+    </ErrorBoundary>
   );
 }
 

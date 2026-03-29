@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { makeProductSlug } from '../utils/slug';
 
@@ -36,7 +36,7 @@ function handleImgError(e, colorHex) {
   wrap.appendChild(label);
 }
 
-export default function ProductCard({ product }) {
+export default memo(function ProductCard({ product, priority }) {
   const cardRef = useRef(null);
   const location = useLocation();
 
@@ -74,7 +74,8 @@ export default function ProductCard({ product }) {
           src={product.image}
           alt={product.name}
           className="product-card__image"
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
           onError={(e) => handleImgError(e, product.colorHex)}
         />
@@ -122,4 +123,4 @@ export default function ProductCard({ product }) {
       </div>
     </Link>
   );
-}
+});
