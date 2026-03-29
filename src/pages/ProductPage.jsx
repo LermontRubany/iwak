@@ -36,6 +36,7 @@ export default function ProductPage() {
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const swiping = useRef(false);
+  const touchInGallery = useRef(false);
 
   // Находим товар по id, закодированному в slug (slug = name-id)
   const productId = idFromSlug(slug);
@@ -115,10 +116,12 @@ export default function ProductPage() {
     touchStartX.current = t.clientX;
     touchStartY.current = t.clientY;
     swiping.current = false;
+    // Don't allow swipe-back if touch started inside gallery track
+    touchInGallery.current = !!e.target.closest('.pp-gallery-track');
   }, []);
 
   const onTouchMove = useCallback((e) => {
-    if (swiping.current) return;
+    if (swiping.current || touchInGallery.current) return;
     const t = e.touches[0];
     const dx = t.clientX - touchStartX.current;
     const dy = Math.abs(t.clientY - touchStartY.current);
