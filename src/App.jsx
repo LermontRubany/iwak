@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Component } from 'react';
 import { CartProvider } from './context/CartContext';
 import { ProductsProvider } from './context/ProductsContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import AdminApp from './admin/AdminApp';
 import AdminLogin from './admin/AdminLogin';
 import Header from './components/Header';
@@ -77,12 +78,14 @@ function App() {
     const authed = !!token;
     return (
       <ErrorBoundary>
+      <NotificationsProvider>
       <ProductsProvider>
         {authed
           ? <AdminApp />
           : <AdminLogin onAuth={() => window.location.reload()} />
         }
       </ProductsProvider>
+      </NotificationsProvider>
       </ErrorBoundary>
     );
   }

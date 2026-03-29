@@ -1,5 +1,6 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { notifyGlobal } from './NotificationsContext';
 
 const ProductsContext = createContext(null);
 
@@ -12,15 +13,25 @@ function getAuthHeaders() {
 }
 
 async function apiFetch(url, options = {}) {
-  const res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
+  let res;
+  try {
+    res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
+  } catch {
+    notifyGlobal('error', 'Нет соединения с сервером');
+    throw new Error('Нет соединения с сервером');
+  }
   if (!res.ok) {
     if (res.status === 401) {
       localStorage.removeItem('iwak_admin_token');
-      window.location.reload();
+      notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
+      // Программный редирект без reload
+      setTimeout(() => { window.location.href = '/adminpanel'; }, 100);
       throw new Error('Сессия истекла');
     }
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    const msg = body.error || `Ошибка сервера (${res.status})`;
+    notifyGlobal('error', msg);
+    throw new Error(msg);
   }
   return res.json();
 }
@@ -62,7 +73,8 @@ export function ProductsProvider({ children }) {
       const data = await apiFetch('/api/products?limit=2000');
       const items = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
       setProducts(items);
-    } catch {
+    } catch (err) {
+      // apiFetch уже вызвал notifyGlobal — здесь только fallback на кеш
       if (!readCache()) setProducts([]);
     } finally {
       setLoading(false);

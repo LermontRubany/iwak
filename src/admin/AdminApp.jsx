@@ -1,12 +1,15 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useProducts } from '../context/ProductsContext';
+import { useNotifications } from '../context/NotificationsContext';
 import AdminProductForm from './AdminProductForm';
+import NotificationBell from './NotificationBell';
 import sortSizes from '../utils/sortSizes';
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
 export default function AdminApp() {
   const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, reloadProducts } = useProducts();
+  const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
   const [search, setSearch] = useState('');
@@ -56,9 +59,8 @@ export default function AdminApp() {
       try {
         await deleteProduct(id);
         setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
-      } catch (err) {
-        alert(`Ошибка удаления: ${err.message}`);
-      }
+        notify('success', 'Товар удалён');
+      } catch {} // apiFetch уже уведомил
     }
   };
 
@@ -75,9 +77,8 @@ export default function AdminApp() {
     try {
       await bulkDelete([...selected]);
       setSelected(new Set());
-    } catch (err) {
-      alert(`Ошибка удаления: ${err.message}`);
-    }
+      notify('success', `Удалено: ${selected.size} товар(ов)`);
+    } catch {} // apiFetch уже уведомил
   };
 
   const handleBulkPrice = async () => {
@@ -86,9 +87,8 @@ export default function AdminApp() {
     const ids = [...selected];
     try {
       await bulkUpdatePrices(ids, { type: priceMode, value: val });
-    } catch (err) {
-      alert(`Ошибка: ${err.message}`);
-    }
+      notify('success', 'Цены обновлены');
+    } catch {} // apiFetch уже уведомил
     setShowPricePanel(false);
     setPriceValue('');
   };
@@ -97,9 +97,8 @@ export default function AdminApp() {
     if (!window.confirm('Сбросить скидки для выбранных товаров?')) return;
     try {
       await bulkResetPrices([...selected]);
-    } catch (err) {
-      alert(`Ошибка: ${err.message}`);
-    }
+      notify('success', 'Скидки сброшены');
+    } catch {} // apiFetch уже уведомил
   };
 
   const handleBulkBadgeApply = async () => {
@@ -109,9 +108,8 @@ export default function AdminApp() {
       : { ...bulkBadge, enabled: false };
     try {
       await Promise.all(ids.map((id) => updateProduct(id, { badge })));
-    } catch (err) {
-      alert(`Ошибка: ${err.message}`);
-    }
+      notify('success', 'Бейджи обновлены');
+    } catch {} // apiFetch уже уведомил
     setShowBadgePanel(false);
   };
 
@@ -119,9 +117,8 @@ export default function AdminApp() {
     const ids = [...selected];
     try {
       await Promise.all(ids.map((id) => updateProduct(id, { badge: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect' } })));
-    } catch (err) {
-      alert(`Ошибка: ${err.message}`);
-    }
+      notify('success', 'Бейджи убраны');
+    } catch {} // apiFetch уже уведомил
     setShowBadgePanel(false);
   };
 
@@ -140,9 +137,7 @@ export default function AdminApp() {
       } else {
         await updateProduct(id, { [field]: val });
       }
-    } catch (err) {
-      alert(`Ошибка сохранения: ${err.message}`);
-    }
+    } catch {} // apiFetch уже уведомил
   };
 
   const startInlineEdit = (productId, field, currentValue, e) => {
@@ -291,7 +286,10 @@ export default function AdminApp() {
     <div className="adm-root">
       <div className="adm-header">
         <span className="adm-header__brand">IWAK ADMIN</span>
-        <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
+        <div className="adm-header__right">
+          <NotificationBell />
+          <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
+        </div>
       </div>
 
       <div className="adm-toolbar">

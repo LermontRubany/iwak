@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useProducts } from '../context/ProductsContext';
+import { useNotifications } from '../context/NotificationsContext';
 
 // Gender enum mirrors DB CHECK constraint — not product data
 const GENDER_ENUM = [
@@ -88,6 +89,7 @@ const EMPTY_FORM = {
 
 export default function AdminProductForm({ initial, onSave, onCancel }) {
   const { products, addProduct, updateProduct, uploadImage } = useProducts();
+  const { notify } = useNotifications();
   const [form, setForm] = useState(() => {
     if (initial) {
       const imgs = initial.images?.length
@@ -225,10 +227,9 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       } else {
         await addProduct(saveData);
       }
+      notify('success', initial ? 'Товар обновлён' : 'Товар добавлен');
       if (onSave) onSave(saveData);
-    } catch (err) {
-      alert(`Ошибка сохранения: ${err.message}`);
-    } finally {
+    } catch {} finally {
       setSaving(false);
     }
   };
