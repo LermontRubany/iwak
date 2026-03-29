@@ -2638,6 +2638,12 @@ img {
   gap: 16px;
 }
 
+.cart-share-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
 .cart-summary__row {
   display: flex;
   align-items: center;

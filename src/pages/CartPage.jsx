@@ -115,13 +115,6 @@ export default function CartPage() {
             <span className="cart-shared-chip">Мой выбор{enrichedItems.length > 0 ? ` · ${enrichedItems.length}` : ''}</span>
           )}
         </div>
-        <button
-          className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
-          onClick={handleShare}
-          aria-label="Поделиться корзиной"
-        >
-          {copied ? 'Скопировано' : 'Поделиться'}
-        </button>
       </div>
 
       <ul className="cart-list">
@@ -192,6 +185,16 @@ export default function CartPage() {
           );
         })}
       </ul>
+
+      <div className="cart-share-row">
+        <button
+          className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
+          onClick={handleShare}
+          aria-label="Поделиться корзиной"
+        >
+          {copied ? 'Скопировано' : 'Поделиться'}
+        </button>
+      </div>
 
       <div className="cart-summary">
         <div className="cart-summary__row">
