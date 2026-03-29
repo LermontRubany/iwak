@@ -219,13 +219,18 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       badge: form.badge.enabled ? form.badge : null,
       badge2: form.badge2.enabled ? form.badge2 : null,
     };
-    if (initial && initial.id) {
-      await updateProduct(initial.id, saveData);
-    } else {
-      await addProduct(saveData);
+    try {
+      if (initial && initial.id) {
+        await updateProduct(initial.id, saveData);
+      } else {
+        await addProduct(saveData);
+      }
+      if (onSave) onSave(saveData);
+    } catch (err) {
+      alert(`Ошибка сохранения: ${err.message}`);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    if (onSave) onSave(saveData);
   };
 
   const [customSize, setCustomSize] = useState('');

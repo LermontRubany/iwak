@@ -51,10 +51,14 @@ export default function AdminApp() {
     setView('edit');
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Удалить товар?')) {
-      deleteProduct(id);
-      setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      try {
+        await deleteProduct(id);
+        setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      } catch (err) {
+        alert(`Ошибка удаления: ${err.message}`);
+      }
     }
   };
 
@@ -65,39 +69,59 @@ export default function AdminApp() {
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selected.size === 0) return;
     if (!window.confirm(`Удалить ${selected.size} товар(ов)?`)) return;
-    bulkDelete([...selected]);
-    setSelected(new Set());
+    try {
+      await bulkDelete([...selected]);
+      setSelected(new Set());
+    } catch (err) {
+      alert(`Ошибка удаления: ${err.message}`);
+    }
   };
 
-  const handleBulkPrice = () => {
+  const handleBulkPrice = async () => {
     const val = Number(priceValue);
     if (!val || val <= 0) return;
     const ids = [...selected];
-    bulkUpdatePrices(ids, { type: priceMode, value: val });
+    try {
+      await bulkUpdatePrices(ids, { type: priceMode, value: val });
+    } catch (err) {
+      alert(`Ошибка: ${err.message}`);
+    }
     setShowPricePanel(false);
     setPriceValue('');
   };
 
-  const handleBulkResetPrices = () => {
+  const handleBulkResetPrices = async () => {
     if (!window.confirm('Сбросить скидки для выбранных товаров?')) return;
-    bulkResetPrices([...selected]);
+    try {
+      await bulkResetPrices([...selected]);
+    } catch (err) {
+      alert(`Ошибка: ${err.message}`);
+    }
   };
 
-  const handleBulkBadgeApply = () => {
+  const handleBulkBadgeApply = async () => {
     const ids = [...selected];
     const badge = bulkBadge.enabled
       ? { ...bulkBadge, text: bulkBadge.text.trim().toUpperCase() }
       : { ...bulkBadge, enabled: false };
-    ids.forEach((id) => updateProduct(id, { badge }));
+    try {
+      await Promise.all(ids.map((id) => updateProduct(id, { badge })));
+    } catch (err) {
+      alert(`Ошибка: ${err.message}`);
+    }
     setShowBadgePanel(false);
   };
 
-  const handleBulkBadgeRemove = () => {
+  const handleBulkBadgeRemove = async () => {
     const ids = [...selected];
-    ids.forEach((id) => updateProduct(id, { badge: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect' } }));
+    try {
+      await Promise.all(ids.map((id) => updateProduct(id, { badge: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect' } })));
+    } catch (err) {
+      alert(`Ошибка: ${err.message}`);
+    }
     setShowBadgePanel(false);
   };
 
@@ -107,13 +131,17 @@ export default function AdminApp() {
   };
 
   // — Inline editing —
-  const applyInlineChange = (id, field, value) => {
+  const applyInlineChange = async (id, field, value) => {
     const val = field === 'price' ? Number(value) : value;
     if (field === 'price' && (!val || val <= 0)) return;
-    if (selected.size > 0) {
-      [...selected].forEach((pid) => updateProduct(pid, { [field]: val }));
-    } else {
-      updateProduct(id, { [field]: val });
+    try {
+      if (selected.size > 0) {
+        await Promise.all([...selected].map((pid) => updateProduct(pid, { [field]: val })));
+      } else {
+        await updateProduct(id, { [field]: val });
+      }
+    } catch (err) {
+      alert(`Ошибка сохранения: ${err.message}`);
     }
   };
 

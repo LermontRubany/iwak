@@ -14,6 +14,11 @@ function getAuthHeaders() {
 async function apiFetch(url, options = {}) {
   const res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
   if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('iwak_admin_token');
+      window.location.reload();
+      throw new Error('Сессия истекла');
+    }
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${res.status}`);
   }
