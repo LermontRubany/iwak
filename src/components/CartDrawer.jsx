@@ -228,29 +228,11 @@ export default function CartDrawer({ isOpen, onClose }) {
 
               <div className="cart-drawer__share-row">
                 <button
-                  className={`cart-share-btn${copied ? ' cart-share-btn--copied' : ''}`}
+                  className={`share-btn${copied ? ' share-btn--copied' : ''}`}
                   onClick={handleShare}
                   aria-label="Поделиться корзиной"
                 >
-                  {copied ? (
-                    <>
-                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                        <polyline points="1,6 4.5,9.5 11,2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      Скопировано
-                    </>
-                  ) : (
-                    <>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                        <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.8"/>
-                        <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
-                        <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.8"/>
-                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                      </svg>
-                      Поделиться
-                    </>
-                  )}
+                  {copied ? 'Скопировано' : 'Поделиться'}
                 </button>
               </div>
             </>
