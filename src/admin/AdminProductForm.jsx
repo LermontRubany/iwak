@@ -29,12 +29,31 @@ const SIZE_PRESETS = {
     kids:   ['92', '98', '104', '110'],
   },
 };
-const SHOE_CATEGORIES = ['shoes', 'sneakers', 'boots', 'sandals'];
-const NO_SIZE_CATEGORIES = ['accessories', 'glasses', 'bags', 'jewelry'];
+// ── Fuzzy category type detection (language-independent) ──
+const CATEGORY_KEYWORDS = {
+  shoes: [
+    'shoe', 'sneak', 'boot', 'sandal', 'slipper', 'loafer', 'moccasin',
+    'кроссовк', 'ботинк', 'кед', 'сандал', 'туфл', 'сапог',
+    'шлёпанц', 'шлепанц', 'слипон', 'мокасин', 'обув',
+  ],
+  noSize: [
+    'accessor', 'glasses', 'bag', 'jewel', 'wallet', 'belt', 'scarf', 'glove', 'hat',
+    'очки', 'сумк', 'бижутер', 'ремн', 'ремен', 'шарф', 'перчатк',
+    'кошелёк', 'кошелек', 'шляп', 'шапк', 'аксесс',
+  ],
+};
+
+function getCategoryType(category) {
+  if (!category || typeof category !== 'string') return 'clothing';
+  const c = category.trim().toLowerCase();
+  if (CATEGORY_KEYWORDS.noSize.some(k => c.includes(k))) return 'no-size';
+  if (CATEGORY_KEYWORDS.shoes.some(k => c.includes(k))) return 'shoes';
+  return 'clothing';
+}
 
 function getPresetSizes(category, gender) {
-  if (NO_SIZE_CATEGORIES.includes(category)) return null; // no sizes
-  const type = SHOE_CATEGORIES.includes(category) ? 'shoes' : 'clothing';
+  const type = getCategoryType(category);
+  if (type === 'no-size') return null;
   const g = gender || 'unisex';
   return SIZE_PRESETS[type][g] || SIZE_PRESETS[type].unisex;
 }
@@ -211,9 +230,9 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   const [customSize, setCustomSize] = useState('');
 
-  const isNoSize = NO_SIZE_CATEGORIES.includes(form.category);
-  const sizeType = SHOE_CATEGORIES.includes(form.category) ? 'shoes' : 'clothing';
-  const sizeOptions = sizeType === 'shoes'
+  const catType = getCategoryType(form.category);
+  const isNoSize = catType === 'no-size';
+  const sizeOptions = catType === 'shoes'
     ? SHOE_SIZES
     : form.gender === 'kids' ? KIDS_SIZES
     : CLOTHING_SIZES;
