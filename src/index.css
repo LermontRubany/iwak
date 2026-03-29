@@ -1954,6 +1954,7 @@ img {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-x pinch-zoom;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }

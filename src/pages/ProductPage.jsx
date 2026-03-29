@@ -36,7 +36,6 @@ export default function ProductPage() {
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const swiping = useRef(false);
-  const touchInGallery = useRef(false);
 
   // Находим товар по id, закодированному в slug (slug = name-id)
   const productId = idFromSlug(slug);
@@ -116,12 +115,11 @@ export default function ProductPage() {
     touchStartX.current = t.clientX;
     touchStartY.current = t.clientY;
     swiping.current = false;
-    // Don't allow swipe-back if touch started inside gallery track
-    touchInGallery.current = !!e.target.closest('.pp-gallery-track');
+
   }, []);
 
   const onTouchMove = useCallback((e) => {
-    if (swiping.current || touchInGallery.current) return;
+    if (swiping.current) return;
     const t = e.touches[0];
     const dx = t.clientX - touchStartX.current;
     const dy = Math.abs(t.clientY - touchStartY.current);
@@ -204,8 +202,6 @@ export default function ProductPage() {
     <div className="product-page">
       <div
         className="product-page__gallery"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
       >
         {/* Invisible back zone (left 30%) */}
         <div className="back-zone" onClick={handleBack} aria-label="Назад" role="button" tabIndex={-1} />
@@ -319,7 +315,7 @@ export default function ProductPage() {
         )}
       </div>
 
-      <div className="product-page__info">
+      <div className="product-page__info" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
         <div className="pp-title-row">
           <span className="product-page__brand">{product.brand}</span>
           <button
