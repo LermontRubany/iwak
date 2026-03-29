@@ -22,7 +22,7 @@ import compression from 'compression';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-dotenv.config();
+dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
