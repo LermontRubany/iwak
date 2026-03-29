@@ -488,8 +488,7 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
           `UPDATE products SET price = ROUND(price * (1 + $2::numeric / 100), 2) WHERE id = ANY($1)`, [ids, numVal]);
       } else if (type === 'fixed') {
         await pool.query(
-          `UPDATE products SET original_price = COALESCE(original_price, price),
-            price = $2::numeric WHERE id = ANY($1)`, [ids, numVal]);
+          `UPDATE products SET price = $2::numeric, original_price = NULL WHERE id = ANY($1)`, [ids, numVal]);
       } else if (type === 'reset') {
         await pool.query(
           `UPDATE products SET price = COALESCE(original_price, price), original_price = NULL WHERE id = ANY($1)`, [ids]);

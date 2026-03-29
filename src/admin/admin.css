@@ -22,6 +22,7 @@
   letter-spacing: 0.03em;
   color: var(--adm-text);
   -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
 }
 
 /* ─── HEADER ─── */
@@ -254,7 +255,7 @@
   z-index: 200;
   display: flex;
   flex-direction: column;
-  padding: 12px 20px 16px;
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--adm-text);
   color: #fff;
   box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
@@ -384,7 +385,7 @@
 .adm-body { padding-bottom: 80px; }
 
 .adm-list { padding: 8px 16px 100px; }
-.adm-list--with-bar { padding-bottom: 180px; }
+.adm-list--with-bar { padding-bottom: 260px; }
 
 .adm-empty {
   text-align: center;
