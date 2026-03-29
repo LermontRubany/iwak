@@ -1221,12 +1221,6 @@ img {
   letter-spacing: 0.1em;
 }
 
-.product-badge--sale {
-  border: 1px solid rgba(0,0,0,0.8);
-  color: #000;
-  border-radius: 1px;
-}
-
 .product-badge--filled {
   color: #fff;
 }
