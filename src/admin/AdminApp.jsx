@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import AdminProductForm from './AdminProductForm';
+import sortSizes from '../utils/sortSizes';
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
@@ -346,7 +347,7 @@ export default function AdminApp() {
               {renderInlineField(product, 'brand', 'adm-card__brand')}
               {renderInlineField(product, 'name', 'adm-card__name')}
               <span className="adm-card__meta">
-                {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {product.sizes?.join(', ')}
+                {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {sortSizes(product.sizes)?.join(', ')}
               </span>
               {editingField?.id === product.id && editingField?.field === 'price' ? (
                 <input

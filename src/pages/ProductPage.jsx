@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
 import { idFromSlug, makeProductSlug } from '../utils/slug';
+import sortSizes from '../utils/sortSizes';
 
 function setMetaTag(attr, name, value) {
   const selector = `meta[${attr}="${name}"]`;
@@ -59,7 +60,7 @@ export default function ProductPage() {
     const priceStr = product.originalPrice && product.originalPrice > product.price
       ? `₽${product.price.toLocaleString('ru-RU')} (было ₽${product.originalPrice.toLocaleString('ru-RU')})`
       : `₽${product.price.toLocaleString('ru-RU')}`;
-    const description = `${priceStr} · Размеры: ${product.sizes.join(', ')}`;
+    const description = `${priceStr} · Размеры: ${sortSizes(product.sizes).join(', ')}`;
     const image = product.image;
     const url = `${window.location.origin}/product/${makeProductSlug(product)}`;
 
@@ -351,7 +352,7 @@ export default function ProductPage() {
             {selectedSize ? `Размер: ${selectedSize}` : 'Выберите размер'}
           </span>
           <div className="pp-sizes__grid">
-            {product.sizes.map((size) => (
+            {sortSizes(product.sizes).map((size) => (
               <button
                 key={size}
                 className={`pp-size-btn ${selectedSize === size ? 'pp-size-btn--active' : ''}`}
