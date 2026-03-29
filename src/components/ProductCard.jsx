@@ -81,15 +81,6 @@ export default function ProductCard({ product }) {
         {(() => {
           const radius = { rect: '1px', rounded: '4px', pill: '999px', circle: '50%' };
           const groups = {};
-          const saleBadge = product.originalPrice && product.originalPrice > product.price;
-          const salePos = product.badge?.position || 'top-left';
-          if (saleBadge) {
-            (groups[salePos] ||= []).push(
-              <span key="sale" className="product-badge product-badge--sale">
-                -{Math.round(100 - (product.price / product.originalPrice) * 100)}%
-              </span>
-            );
-          }
           [product.badge, product.badge2].forEach((b, idx) => {
             if (b?.enabled && b?.text) {
               const filled = b.type === 'filled';
