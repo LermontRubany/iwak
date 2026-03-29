@@ -14,6 +14,31 @@ const CLOTHING_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 const SHOE_SIZES = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
 const KIDS_SIZES = ['92', '98', '104', '110', '116', '122', '128', '134', '140', '146', '152', '158'];
 
+// ── Smart size presets (category × gender) ──
+const SIZE_PRESETS = {
+  shoes: {
+    mens:   ['41', '42', '43', '44', '45'],
+    womens: ['36', '37', '38', '39', '40', '41'],
+    unisex: ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
+    kids:   ['28', '29', '30', '31', '32', '33', '34', '35'],
+  },
+  clothing: {
+    mens:   ['S', 'M', 'L', 'XL', 'XXL'],
+    womens: ['XS', 'S', 'M', 'L'],
+    unisex: ['S', 'M', 'L', 'XL'],
+    kids:   ['92', '98', '104', '110'],
+  },
+};
+const SHOE_CATEGORIES = ['shoes', 'sneakers', 'boots', 'sandals'];
+const NO_SIZE_CATEGORIES = ['accessories', 'glasses', 'bags', 'jewelry'];
+
+function getPresetSizes(category, gender) {
+  if (NO_SIZE_CATEGORIES.includes(category)) return null; // no sizes
+  const type = SHOE_CATEGORIES.includes(category) ? 'shoes' : 'clothing';
+  const g = gender || 'unisex';
+  return SIZE_PRESETS[type][g] || SIZE_PRESETS[type].unisex;
+}
+
 const SHAPE_RADIUS = { rect: '1px', rounded: '4px', pill: '999px', circle: '50%' };
 function isLightColor(hex) {
   const c = hex.replace('#', '');
@@ -75,11 +100,30 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   const [showAddCat, setShowAddCat] = useState(false);
   const [newCatValue, setNewCatValue] = useState('');
+  // Track if user manually edited sizes — prevents auto-overwrite
+  const [sizesTouched, setSizesTouched] = useState(!!initial);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
+  // Auto-fill sizes when category/gender change (only if not manually edited)
+  const autoFillSizes = (category, gender, touched) => {
+    if (touched) return;
+    const preset = getPresetSizes(category, gender);
+    if (preset === null) {
+      setForm((f) => ({ ...f, sizes: [] }));
+    } else {
+      setForm((f) => ({ ...f, sizes: [...preset] }));
+    }
+  };
+
   const handleCategoryChange = (cat) => {
     setForm((f) => ({ ...f, category: cat }));
+    autoFillSizes(cat, form.gender, sizesTouched);
+  };
+
+  const handleGenderChange = (g) => {
+    setForm((f) => ({ ...f, gender: g }));
+    autoFillSizes(form.category, g, sizesTouched);
   };
 
   const handleAddCategory = () => {
@@ -95,6 +139,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   };
 
   const handleSizes = (size) => {
+    setSizesTouched(true);
     setForm((f) => ({
       ...f,
       sizes: f.sizes.includes(size) ? f.sizes.filter((s) => s !== size) : [...f.sizes, size],
@@ -166,8 +211,9 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   const [customSize, setCustomSize] = useState('');
 
-  const SHOE_CATEGORIES = ['shoes', 'sneakers', 'boots', 'sandals'];
-  const sizeOptions = SHOE_CATEGORIES.includes(form.category)
+  const isNoSize = NO_SIZE_CATEGORIES.includes(form.category);
+  const sizeType = SHOE_CATEGORIES.includes(form.category) ? 'shoes' : 'clothing';
+  const sizeOptions = sizeType === 'shoes'
     ? SHOE_SIZES
     : form.gender === 'kids' ? KIDS_SIZES
     : CLOTHING_SIZES;
@@ -175,6 +221,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   const addCustomSize = () => {
     const s = customSize.trim().toUpperCase();
     if (s && !form.sizes.includes(s)) {
+      setSizesTouched(true);
       setForm((f) => ({ ...f, sizes: [...f.sizes, s] }));
     }
     setCustomSize('');
@@ -311,7 +358,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
                 key={g.id}
                 type="button"
                 className={`adm-chip${form.gender === g.id ? ' adm-chip--active' : ''}`}
-                onClick={() => set('gender', g.id)}
+                onClick={() => handleGenderChange(g.id)}
               >
                 {g.label}
               </button>
@@ -332,6 +379,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       </div>
 
       {/* ── СЕКЦИЯ: Размеры ── */}
+      {!isNoSize && (
       <div className="adm-section">
         <div className="adm-section__title">РАЗМЕРЫ</div>
         <div className="adm-chips">
@@ -368,6 +416,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
           <button type="button" className="adm-btn adm-btn--secondary" onClick={addCustomSize}>+</button>
         </div>
       </div>
+      )}
 
       {/* Badges */}
       {[
