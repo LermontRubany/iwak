@@ -1158,8 +1158,6 @@ img {
   display: block;
   cursor: pointer;
   background: #fff;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 300px;
 }
 
 .product-card__image-wrap {
