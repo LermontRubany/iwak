@@ -1,63 +1,3 @@
-// ════════════════════════════════════════════
-// OG IMAGE GENERATION (1200×630, fit:cover)
-// ════════════════════════════════════════════
-
-const ogCacheDir = path.join(__dirname, '../uploads/og');
-if (!fs.existsSync(ogCacheDir)) fs.mkdirSync(ogCacheDir, { recursive: true });
-
-app.get('/og-image/:id', async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!id || id <= 0) return res.status(400).end();
-
-  // Serve cached version if exists
-  const cachePath = path.join(ogCacheDir, `${id}.jpg`);
-  if (fs.existsSync(cachePath)) {
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    return res.sendFile(cachePath);
-  }
-
-  try {
-    const result = await pool.query('SELECT image FROM products WHERE id = $1', [id]);
-    if (result.rows.length === 0) return res.status(404).end();
-
-    const imgRelPath = result.rows[0].image;
-    const imgPath = imgRelPath ? path.join(__dirname, '..', imgRelPath) : null;
-
-    const OG_W = 1200;
-    const OG_H = 630;
-
-    if (imgPath && fs.existsSync(imgPath)) {
-      // Всегда fit:cover, центрируем
-      const buf = await sharp(imgPath)
-        .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-      fs.writeFileSync(cachePath, buf);
-      res.set('Content-Type', 'image/jpeg');
-      res.set('Cache-Control', 'public, max-age=86400');
-      return res.send(buf);
-    }
-
-    // Нет исходного изображения — серый фон с текстом IWAK
-    const svgText = `<svg width="${OG_W}" height="${OG_H}">
-      <rect width="100%" height="100%" fill="#f3f4f6"/>
-      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
-        font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700"
-        letter-spacing="12" fill="#bbb">IWAK</text>
-    </svg>`;
-    const buf = await sharp(Buffer.from(svgText))
-      .jpeg({ quality: 88 })
-      .toBuffer();
-    fs.writeFileSync(cachePath, buf);
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.send(buf);
-  } catch (err) {
-    logger.error({ err }, 'OG image generation error');
-    res.status(500).end();
-  }
-});
 // ============================================================
 // IWAK — API Server
 // Express + PostgreSQL + JWT auth + server-side filtering
@@ -657,6 +597,73 @@ app.get('/api/filters', async (_req, res) => {
   }
 });
 
+// ════════════════════════════════════════════
+// OG IMAGE GENERATION (1200×630, fit:cover)
+// ════════════════════════════════════════════
+
+const ogCacheDir = path.join(__dirname, '../uploads/og');
+if (!fs.existsSync(ogCacheDir)) fs.mkdirSync(ogCacheDir, { recursive: true });
+
+app.get('/og-image/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || id <= 0) return res.status(400).end();
+
+  const cachePath = path.join(ogCacheDir, `${id}.jpg`);
+  if (fs.existsSync(cachePath)) {
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(cachePath);
+  }
+
+  try {
+    const result = await pool.query('SELECT image FROM products WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).end();
+
+    const imgRelPath = result.rows[0].image;
+    const imgPath = imgRelPath ? path.join(__dirname, '..', imgRelPath) : null;
+
+    const OG_W = 1200;
+    const OG_H = 630;
+
+    if (imgPath && fs.existsSync(imgPath)) {
+      const buf = await sharp(imgPath)
+        .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      fs.writeFileSync(cachePath, buf);
+      res.set('Content-Type', 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(buf);
+    }
+
+    // Нет исходного изображения — серый фон с текстом IWAK
+    const svgText = `<svg width="${OG_W}" height="${OG_H}">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+        font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700"
+        letter-spacing="12" fill="#bbb">IWAK</text>
+    </svg>`;
+    const buf = await sharp(Buffer.from(svgText))
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    fs.writeFileSync(cachePath, buf);
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch (err) {
+    console.error('[og-image] Generation error:', err);
+    logger.error({ err }, 'OG image generation error');
+    // Fallback: отдать оригинальное изображение если sharp упал
+    try {
+      const r = await pool.query('SELECT image FROM products WHERE id = $1', [id]);
+      if (r.rows.length > 0 && r.rows[0].image) {
+        const origPath = path.join(__dirname, '..', r.rows[0].image);
+        if (fs.existsSync(origPath)) return res.sendFile(origPath);
+      }
+    } catch (_e) { /* ignore */ }
+    res.status(500).end();
+  }
+});
 
 // ════════════════════════════════════════════
 // STATIC (production) + OG prerender for bots
