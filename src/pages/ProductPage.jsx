@@ -61,7 +61,9 @@ export default function ProductPage() {
       ? `₽${product.price.toLocaleString('ru-RU')} (было ₽${product.originalPrice.toLocaleString('ru-RU')})`
       : `₽${product.price.toLocaleString('ru-RU')}`;
     const description = `${priceStr} · Размеры: ${sortSizes(product.sizes).join(', ')}`;
-    const image = product.image;
+
+    // og:image теперь всегда /og-image/:id
+    const image = `${window.location.origin}/og-image/${product.id}`;
     const url = `${window.location.origin}/product/${makeProductSlug(product)}`;
 
     document.title = title;

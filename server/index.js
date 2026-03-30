@@ -1,3 +1,63 @@
+// ════════════════════════════════════════════
+// OG IMAGE GENERATION (1200×630, fit:cover)
+// ════════════════════════════════════════════
+
+const ogCacheDir = path.join(__dirname, '../uploads/og');
+if (!fs.existsSync(ogCacheDir)) fs.mkdirSync(ogCacheDir, { recursive: true });
+
+app.get('/og-image/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || id <= 0) return res.status(400).end();
+
+  // Serve cached version if exists
+  const cachePath = path.join(ogCacheDir, `${id}.jpg`);
+  if (fs.existsSync(cachePath)) {
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(cachePath);
+  }
+
+  try {
+    const result = await pool.query('SELECT image FROM products WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).end();
+
+    const imgRelPath = result.rows[0].image;
+    const imgPath = imgRelPath ? path.join(__dirname, '..', imgRelPath) : null;
+
+    const OG_W = 1200;
+    const OG_H = 630;
+
+    if (imgPath && fs.existsSync(imgPath)) {
+      // Всегда fit:cover, центрируем
+      const buf = await sharp(imgPath)
+        .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      fs.writeFileSync(cachePath, buf);
+      res.set('Content-Type', 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(buf);
+    }
+
+    // Нет исходного изображения — серый фон с текстом IWAK
+    const svgText = `<svg width="${OG_W}" height="${OG_H}">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+        font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700"
+        letter-spacing="12" fill="#bbb">IWAK</text>
+    </svg>`;
+    const buf = await sharp(Buffer.from(svgText))
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    fs.writeFileSync(cachePath, buf);
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch (err) {
+    logger.error({ err }, 'OG image generation error');
+    res.status(500).end();
+  }
+});
 // ============================================================
 // IWAK — API Server
 // Express + PostgreSQL + JWT auth + server-side filtering
@@ -597,108 +657,6 @@ app.get('/api/filters', async (_req, res) => {
   }
 });
 
-// ════════════════════════════════════════════
-// OG IMAGE GENERATION (1200×630)
-// ════════════════════════════════════════════
-
-const ogCacheDir = path.join(__dirname, '../uploads/og');
-if (!fs.existsSync(ogCacheDir)) fs.mkdirSync(ogCacheDir, { recursive: true });
-
-app.get('/og-image/:id', async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!id || id <= 0) return res.status(400).end();
-
-  // Serve cached version if exists
-  const cachePath = path.join(ogCacheDir, `${id}.jpg`);
-  if (fs.existsSync(cachePath)) {
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    return res.sendFile(cachePath);
-  }
-
-  try {
-    const result = await pool.query('SELECT image FROM products WHERE id = $1', [id]);
-    if (result.rows.length === 0) return res.status(404).end();
-
-    const imgRelPath = result.rows[0].image;
-    const imgPath = imgRelPath ? path.join(__dirname, '..', imgRelPath) : null;
-
-    const OG_W = 1200;
-    const OG_H = 630;
-
-    if (imgPath && fs.existsSync(imgPath)) {
-      const meta = await sharp(imgPath).metadata();
-      const aspect = meta.width / meta.height;
-
-      // Горизонтальное фото (width >= height): только оригинал, fit:cover
-      if (meta.width >= meta.height) {
-        const buf = await sharp(imgPath)
-          .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
-          .jpeg({ quality: 90 })
-          .toBuffer();
-        fs.writeFileSync(cachePath, buf);
-        res.set('Content-Type', 'image/jpeg');
-        res.set('Cache-Control', 'public, max-age=86400');
-        return res.send(buf);
-      }
-
-      // Вертикальное/квадратное:
-      // 1. Фон: cover + blur(14) + overlay
-      const bg = await sharp(imgPath)
-        .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
-        .blur(14)
-        .modulate({ brightness: 0.85, saturation: 0.92 })
-        .toBuffer();
-
-      // 2. Overlay (чёрный прозрачный слой)
-      const overlay = Buffer.from(
-        `<svg width="${OG_W}" height="${OG_H}"><rect width="100%" height="100%" fill="rgba(0,0,0,0.18)"/></svg>`
-      );
-      const bgWithOverlay = await sharp(bg)
-        .composite([{ input: overlay, left: 0, top: 0 }])
-        .toBuffer();
-
-      // 3. Товар по центру (fit:inside, max 92% высоты)
-      const maxH = Math.round(OG_H * 0.92);
-      const maxW = Math.round(OG_W * 0.92);
-      const productImg = await sharp(imgPath)
-        .resize({ width: maxW, height: maxH, fit: 'inside', withoutEnlargement: false })
-        .toBuffer();
-      const fgMeta = await sharp(productImg).metadata();
-      const left = Math.round((OG_W - fgMeta.width) / 2);
-      const top = Math.round((OG_H - fgMeta.height) / 2);
-
-      // 4. Сборка
-      const buf = await sharp(bgWithOverlay)
-        .composite([{ input: productImg, left, top }])
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
-      fs.writeFileSync(cachePath, buf);
-      res.set('Content-Type', 'image/jpeg');
-      res.set('Cache-Control', 'public, max-age=86400');
-      return res.send(buf);
-    }
-
-    // Нет исходного изображения — серый фон с текстом IWAK
-    const svgText = `<svg width="${OG_W}" height="${OG_H}">
-      <rect width="100%" height="100%" fill="#f3f4f6"/>
-      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
-        font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700"
-        letter-spacing="12" fill="#bbb">IWAK</text>
-    </svg>`;
-    const buf = await sharp(Buffer.from(svgText))
-      .jpeg({ quality: 88 })
-      .toBuffer();
-    fs.writeFileSync(cachePath, buf);
-    res.set('Content-Type', 'image/jpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.send(buf);
-  } catch (err) {
-    logger.error({ err }, 'OG image generation error');
-    res.status(500).end();
-  }
-});
 
 // ════════════════════════════════════════════
 // STATIC (production) + OG prerender for bots
