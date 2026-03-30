@@ -1,6 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import { useNotifications } from '../context/NotificationsContext';
+
+let _imgId = 0;
+const nextImgId = () => ++_imgId;
 
 // Gender enum mirrors DB CHECK constraint — not product data
 const GENDER_ENUM = [
@@ -101,8 +104,8 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState(() => {
     if (initial) {
       const imgs = initial.images?.length
-        ? initial.images.map((url) => ({ url, preview: url }))
-        : initial.image ? [{ url: initial.image, preview: initial.image }] : [];
+        ? initial.images.map((url) => ({ id: nextImgId(), url, preview: url, status: 'done', progress: 100 }))
+        : initial.image ? [{ id: nextImgId(), url: initial.image, preview: initial.image, status: 'done', progress: 100 }] : [];
       return {
         name: initial.name || '',
         brand: initial.brand || '',
@@ -176,46 +179,79 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     }));
   };
 
-  // Загрузка фото на сервер
-  const handleFiles = async (files) => {
-    const arr = Array.from(files).slice(0, 10 - form.images.length);
-    const results = await Promise.allSettled(arr.map(async (file) => {
-      const path = await uploadImage(file);
-      if (!path) throw new Error('Сервер не вернул путь к файлу');
-      return { preview: path, url: path };
+  // ── Upload queue (max 3 concurrent) ──
+  const queueRef = useRef([]);
+  const activeRef = useRef(0);
+  const MAX_CONCURRENT = 3;
+
+  const updateImg = useCallback((id, patch) => {
+    setForm((f) => ({
+      ...f,
+      images: f.images.map((img) => (img.id === id ? { ...img, ...patch } : img)),
     }));
-    const success = [];
-    const failed = [];
-    results.forEach((r) => {
-      if (r.status === 'fulfilled') success.push(r.value);
-      else failed.push(r.reason?.message || 'Неизвестная ошибка');
+  }, []);
+
+  const processQueue = useCallback(() => {
+    while (queueRef.current.length > 0 && activeRef.current < MAX_CONCURRENT) {
+      const task = queueRef.current.shift();
+      activeRef.current++;
+      task().finally(() => {
+        activeRef.current--;
+        processQueue();
+      });
+    }
+  }, []);
+
+  const enqueueUpload = useCallback((id, file) => {
+    queueRef.current.push(async () => {
+      try {
+        const path = await uploadImage(file);
+        if (!path) throw new Error('Сервер не вернул путь');
+        updateImg(id, { url: path, preview: path, status: 'done', progress: 100 });
+      } catch (err) {
+        updateImg(id, { status: 'error', progress: 0 });
+        notify('error', err.message || 'Ошибка загрузки фото');
+      }
     });
-    if (success.length > 0) {
-      setForm((f) => ({ ...f, images: [...f.images, ...success].slice(0, 10) }));
-    }
-    if (failed.length > 0) {
-      console.error('[upload] failed:', failed);
-      notify('error', `Не загружено ${failed.length} фото: ${failed[0]}`);
-    }
+    processQueue();
+  }, [uploadImage, updateImg, processQueue, notify]);
+
+  // Загрузка фото: мгновенное preview + очередь
+  const handleFiles = (files) => {
+    const arr = Array.from(files).slice(0, 10 - form.images.length);
+    const newImgs = arr.map((file) => {
+      const id = nextImgId();
+      const preview = URL.createObjectURL(file);
+      // Enqueue upload after state update (via setTimeout)
+      setTimeout(() => enqueueUpload(id, file), 0);
+      return { id, preview, url: '', status: 'uploading', progress: 0 };
+    });
+    setForm((f) => ({ ...f, images: [...f.images, ...newImgs].slice(0, 10) }));
   };
 
-  const removeImage = (i) => {
-    setForm((f) => ({ ...f, images: f.images.filter((_, idx) => idx !== i) }));
+  const removeImage = (id) => {
+    setForm((f) => ({
+      ...f,
+      images: f.images.filter((img) => img.id !== id),
+    }));
   };
 
-  const moveImage = (i, dir) => {
+  const moveImage = (id, dir) => {
     setForm((f) => {
       const imgs = [...f.images];
+      const i = imgs.findIndex((img) => img.id === id);
       const j = i + dir;
-      if (j < 0 || j >= imgs.length) return f;
+      if (i < 0 || j < 0 || j >= imgs.length) return f;
       [imgs[i], imgs[j]] = [imgs[j], imgs[i]];
       return { ...f, images: imgs };
     });
   };
 
-  const setMainImage = (i) => {
+  const setMainImage = (id) => {
     setForm((f) => {
       const imgs = [...f.images];
+      const i = imgs.findIndex((img) => img.id === id);
+      if (i <= 0) return f;
       const [main] = imgs.splice(i, 1);
       return { ...f, images: [main, ...imgs] };
     });
@@ -224,9 +260,15 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
+    // Only use successfully uploaded images
+    const doneImages = form.images.filter((img) => img.status === 'done');
+    if (form.images.some((img) => img.status === 'uploading')) {
+      notify('error', 'Дождитесь окончания загрузки фото');
+      return;
+    }
     setSaving(true);
-    const image = form.images[0]?.url || '';
-    const images = form.images.map((img) => img.url);
+    const image = doneImages[0]?.url || '';
+    const images = doneImages.map((img) => img.url);
     const saveData = {
       name: form.name.trim(),
       brand: form.brand.trim(),
@@ -283,14 +325,24 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <div className="adm-section__title">ФОТО</div>
         <div className="adm-images-grid">
           {form.images.map((img, i) => (
-            <div key={i} className={`adm-img-thumb${i === 0 ? ' adm-img-thumb--main' : ''}`}>
+            <div key={img.id} className={`adm-img-thumb${i === 0 ? ' adm-img-thumb--main' : ''}${img.status === 'uploading' ? ' adm-img-thumb--uploading' : ''}${img.status === 'error' ? ' adm-img-thumb--error' : ''}`}>
               <img src={img.preview} alt="" />
-              {i === 0 && <span className="adm-img-badge">Главное</span>}
+              {img.status === 'uploading' && (
+                <div className="adm-img-overlay">
+                  <div className="adm-img-spinner" />
+                </div>
+              )}
+              {img.status === 'error' && (
+                <div className="adm-img-overlay adm-img-overlay--error">
+                  <span className="adm-img-error-icon">✕</span>
+                </div>
+              )}
+              {i === 0 && img.status === 'done' && <span className="adm-img-badge">Главное</span>}
               <div className="adm-img-actions">
-                {i !== 0 && <button type="button" onClick={() => setMainImage(i)} title="Сделать главным">★</button>}
-                {i > 0 && <button type="button" onClick={() => moveImage(i, -1)}>←</button>}
-                {i < form.images.length - 1 && <button type="button" onClick={() => moveImage(i, 1)}>→</button>}
-                <button type="button" className="adm-img-del" onClick={() => removeImage(i)}>✕</button>
+                {i !== 0 && img.status === 'done' && <button type="button" onClick={() => setMainImage(img.id)} title="Сделать главным">★</button>}
+                {i > 0 && <button type="button" onClick={() => moveImage(img.id, -1)}>←</button>}
+                {i < form.images.length - 1 && <button type="button" onClick={() => moveImage(img.id, 1)}>→</button>}
+                <button type="button" className="adm-img-del" onClick={() => removeImage(img.id)}>✕</button>
               </div>
             </div>
           ))}

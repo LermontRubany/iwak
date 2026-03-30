@@ -928,6 +928,41 @@
   color: var(--adm-accent);
 }
 
+/* Upload states */
+.adm-img-thumb--uploading img {
+  opacity: 0.4;
+}
+.adm-img-thumb--error img {
+  opacity: 0.3;
+}
+.adm-img-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.adm-img-overlay--error {
+  background: rgba(220, 50, 50, 0.15);
+}
+.adm-img-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: adm-spin 0.7s linear infinite;
+}
+@keyframes adm-spin {
+  to { transform: rotate(360deg); }
+}
+.adm-img-error-icon {
+  font-size: 24px;
+  color: #dc3232;
+  font-weight: 700;
+}
+
 .adm-img-row {
   display: flex;
   gap: 10px;
