@@ -1949,33 +1949,37 @@ img {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Minimal arrow hint ── */
-.back-arrow {
+/* ── Back button — glassmorphism ── */
+.back-btn {
   position: absolute;
   top: 16px;
   left: 16px;
   z-index: 6;
-  font-size: 18px;
-  line-height: 1;
-  color: #fff;
-  opacity: 0.7;
-  mix-blend-mode: difference;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   pointer-events: auto;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.2s ease, transform 0.15s ease;
-  -webkit-user-select: none;
-  user-select: none;
+  transition: transform 0.15s ease;
+  padding: 0;
 }
 
-.back-arrow:active {
-  opacity: 1;
-  transform: scale(0.9);
+.back-btn:active {
+  transform: scale(0.95);
 }
 
 @media (hover: hover) {
-  .back-arrow:hover {
-    opacity: 1;
+  .back-btn:hover {
+    background: rgba(255,255,255,0.35);
   }
 }
 

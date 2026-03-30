@@ -207,8 +207,12 @@ export default function ProductPage() {
         {/* Invisible back zone (left 30%) — tap disabled, use arrow */}
         <div className="back-zone" aria-hidden="true" />
 
-        {/* Minimal arrow hint */}
-        <span className="back-arrow" onClick={handleBack} aria-hidden="true">←</span>
+        {/* Back button — glassmorphism */}
+        <button className="back-btn" onClick={handleBack} aria-label="Назад">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12.5 4L6.5 10L12.5 16" stroke="rgba(0,0,0,0.8)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
 
         {/* Badges on gallery */}
         {(() => {
