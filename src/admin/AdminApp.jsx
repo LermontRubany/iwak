@@ -411,12 +411,6 @@ export default function AdminApp() {
               {selected.has(product.id) ? '✓' : ''}
             </button>
             <div className="adm-card__img">
-              {(product.priority >= 100 || (product.badge && product.badge.enabled)) && (
-                <div className="adm-card__indicators">
-                  {product.priority >= 100 && <span className="adm-indicator adm-indicator--top">TOP</span>}
-                  {product.badge && product.badge.enabled && <span className="adm-indicator adm-indicator--badge">🏷</span>}
-                </div>
-              )}
               {product.image ? (
                 <img src={product.image} alt={product.name} loading="lazy" />
               ) : (
@@ -450,7 +444,13 @@ export default function AdminApp() {
               ) : (
                 <span className="adm-card__price adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>₽{product.price?.toLocaleString('ru-RU')}</span>
               )}
-              {product.createdAt && <span className="adm-card__date">{formatDate(product.createdAt)}</span>}
+              {product.createdAt && (
+                <div className="adm-card__meta-row">
+                  <span className="adm-card__date">{formatDate(product.createdAt)}</span>
+                  <span className="adm-card__meta-badge">⭐{product.priority ?? 50}</span>
+                  {product.badge && product.badge.enabled && <span className="adm-card__meta-badge">🏷</span>}
+                </div>
+              )}
             </div>
             <div className="adm-card__actions">
               <button className="adm-action-btn adm-action-btn--del" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>✕</button>
