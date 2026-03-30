@@ -28,12 +28,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ── Logger (pino) ───────────────────────────
+// Logs to stdout — PM2 captures and rotates automatically.
+// Set LOG_FILE=1 to also write to logs/app.log (legacy).
 const logDir = path.join(__dirname, '../logs');
 if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
+const logDestination = process.env.LOG_FILE === '1'
+  ? pino.destination(path.join(logDir, 'app.log'))
+  : pino.destination(1); // stdout
+
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
-}, pino.destination(path.join(logDir, 'app.log')));
+}, logDestination);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,9 +95,12 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
+// In production without CORS_ORIGIN, same-origin requests still work
+// (nginx serves both frontend and API on same domain).
+// Set CORS_ORIGIN=https://example.com to allow specific origins explicitly.
 const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
-  : IS_PRODUCTION ? [] : undefined;
+  : IS_PRODUCTION ? false : undefined; // false = reflect same-origin, undefined = allow all (dev)
 
 app.use(cors({
   origin: ALLOWED_ORIGINS,
@@ -755,6 +764,10 @@ app.use((err, _req, res, _next) => {
 // START
 // ════════════════════════════════════════════
 
-app.listen(PORT, () => {
-  logger.info(`IWAK API server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  logger.info(`IWAK API server running on http://0.0.0.0:${PORT}`);
+  if (JWT_SECRET === 'change-me-in-production') {
+    logger.warn('⚠️  JWT_SECRET is set to the default value — change it in server/.env before going live!');
+    console.warn('[SECURITY] JWT_SECRET is default — update server/.env immediately!');
+  }
 });

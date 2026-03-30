@@ -6,9 +6,9 @@ const prefetched = new Set();
 const imagesPrefetched = new Set();
 
 function prefetchProduct(id) {
-  if (prefetched.has(id)) return;
+  // No-op: ProductPage is statically imported in App.jsx and always in the bundle.
+  // Intersection observer is kept only for image prefetching below.
   prefetched.add(id);
-  import('../pages/ProductPage.jsx').catch(() => {});
 }
 
 function prefetchImages(product) {
