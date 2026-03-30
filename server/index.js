@@ -262,7 +262,12 @@ app.get('/api/products', async (req, res) => {
       const genders = req.query.gender.split(',').filter(Boolean);
       if (genders.length > 0) {
         const placeholders = genders.map(g => addParam(g));
-        conditions.push(`(gender IN (${placeholders.join(',')}) OR gender = 'unisex')`);
+        const includeUnisex = !genders.includes('kids');
+        conditions.push(
+          includeUnisex
+            ? `(gender IN (${placeholders.join(',')}) OR gender = 'unisex')`
+            : `gender IN (${placeholders.join(',')})`
+        );
       }
     }
 

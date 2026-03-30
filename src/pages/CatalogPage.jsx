@@ -56,13 +56,15 @@ function applyFilters(products, filters, sortBy, query, categoryFromURL, genders
 
   if (filters.genders.length > 0) {
     result = result.filter((p) =>
-      p.gender === 'unisex' || filters.genders.includes(p.gender)
+      filters.genders.includes(p.gender) ||
+      (p.gender === 'unisex' && !filters.genders.includes('kids'))
     );
   }
 
   if (gendersFromURL.length > 0) {
     result = result.filter((p) =>
-      p.gender === 'unisex' || gendersFromURL.includes(p.gender)
+      gendersFromURL.includes(p.gender) ||
+      (p.gender === 'unisex' && !gendersFromURL.includes('kids'))
     );
   }
 
