@@ -179,16 +179,23 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   // Загрузка фото на сервер
   const handleFiles = async (files) => {
     const arr = Array.from(files).slice(0, 10 - form.images.length);
-    try {
-      const uploaded = await Promise.all(arr.map(async (file) => {
-        const path = await uploadImage(file);
-        if (!path) throw new Error('Сервер не вернул путь к файлу');
-        return { preview: path, url: path };
-      }));
-      setForm((f) => ({ ...f, images: [...f.images, ...uploaded].slice(0, 10) }));
-    } catch (err) {
-      console.error('[upload]', err);
-      notify('error', err.message || 'Ошибка загрузки фото');
+    const results = await Promise.allSettled(arr.map(async (file) => {
+      const path = await uploadImage(file);
+      if (!path) throw new Error('Сервер не вернул путь к файлу');
+      return { preview: path, url: path };
+    }));
+    const success = [];
+    const failed = [];
+    results.forEach((r) => {
+      if (r.status === 'fulfilled') success.push(r.value);
+      else failed.push(r.reason?.message || 'Неизвестная ошибка');
+    });
+    if (success.length > 0) {
+      setForm((f) => ({ ...f, images: [...f.images, ...success].slice(0, 10) }));
+    }
+    if (failed.length > 0) {
+      console.error('[upload] failed:', failed);
+      notify('error', `Не загружено ${failed.length} фото: ${failed[0]}`);
     }
   };
 
