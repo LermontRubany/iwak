@@ -1,5 +1,6 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import imageCompression from 'browser-image-compression';
 import { notifyGlobal } from './NotificationsContext';
 
 const ProductsContext = createContext(null);
@@ -177,8 +178,18 @@ export function ProductsProvider({ children }) {
 
   // ── Загрузка изображения → API ──
   const uploadImage = useCallback(async (file) => {
+    let fileToUpload = file;
+    try {
+      fileToUpload = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+      });
+    } catch (_e) {
+      // fallback: send original if compression fails
+    }
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('image', fileToUpload);
     const token = localStorage.getItem('iwak_admin_token');
     const res = await fetch('/api/upload', {
       method: 'POST',
