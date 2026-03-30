@@ -7,6 +7,15 @@ import sortSizes from '../utils/sortSizes';
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
+function formatDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}`;
+}
+
 export default function AdminApp() {
   const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts } = useProducts();
   const { notify } = useNotifications();
@@ -373,6 +382,12 @@ export default function AdminApp() {
               {selected.has(product.id) ? '✓' : ''}
             </button>
             <div className="adm-card__img">
+              {(product.priority >= 100 || (product.badge && product.badge.enabled)) && (
+                <div className="adm-card__indicators">
+                  {product.priority >= 100 && <span className="adm-indicator adm-indicator--top">TOP</span>}
+                  {product.badge && product.badge.enabled && <span className="adm-indicator adm-indicator--badge">🏷</span>}
+                </div>
+              )}
               {product.image ? (
                 <img src={product.image} alt={product.name} loading="lazy" />
               ) : (
@@ -384,11 +399,6 @@ export default function AdminApp() {
               {renderInlineField(product, 'name', 'adm-card__name')}
               <span className="adm-card__meta">
                 {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {sortSizes(product.sizes)?.join(', ')}
-                {product.priority != null && product.priority !== 50 && (
-                  <span className={`adm-card__priority adm-card__priority--${product.priority >= 80 ? 'high' : 'low'}`}>
-                    P{product.priority}
-                  </span>
-                )}
               </span>
               {editingField?.id === product.id && editingField?.field === 'price' ? (
                 <input
@@ -411,6 +421,7 @@ export default function AdminApp() {
               ) : (
                 <span className="adm-card__price adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>₽{product.price?.toLocaleString('ru-RU')}</span>
               )}
+              {product.createdAt && <span className="adm-card__date">{formatDate(product.createdAt)}</span>}
             </div>
             <div className="adm-card__actions">
               <button className="adm-action-btn adm-action-btn--del" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>✕</button>
