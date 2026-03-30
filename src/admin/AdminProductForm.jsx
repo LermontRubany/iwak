@@ -179,11 +179,17 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   // Загрузка фото на сервер
   const handleFiles = async (files) => {
     const arr = Array.from(files).slice(0, 10 - form.images.length);
-    const uploaded = await Promise.all(arr.map(async (file) => {
-      const path = await uploadImage(file);
-      return { preview: path, url: path };
-    }));
-    setForm((f) => ({ ...f, images: [...f.images, ...uploaded].slice(0, 10) }));
+    try {
+      const uploaded = await Promise.all(arr.map(async (file) => {
+        const path = await uploadImage(file);
+        if (!path) throw new Error('Сервер не вернул путь к файлу');
+        return { preview: path, url: path };
+      }));
+      setForm((f) => ({ ...f, images: [...f.images, ...uploaded].slice(0, 10) }));
+    } catch (err) {
+      console.error('[upload]', err);
+      notify('error', err.message || 'Ошибка загрузки фото');
+    }
   };
 
   const removeImage = (i) => {
