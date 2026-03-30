@@ -1320,6 +1320,71 @@
   flex: 1;
 }
 
+/* ─── DELETE PIN MODAL ─── */
+.adm-delete-modal {
+  background: var(--adm-surface);
+  border-radius: var(--adm-radius);
+  padding: 28px 24px;
+  max-width: 340px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.adm-delete-modal__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--adm-text);
+  margin-bottom: 12px;
+}
+
+.adm-delete-modal__text {
+  font-size: 14px;
+  color: var(--adm-text-muted);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.adm-delete-modal__text strong {
+  color: #e53935;
+}
+
+.adm-delete-modal__label {
+  font-size: 12px;
+  color: var(--adm-text-muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.adm-delete-modal__input {
+  text-align: center;
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  padding: 10px;
+  width: 100%;
+}
+
+.adm-delete-modal__input--error {
+  border-color: #e53935;
+  box-shadow: 0 0 0 2px rgba(229, 57, 53, 0.25);
+}
+
+.adm-delete-modal__error {
+  display: block;
+  font-size: 12px;
+  color: #e53935;
+  margin-top: 6px;
+}
+
+.adm-delete-modal__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.adm-delete-modal__actions .adm-btn {
+  flex: 1;
+}
+
 /* ─── BADGE PRESETS ─── */
 .adm-badge-presets {
   display: flex;

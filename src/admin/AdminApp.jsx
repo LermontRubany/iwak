@@ -39,6 +39,11 @@ export default function AdminApp() {
   const [bulkConfirmPending, setBulkConfirmPending] = useState(null);
   const debounceRef = useRef(null);
 
+  // PIN-защита массового удаления
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   const GENDER_DISPLAY = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
@@ -81,14 +86,38 @@ export default function AdminApp() {
     }
   };
 
+  const ADMIN_PIN = '3188';
+
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
+    if (selected.size >= 10) {
+      setShowDeleteModal(true);
+      setPinInput('');
+      setPinError(false);
+      return;
+    }
     if (!window.confirm(`Удалить ${selected.size} товар(ов)?`)) return;
     try {
       await bulkDelete([...selected]);
-      setSelected(new Set());
       notify('success', `Удалено: ${selected.size} товар(ов)`);
+      setSelected(new Set());
     } catch {} // apiFetch уже уведомил
+  };
+
+  const handleConfirmPinDelete = async () => {
+    if (pinInput !== ADMIN_PIN) {
+      setPinError(true);
+      return;
+    }
+    const count = selected.size;
+    try {
+      await bulkDelete([...selected]);
+      notify('success', `Удалено: ${count} товар(ов)`);
+      setSelected(new Set());
+    } catch {} // apiFetch уже уведомил
+    setShowDeleteModal(false);
+    setPinInput('');
+    setPinError(false);
   };
 
   const handleBulkPrice = async () => {
@@ -565,6 +594,35 @@ export default function AdminApp() {
             <div className="adm-bulk-confirm__actions">
               <button className="adm-btn adm-btn--primary" onClick={handleBulkConfirm}>Продолжить</button>
               <button className="adm-btn adm-btn--ghost" onClick={handleBulkCancel}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="adm-bulk-confirm-overlay" onClick={() => { setShowDeleteModal(false); setPinInput(''); setPinError(false); }}>
+          <div className="adm-delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="adm-delete-modal__title">⚠️ Подтверждение удаления</div>
+            <p className="adm-delete-modal__text">
+              Вы собираетесь удалить <strong>{selected.size}</strong> товаров<br/>
+              Это действие необратимо
+            </p>
+            <label className="adm-delete-modal__label">Введите PIN-код:</label>
+            <input
+              className={`adm-input adm-delete-modal__input${pinError ? ' adm-delete-modal__input--error' : ''}`}
+              type="password"
+              maxLength={4}
+              inputMode="numeric"
+              value={pinInput}
+              onChange={(e) => { setPinInput(e.target.value); setPinError(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmPinDelete(); }}
+              autoFocus
+              placeholder="••••"
+            />
+            {pinError && <span className="adm-delete-modal__error">Неверный PIN-код</span>}
+            <div className="adm-delete-modal__actions">
+              <button className="adm-btn adm-btn--ghost" onClick={() => { setShowDeleteModal(false); setPinInput(''); setPinError(false); }}>Отмена</button>
+              <button className="adm-btn adm-btn--danger" disabled={!pinInput} onClick={handleConfirmPinDelete}>Удалить</button>
             </div>
           </div>
         </div>
