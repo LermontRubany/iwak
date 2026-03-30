@@ -730,7 +730,7 @@ app.get('/product/:slug', async (req, res, next) => {
     if (result.rows.length === 0) return next();
 
     const p = result.rows[0];
-    const imgUrl = `${SITE_ORIGIN}/og-image/${match[1]}`;
+    const imgUrl = p.image ? `${SITE_ORIGIN}${p.image}` : `${SITE_ORIGIN}/og-main.jpg`;
 
     res.send(buildOgHtml({
       title: `${p.brand ? p.brand + ' ' : ''}${p.name} — IWAK`,
