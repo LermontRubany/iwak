@@ -626,22 +626,44 @@ app.get('/og-image/:id', async (req, res) => {
     const OG_W = 1200;
     const OG_H = 630;
 
-    // White canvas
-    const canvas = sharp({ create: { width: OG_W, height: OG_H, channels: 3, background: '#ffffff' } });
-
     if (imgPath && fs.existsSync(imgPath)) {
-      // Resize product image to fit inside canvas with padding
-      const productImg = await sharp(imgPath)
-        .resize(OG_H - 60, OG_H - 60, { fit: 'inside', withoutEnlargement: false })
+      const meta = await sharp(imgPath).metadata();
+      const aspect = meta.width / meta.height;
+
+      // Горизонтальное фото (aspect ~1.5–2): используем напрямую, fit:cover
+      if (aspect >= 1.45 && aspect <= 2.05) {
+        const buf = await sharp(imgPath)
+          .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
+          .jpeg({ quality: 88 })
+          .toBuffer();
+        fs.writeFileSync(cachePath, buf);
+        res.set('Content-Type', 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=86400');
+        return res.send(buf);
+      }
+
+      // Вертикальное/квадратное: блюр-фон + чёткий товар по центру
+      // 1. Блюр-фон (cover+blur+darken)
+      const blurredBg = await sharp(imgPath)
+        .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
+        .blur(40)
+        .modulate({ brightness: 0.92, saturation: 0.92 })
         .toBuffer();
 
-      const meta = await sharp(productImg).metadata();
-      const left = Math.round((OG_W - meta.width) / 2);
-      const top = Math.round((OG_H - meta.height) / 2);
+      // 2. Чёткое изображение (fit:inside, max 90% высоты)
+      const maxH = Math.round(OG_H * 0.9);
+      const maxW = Math.round(OG_W * 0.9);
+      const productImg = await sharp(imgPath)
+        .resize({ width: maxW, height: maxH, fit: 'inside', withoutEnlargement: false })
+        .toBuffer();
+      const fgMeta = await sharp(productImg).metadata();
+      const left = Math.round((OG_W - fgMeta.width) / 2);
+      const top = Math.round((OG_H - fgMeta.height) / 2);
 
-      const buf = await canvas
+      // 3. Сборка
+      const buf = await sharp(blurredBg)
         .composite([{ input: productImg, left, top }])
-        .jpeg({ quality: 85 })
+        .jpeg({ quality: 88 })
         .toBuffer();
 
       fs.writeFileSync(cachePath, buf);
@@ -650,18 +672,16 @@ app.get('/og-image/:id', async (req, res) => {
       return res.send(buf);
     }
 
-    // No source image — white placeholder with text via SVG overlay
+    // Нет исходного изображения — серый фон с текстом IWAK
     const svgText = `<svg width="${OG_W}" height="${OG_H}">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
       <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
-        font-family="Helvetica, Arial, sans-serif" font-size="48" font-weight="700"
-        letter-spacing="12" fill="#ccc">IWAK</text>
+        font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700"
+        letter-spacing="12" fill="#bbb">IWAK</text>
     </svg>`;
-
-    const buf = await canvas
-      .composite([{ input: Buffer.from(svgText), left: 0, top: 0 }])
-      .jpeg({ quality: 85 })
+    const buf = await sharp(Buffer.from(svgText))
+      .jpeg({ quality: 88 })
       .toBuffer();
-
     fs.writeFileSync(cachePath, buf);
     res.set('Content-Type', 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=86400');
