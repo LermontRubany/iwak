@@ -161,7 +161,7 @@ const authLimiter = rateLimit({
 
 // ── File upload (multer) ────────────────────
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -573,7 +573,7 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ success: false, error: 'Файл слишком большой (макс. 5 МБ)' });
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ success: false, error: 'Файл слишком большой (макс. 10 МБ)' });
     return res.status(400).json({ success: false, error: err.message });
   }
   if (err.message?.includes('Недопустимый тип файла')) {
