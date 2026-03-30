@@ -630,11 +630,11 @@ app.get('/og-image/:id', async (req, res) => {
       const meta = await sharp(imgPath).metadata();
       const aspect = meta.width / meta.height;
 
-      // Горизонтальное фото (aspect ~1.5–2): используем напрямую, fit:cover
-      if (aspect >= 1.45 && aspect <= 2.05) {
+      // Горизонтальное фото (width >= height): только оригинал, fit:cover
+      if (meta.width >= meta.height) {
         const buf = await sharp(imgPath)
           .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
-          .jpeg({ quality: 88 })
+          .jpeg({ quality: 90 })
           .toBuffer();
         fs.writeFileSync(cachePath, buf);
         res.set('Content-Type', 'image/jpeg');
@@ -642,17 +642,25 @@ app.get('/og-image/:id', async (req, res) => {
         return res.send(buf);
       }
 
-      // Вертикальное/квадратное: блюр-фон + чёткий товар по центру
-      // 1. Блюр-фон (cover+blur+darken)
-      const blurredBg = await sharp(imgPath)
+      // Вертикальное/квадратное:
+      // 1. Фон: cover + blur(14) + overlay
+      const bg = await sharp(imgPath)
         .resize(OG_W, OG_H, { fit: 'cover', position: 'center' })
-        .blur(40)
-        .modulate({ brightness: 0.92, saturation: 0.92 })
+        .blur(14)
+        .modulate({ brightness: 0.85, saturation: 0.92 })
         .toBuffer();
 
-      // 2. Чёткое изображение (fit:inside, max 90% высоты)
-      const maxH = Math.round(OG_H * 0.9);
-      const maxW = Math.round(OG_W * 0.9);
+      // 2. Overlay (чёрный прозрачный слой)
+      const overlay = Buffer.from(
+        `<svg width="${OG_W}" height="${OG_H}"><rect width="100%" height="100%" fill="rgba(0,0,0,0.18)"/></svg>`
+      );
+      const bgWithOverlay = await sharp(bg)
+        .composite([{ input: overlay, left: 0, top: 0 }])
+        .toBuffer();
+
+      // 3. Товар по центру (fit:inside, max 92% высоты)
+      const maxH = Math.round(OG_H * 0.92);
+      const maxW = Math.round(OG_W * 0.92);
       const productImg = await sharp(imgPath)
         .resize({ width: maxW, height: maxH, fit: 'inside', withoutEnlargement: false })
         .toBuffer();
@@ -660,10 +668,10 @@ app.get('/og-image/:id', async (req, res) => {
       const left = Math.round((OG_W - fgMeta.width) / 2);
       const top = Math.round((OG_H - fgMeta.height) / 2);
 
-      // 3. Сборка
-      const buf = await sharp(blurredBg)
+      // 4. Сборка
+      const buf = await sharp(bgWithOverlay)
         .composite([{ input: productImg, left, top }])
-        .jpeg({ quality: 88 })
+        .jpeg({ quality: 90 })
         .toBuffer();
 
       fs.writeFileSync(cachePath, buf);
