@@ -56,6 +56,7 @@ export function ProductsProvider({ children }) {
   const cached = readCache();
   const [products, setProductsRaw] = useState(cached || []);
   const [loading, setLoading] = useState(!cached);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Wrapper: sync sessionStorage on every state change
   const setProducts = useCallback((updater) => {
@@ -159,13 +160,18 @@ export function ProductsProvider({ children }) {
 
   // ── Массовое обновление приоритета → API ──
   const bulkUpdatePriority = useCallback(async (ids, priority) => {
-    const res = await apiFetch('/api/products/bulk-update', {
-      method: 'POST',
-      body: JSON.stringify({ ids, data: { priority } }),
-    });
-    if (res.updated) {
-      const updMap = new Map(res.updated.map((p) => [p.id, p]));
-      setProducts((prev) => prev.map((p) => updMap.get(p.id) || p));
+    setBulkLoading(true);
+    try {
+      const res = await apiFetch('/api/products/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ ids, data: { priority } }),
+      });
+      if (res.updated) {
+        const updMap = new Map(res.updated.map((p) => [p.id, p]));
+        setProducts((prev) => prev.map((p) => updMap.get(p.id) || p));
+      }
+    } finally {
+      setBulkLoading(false);
     }
   }, []);
 
@@ -194,7 +200,7 @@ export function ProductsProvider({ children }) {
 
   return (
     <ProductsContext.Provider value={{
-      products, loading,
+      products, loading, bulkLoading,
       fetchProducts,
       addProduct, updateProduct, deleteProduct,
       bulkUpdatePrices, bulkDelete, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority,

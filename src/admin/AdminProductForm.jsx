@@ -76,10 +76,10 @@ const EMPTY_BADGE = {
 };
 
 const PRIORITY_OPTIONS = [
-  { value: 100, label: 'Максимальный (100)' },
-  { value: 80,  label: 'Высокий (80)' },
-  { value: 50,  label: 'Обычный (50)' },
-  { value: 10,  label: 'Низкий (10)' },
+  { value: 100, label: 'Топ (100)' },
+  { value: 80,  label: 'Выше среднего (80)' },
+  { value: 50,  label: 'Стандарт (50)' },
+  { value: 10,  label: 'Вниз (10)' },
 ];
 
 const EMPTY_FORM = {

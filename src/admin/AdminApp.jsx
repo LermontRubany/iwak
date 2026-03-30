@@ -127,6 +127,7 @@ export default function AdminApp() {
     try {
       await bulkUpdatePriority([...selected], priority);
       notify('success', `Приоритет установлен: ${priority}`);
+      setSelected(new Set());
     } catch {} // apiFetch уже уведомил
     setShowPriorityPanel(false);
   };
@@ -522,10 +523,10 @@ export default function AdminApp() {
                 <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setShowPriorityPanel(false)}>✕</button>
               </div>
               <div className="adm-priority-panel__options">
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(100)}>Макс (100)</button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(80)}>Высокий (80)</button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(50)}>Обычный (50)</button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(10)}>Низкий (10)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(100)}>Топ (100)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(80)}>Выше среднего (80)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(50)}>Стандарт (50)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(10)}>Вниз (10)</button>
               </div>
             </div>
           ) : (

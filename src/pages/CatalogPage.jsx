@@ -76,12 +76,13 @@ function applyFilters(products, filters, sortBy, query, categoryFromURL, genders
 
   switch (sortBy) {
     case 'price-asc':
-      result = [...result].sort((a, b) => a.price - b.price);
+      result = [...result].sort((a, b) => a.price - b.price || b.id - a.id);
       break;
     case 'price-desc':
-      result = [...result].sort((a, b) => b.price - a.price);
+      result = [...result].sort((a, b) => b.price - a.price || b.id - a.id);
       break;
     default:
+      result = [...result].sort((a, b) => (b.priority ?? 50) - (a.priority ?? 50) || b.id - a.id);
       break;
   }
 

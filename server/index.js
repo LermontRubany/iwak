@@ -299,11 +299,11 @@ app.get('/api/products', async (req, res) => {
       if (!isNaN(max)) conditions.push(`price <= ${addParam(max)}`);
     }
 
-    let orderBy = 'priority DESC, created_at DESC';
+    let orderBy = 'priority DESC, created_at DESC, id DESC';
     switch (req.query.sort) {
-      case 'price-asc':  orderBy = 'price ASC'; break;
-      case 'price-desc': orderBy = 'price DESC'; break;
-      case 'newest':     orderBy = 'created_at DESC'; break;
+      case 'price-asc':  orderBy = 'price ASC, id DESC'; break;
+      case 'price-desc': orderBy = 'price DESC, id DESC'; break;
+      case 'newest':     orderBy = 'created_at DESC, id DESC'; break;
     }
 
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 2000);
