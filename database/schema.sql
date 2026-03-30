@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS products (
     featured        BOOLEAN NOT NULL DEFAULT false,
     badge           JSONB,                           -- {enabled, text, borderColor, textColor, shape, type, position, size}
     badge2          JSONB,                           -- второй бейдж (та же структура)
+    priority        INTEGER NOT NULL DEFAULT 50,     -- приоритет сортировки (100/80/50/10)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -71,6 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_products_brand      ON products (brand);
 CREATE INDEX IF NOT EXISTS idx_products_featured   ON products (featured) WHERE featured = true;
 CREATE INDEX IF NOT EXISTS idx_products_price      ON products (price);
 CREATE INDEX IF NOT EXISTS idx_products_created    ON products (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_priority_desc ON products (priority DESC);
 
 CREATE INDEX IF NOT EXISTS idx_products_sizes      ON products USING GIN (sizes);
 

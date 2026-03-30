@@ -299,7 +299,7 @@ app.get('/api/products', async (req, res) => {
       if (!isNaN(max)) conditions.push(`price <= ${addParam(max)}`);
     }
 
-    let orderBy = 'created_at DESC';
+    let orderBy = 'priority DESC, created_at DESC';
     switch (req.query.sort) {
       case 'price-asc':  orderBy = 'price ASC'; break;
       case 'price-desc': orderBy = 'price DESC'; break;
@@ -359,7 +359,7 @@ app.get('/api/products/:id', async (req, res) => {
 app.post('/api/products', requireAuth, async (req, res) => {
   const body = bodyToSnake(req.body);
   const { name, brand, category, gender, price, original_price, color, color_hex,
-          sizes, image, images, featured, badge, badge2 } = body;
+          sizes, image, images, featured, badge, badge2, priority } = body;
   if (!name?.trim()) {
     return res.status(400).json({ error: 'name обязательно' });
   }
@@ -367,14 +367,15 @@ app.post('/api/products', requireAuth, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO products
         (name, brand, category, gender, price, original_price, color, color_hex,
-         sizes, image, images, featured, badge, badge2)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         sizes, image, images, featured, badge, badge2, priority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [name.trim(), brand || '', category, gender || 'unisex', price || 0,
        original_price || null, color || '', color_hex || '#1A1A1A',
        sizes || [], image || '', images || [], featured || false,
        badge ? JSON.stringify(badge) : null,
-       badge2 ? JSON.stringify(badge2) : null]
+       badge2 ? JSON.stringify(badge2) : null,
+       priority ?? 50]
     );
     res.status(201).json(rowToCamel(result.rows[0]));
     cacheInvalidate();
@@ -388,12 +389,13 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const body = bodyToSnake(req.body);
   const { name, brand, category, gender, price, original_price, color, color_hex,
-          sizes, image, images, featured, badge, badge2 } = body;
+          sizes, image, images, featured, badge, badge2, priority } = body;
   try {
     // Для original_price: если явно передано (даже null) — ставим; если не передано — сохраняем старое
     const hasOrigPrice = 'original_price' in body;
     const hasBadge = 'badge' in body;
     const hasBadge2 = 'badge2' in body;
+    const hasPriority = 'priority' in body;
     const result = await pool.query(
       `UPDATE products SET
         name = COALESCE($1, name), brand = COALESCE($2, brand),
@@ -404,13 +406,15 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
         sizes = COALESCE($10, sizes), image = COALESCE($11, image),
         images = COALESCE($12, images), featured = COALESCE($13, featured),
         badge = CASE WHEN $14::boolean THEN $15::jsonb ELSE badge END,
-        badge2 = CASE WHEN $16::boolean THEN $17::jsonb ELSE badge2 END
-       WHERE id = $18 RETURNING *`,
+        badge2 = CASE WHEN $16::boolean THEN $17::jsonb ELSE badge2 END,
+        priority = CASE WHEN $18::boolean THEN $19::integer ELSE priority END
+       WHERE id = $20 RETURNING *`,
       [name, brand, category, gender, price,
        hasOrigPrice, hasOrigPrice ? original_price : null,
        color, color_hex, sizes, image, images, featured,
        hasBadge, hasBadge ? (badge ? JSON.stringify(badge) : null) : null,
        hasBadge2, hasBadge2 ? (badge2 ? JSON.stringify(badge2) : null) : null,
+       hasPriority, hasPriority ? priority : null,
        id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Товар не найден' });
@@ -503,7 +507,7 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
       const setClauses = [];
       const params = [ids];
       let pIdx = 1;
-      const allowedFields = ['featured', 'badge', 'badge2', 'category', 'gender', 'brand', 'color', 'color_hex'];
+      const allowedFields = ['featured', 'badge', 'badge2', 'category', 'gender', 'brand', 'color', 'color_hex', 'priority'];
       for (const [key, val] of Object.entries(snakeData)) {
         if (allowedFields.includes(key)) {
           pIdx++;

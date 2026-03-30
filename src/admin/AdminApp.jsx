@@ -8,7 +8,7 @@ import sortSizes from '../utils/sortSizes';
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
 export default function AdminApp() {
-  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, reloadProducts } = useProducts();
+  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts } = useProducts();
   const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
@@ -20,6 +20,7 @@ export default function AdminApp() {
   const [priceMode, setPriceMode] = useState('discount'); // 'discount' | 'markup' | 'fixed'
   const [priceValue, setPriceValue] = useState('');
   const [showBadgePanel, setShowBadgePanel] = useState(false);
+  const [showPriorityPanel, setShowPriorityPanel] = useState(false);
   const [bulkBadge, setBulkBadge] = useState({ enabled: true, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left', size: 'm' });
 
   // Inline editing
@@ -120,6 +121,14 @@ export default function AdminApp() {
       notify('success', 'Бейджи убраны');
     } catch {} // apiFetch уже уведомил
     setShowBadgePanel(false);
+  };
+
+  const handleBulkPriority = async (priority) => {
+    try {
+      await bulkUpdatePriority([...selected], priority);
+      notify('success', `Приоритет установлен: ${priority}`);
+    } catch {} // apiFetch уже уведомил
+    setShowPriorityPanel(false);
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -374,6 +383,11 @@ export default function AdminApp() {
               {renderInlineField(product, 'name', 'adm-card__name')}
               <span className="adm-card__meta">
                 {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {sortSizes(product.sizes)?.join(', ')}
+                {product.priority != null && product.priority !== 50 && (
+                  <span className={`adm-card__priority adm-card__priority--${product.priority >= 80 ? 'high' : 'low'}`}>
+                    P{product.priority}
+                  </span>
+                )}
               </span>
               {editingField?.id === product.id && editingField?.field === 'price' ? (
                 <input
@@ -501,10 +515,24 @@ export default function AdminApp() {
                 <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={handleBulkBadgeRemove}>УБРАТЬ ВСЕ</button>
               </div>
             </div>
+          ) : showPriorityPanel ? (
+            <div className="adm-priority-panel">
+              <div className="adm-priority-panel__header">
+                <span>Приоритет для {selected.size} товар(ов)</span>
+                <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setShowPriorityPanel(false)}>✕</button>
+              </div>
+              <div className="adm-priority-panel__options">
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(100)}>Макс (100)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(80)}>Высокий (80)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(50)}>Обычный (50)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(10)}>Низкий (10)</button>
+              </div>
+            </div>
           ) : (
             <div className="adm-selection-bar__actions">
               <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setShowPricePanel(true)}>ЦЕНЫ</button>
               <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => { setShowBadgePanel(true); setBulkBadge({ enabled: true, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left' }); }}>БЕЙДЖ</button>
+              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setShowPriorityPanel(true)}>ПРИОРИТЕТ</button>
               <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={handleBulkResetPrices}>СБРОС СКИДОК</button>
               <button className="adm-btn adm-btn--danger adm-btn--sm" onClick={handleBulkDelete}>УДАЛИТЬ</button>
             </div>

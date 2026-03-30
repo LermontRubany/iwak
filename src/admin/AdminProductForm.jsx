@@ -75,12 +75,20 @@ const EMPTY_BADGE = {
   position: 'top-left', size: 'm',
 };
 
+const PRIORITY_OPTIONS = [
+  { value: 100, label: 'Максимальный (100)' },
+  { value: 80,  label: 'Высокий (80)' },
+  { value: 50,  label: 'Обычный (50)' },
+  { value: 10,  label: 'Низкий (10)' },
+];
+
 const EMPTY_FORM = {
   name: '', brand: '', price: '', originalPrice: '',
   category: '',
   gender: '',
   color: '', colorHex: '#1A1A1A',
   featured: false,
+  priority: 50,
   sizes: [],
   images: [],
   badge: { ...EMPTY_BADGE },
@@ -105,6 +113,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         color: initial.color || '',
         colorHex: initial.colorHex || '#1A1A1A',
         featured: !!initial.featured,
+        priority: initial.priority ?? 50,
         sizes: initial.sizes || [],
         images: imgs,
         badge: initial.badge ? { ...EMPTY_BADGE, ...initial.badge } : { ...EMPTY_BADGE },
@@ -218,6 +227,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       sizes: form.sizes,
       image,
       images,
+      priority: Number(form.priority),
       badge: form.badge.enabled ? form.badge : null,
       badge2: form.badge2.enabled ? form.badge2 : null,
     };
@@ -493,6 +503,25 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
           </div>
         );
       })}
+
+      {/* Priority */}
+      <div className="adm-section">
+        <div className="adm-field">
+          <label className="adm-label">ПРИОРИТЕТ</label>
+          <div className="adm-chips">
+            {PRIORITY_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`adm-chip${Number(form.priority) === opt.value ? ' adm-chip--active' : ''}`}
+                onClick={() => set('priority', opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Featured */}
       <div className="adm-section">

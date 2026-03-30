@@ -157,6 +157,18 @@ export function ProductsProvider({ children }) {
     }
   }, []);
 
+  // ── Массовое обновление приоритета → API ──
+  const bulkUpdatePriority = useCallback(async (ids, priority) => {
+    const res = await apiFetch('/api/products/bulk-update', {
+      method: 'POST',
+      body: JSON.stringify({ ids, data: { priority } }),
+    });
+    if (res.updated) {
+      const updMap = new Map(res.updated.map((p) => [p.id, p]));
+      setProducts((prev) => prev.map((p) => updMap.get(p.id) || p));
+    }
+  }, []);
+
   // ── Загрузка изображения → API ──
   const uploadImage = useCallback(async (file) => {
     const formData = new FormData();
@@ -185,7 +197,7 @@ export function ProductsProvider({ children }) {
       products, loading,
       fetchProducts,
       addProduct, updateProduct, deleteProduct,
-      bulkUpdatePrices, bulkDelete, bulkResetPrices, bulkSetFeatured,
+      bulkUpdatePrices, bulkDelete, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority,
       uploadImage, reloadProducts,
     }}>
       {children}
