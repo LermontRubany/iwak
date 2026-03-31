@@ -62,15 +62,20 @@ export default function AdminApp() {
 
   const brandFilterOptions = useMemo(() => {
     const list = Array.isArray(products) ? products : [];
-    const counts = {};
+    // key = normalized (lower), value = { count, displayLabel }
+    const map = {};
     list.forEach((p) => {
       const b = p?.brand;
       if (b && typeof b === 'string' && b.trim()) {
-        counts[b.trim()] = (counts[b.trim()] || 0) + 1;
+        const key = b.trim().toLowerCase();
+        if (!map[key]) {
+          map[key] = { count: 0, displayLabel: b.trim().toUpperCase() };
+        }
+        map[key].count += 1;
       }
     });
-    const brands = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'ru'));
-    return [{ id: '', label: 'Все', count: null }, ...brands.map((b) => ({ id: b, label: b, count: counts[b] }))];
+    const brands = Object.keys(map).sort((a, b) => a.localeCompare(b, 'ru'));
+    return [{ id: '', label: 'Все', count: null }, ...brands.map((key) => ({ id: key, label: map[key].displayLabel, count: map[key].count }))];
   }, [products]);
 
   // Live-превью итоговой цены для bulk-изменения
@@ -389,7 +394,7 @@ export default function AdminApp() {
       list = list.filter((p) => p.gender === genderFilter);
     }
     if (brandFilter) {
-      list = list.filter((p) => p?.brand === brandFilter);
+      list = list.filter((p) => p?.brand?.trim().toLowerCase() === brandFilter);
     }
     return list;
   }, [products, search, catFilter, genderFilter, brandFilter]);
