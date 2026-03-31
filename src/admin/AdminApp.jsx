@@ -24,6 +24,7 @@ export default function AdminApp() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [showPricePanel, setShowPricePanel] = useState(false);
   const [priceMode, setPriceMode] = useState('discount'); // 'discount' | 'markup' | 'fixed'
@@ -57,6 +58,19 @@ export default function AdminApp() {
   const genderFilterOptions = useMemo(() => {
     const gs = [...new Set((Array.isArray(products) ? products : []).map((p) => p?.gender).filter(Boolean))].sort();
     return [{ id: '', label: 'Все' }, ...gs.map((g) => ({ id: g, label: GENDER_LABELS[g] || g }))];
+  }, [products]);
+
+  const brandFilterOptions = useMemo(() => {
+    const list = Array.isArray(products) ? products : [];
+    const counts = {};
+    list.forEach((p) => {
+      const b = p?.brand;
+      if (b && typeof b === 'string' && b.trim()) {
+        counts[b.trim()] = (counts[b.trim()] || 0) + 1;
+      }
+    });
+    const brands = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'ru'));
+    return [{ id: '', label: 'Все', count: null }, ...brands.map((b) => ({ id: b, label: b, count: counts[b] }))];
   }, [products]);
 
   // Live-превью итоговой цены для bulk-изменения
@@ -374,8 +388,11 @@ export default function AdminApp() {
     if (genderFilter) {
       list = list.filter((p) => p.gender === genderFilter);
     }
+    if (brandFilter) {
+      list = list.filter((p) => p?.brand === brandFilter);
+    }
     return list;
-  }, [products, search, catFilter, genderFilter]);
+  }, [products, search, catFilter, genderFilter, brandFilter]);
 
   const selectAll = () => {
     if (selected.size === filtered.length) {
@@ -431,7 +448,7 @@ export default function AdminApp() {
         </button>
       </div>
 
-      {/* Category + Gender filter chips */}
+      {/* Category + Gender + Brand filter chips */}
       <div className="adm-filters">
         <div className="adm-filter-row">
           {categoryFilterOptions.map((c) => (
@@ -455,6 +472,19 @@ export default function AdminApp() {
             </button>
           ))}
         </div>
+        {brandFilterOptions.length > 1 && (
+          <div className="adm-filter-row adm-filter-row--scroll">
+            {brandFilterOptions.map((b) => (
+              <button
+                key={b.id}
+                className={`adm-filter-chip${brandFilter === b.id ? ' adm-filter-chip--active' : ''}`}
+                onClick={() => setBrandFilter(b.id)}
+              >
+                {b.label}{b.count !== null ? ` (${b.count})` : ''}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="adm-stats">

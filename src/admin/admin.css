@@ -174,6 +174,18 @@
   flex-wrap: wrap;
 }
 
+.adm-filter-row--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.adm-filter-row--scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .adm-filter-chip {
   padding: 6px 14px;
   border: 1px solid var(--adm-border);
