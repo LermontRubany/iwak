@@ -59,6 +59,34 @@ export default function AdminApp() {
     return [{ id: '', label: 'Все' }, ...gs.map((g) => ({ id: g, label: GENDER_LABELS[g] || g }))];
   }, [products]);
 
+  // Live-превью итоговой цены для bulk-изменения
+  const pricePreview = useMemo(() => {
+    const val = Number(priceValue);
+    if (!priceValue || isNaN(val) || val <= 0) return null;
+    if (selected.size === 0) return null;
+    const selectedProducts = products.filter((p) => selected.has(p.id));
+    const entries = selectedProducts
+      .filter((p) => Number.isFinite(p.price))
+      .map((p) => {
+        let newP;
+        if (priceMode === 'discount') newP = Math.round(p.price * (1 - val / 100));
+        else if (priceMode === 'markup') newP = Math.round(p.price * (1 + val / 100));
+        else newP = Math.round(val); // fixed
+        return { old: p.price, newP };
+      })
+      .filter((e) => e.newP > 0);
+    if (entries.length === 0) return null;
+    const newPrices = entries.map((e) => e.newP);
+    const min = Math.min(...newPrices);
+    const max = Math.max(...newPrices);
+    return {
+      min,
+      max,
+      isSingle: entries.length === 1,
+      oldPrice: entries.length === 1 ? entries[0].old : null,
+    };
+  }, [priceValue, priceMode, selected, products]);
+
   const handleLogout = () => {
     localStorage.removeItem('iwak_admin_token');
     window.location.reload();
@@ -540,6 +568,22 @@ export default function AdminApp() {
                 <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleBulkPrice}>OK</button>
                 <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => { setShowPricePanel(false); setPriceValue(''); }}>✕</button>
               </div>
+              {pricePreview && (
+                <div className="adm-price-panel__preview">
+                  {pricePreview.isSingle ? (
+                    <>
+                      {pricePreview.oldPrice != null && (
+                        <span className="adm-price-panel__preview-old">Старая: {pricePreview.oldPrice.toLocaleString('ru-RU')} ₽</span>
+                      )}
+                      <span className="adm-price-panel__preview-new">Новая: <strong>{pricePreview.min.toLocaleString('ru-RU')} ₽</strong></span>
+                    </>
+                  ) : pricePreview.min === pricePreview.max ? (
+                    <span className="adm-price-panel__preview-new">Итого: <strong>~ {pricePreview.min.toLocaleString('ru-RU')} ₽</strong></span>
+                  ) : (
+                    <span className="adm-price-panel__preview-new">Диапазон: <strong>от {pricePreview.min.toLocaleString('ru-RU')} ₽ до {pricePreview.max.toLocaleString('ru-RU')} ₽</strong></span>
+                  )}
+                </div>
+              )}
             </div>
           ) : showBadgePanel ? (
             <div className="adm-badge-panel">

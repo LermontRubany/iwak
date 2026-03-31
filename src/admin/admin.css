@@ -388,6 +388,31 @@
   box-shadow: 0 0 0 2px rgba(0,180,160,0.3);
 }
 
+.adm-price-panel__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 6px;
+  border-left: 3px solid var(--adm-accent);
+}
+
+.adm-price-panel__preview-old {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  text-decoration: line-through;
+}
+
+.adm-price-panel__preview-new {
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+}
+
+.adm-price-panel__preview-new strong {
+  color: var(--adm-accent);
+}
+
 /* ─── PRODUCT LIST ─── */
 .adm-body { padding-bottom: 80px; }
 
