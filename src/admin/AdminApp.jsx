@@ -350,7 +350,8 @@ export default function AdminApp() {
     if (selected.size === filtered.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filtered.map((p) => p.id)));
+      // фильтруем null/undefined ids — защита от краша рендера
+      setSelected(new Set(filtered.map((p) => p.id).filter((id) => id != null)));
     }
   };
 
@@ -445,7 +446,7 @@ export default function AdminApp() {
         {filtered.length === 0 && (
           <div className="adm-empty">Ничего не найдено</div>
         )}
-        {filtered.map((product) => (
+        {filtered.filter(Boolean).map((product) => (
           <div
             key={product.id}
             className={`adm-card adm-card--clickable${selected.has(product.id) ? ' adm-card--selected' : ''}`}
@@ -485,12 +486,12 @@ export default function AdminApp() {
                 />
               ) : product.originalPrice && product.originalPrice > product.price ? (
                 <span className="adm-card__price-row adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>
-                  <span className="adm-card__price adm-card__price--sale">₽{product.price?.toLocaleString('ru-RU')}</span>
-                  <span className="adm-card__price--old">₽{product.originalPrice.toLocaleString('ru-RU')}</span>
-                  <span className="adm-card__badge">-{Math.round(100 - (product.price / product.originalPrice) * 100)}%</span>
+                  <span className="adm-card__price adm-card__price--sale">₽{Number.isFinite(product.price) ? product.price.toLocaleString('ru-RU') : product.price}</span>
+                  <span className="adm-card__price--old">₽{Number.isFinite(product.originalPrice) ? product.originalPrice.toLocaleString('ru-RU') : product.originalPrice}</span>
+                  <span className="adm-card__badge">-{Number.isFinite(product.price) && Number.isFinite(product.originalPrice) && product.originalPrice > 0 ? Math.round(100 - (product.price / product.originalPrice) * 100) : 0}%</span>
                 </span>
               ) : (
-                <span className="adm-card__price adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>₽{product.price?.toLocaleString('ru-RU')}</span>
+                <span className="adm-card__price adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>₽{product.price != null ? product.price?.toLocaleString('ru-RU') : '—'}</span>
               )}
               {product.createdAt && (
                 <div className="adm-card__meta-row">
@@ -611,10 +612,10 @@ export default function AdminApp() {
                 <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setShowPriorityPanel(false)}>✕</button>
               </div>
               <div className="adm-priority-panel__options">
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(100)}>Топ (100)</button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(80)}>Выше среднего (80)</button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(50)}>Стандарт (50)</button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => handleBulkPriority(10)}>Вниз (10)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => handleBulkPriority(100)}>Топ (100)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => handleBulkPriority(80)}>Выше среднего (80)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => handleBulkPriority(50)}>Стандарт (50)</button>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => handleBulkPriority(10)}>Вниз (10)</button>
               </div>
             </div>
           ) : (

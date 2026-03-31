@@ -45,7 +45,13 @@ function readCache() {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) && arr.length > 0 ? arr : null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    // Валидация: все элементы должны быть объектами с id
+    if (arr.some((p) => !p || typeof p !== 'object' || p.id == null)) {
+      sessionStorage.removeItem(CACHE_KEY); // сбрасываем испорченный кэш
+      return null;
+    }
+    return arr;
   } catch { return null; }
 }
 
@@ -73,7 +79,9 @@ export function ProductsProvider({ children }) {
     try {
       if (!readCache()) setLoading(true);
       const data = await apiFetch('/api/products?limit=2000');
-      const items = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+      const raw = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+      // Фильтруем невалидные элементы (защита от краша рендера)
+      const items = raw.filter((p) => p && typeof p === 'object' && p.id != null);
       setProducts(items);
     } catch (err) {
       // apiFetch уже вызвал notifyGlobal — здесь только fallback на кеш
