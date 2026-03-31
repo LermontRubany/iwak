@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
+import { formatBrand } from '../utils/brandUtils';
 
 const GENDER_LABELS = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
 
@@ -122,7 +123,7 @@ export default function FilterPanel({
   const categoryOptions = useMemo(() => (categories || []).map((c) => ({ id: c, label: c })), [categories]);
   const genderOptions = useMemo(() => (genders || []).map((g) => ({ id: g, label: GENDER_LABELS[g] || g })), [genders]);
   const sizeOptions = useMemo(() => sizes || [], [sizes]);
-  const brandOptions = useMemo(() => (brands || []).map((b) => ({ id: b, label: b })), [brands]);
+  const brandOptions = useMemo(() => (brands || []).map((b) => ({ id: b, label: formatBrand(b) })), [brands]);
 
   const renderChips = (items, draftKey) =>
     items.map((item) => (

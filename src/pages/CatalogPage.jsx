@@ -4,6 +4,7 @@ import { useProducts } from '../context/ProductsContext';
 import ProductCard from '../components/ProductCard';
 import FilterPanel from '../components/FilterPanel';
 import MiniPlayer from '../components/MiniPlayer';
+import { normalizeBrand, formatBrand, getUniqueBrands } from '../utils/brandUtils';
 
 const SEARCH_FIELDS = ['name', 'brand', 'category'];
 
@@ -69,7 +70,7 @@ function applyFilters(products, filters, sortBy, query, categoryFromURL, genders
   }
 
   if (filters.brands.length > 0) {
-    result = result.filter((p) => filters.brands.includes(p.brand));
+    result = result.filter((p) => filters.brands.includes(normalizeBrand(p?.brand)));
   }
 
   if (filters.sizes.length > 0) {
@@ -118,7 +119,7 @@ export default function CatalogPage() {
   );
 
   const brands = useMemo(() =>
-    [...new Set(products.map((p) => p.brand).filter(Boolean))].sort(),
+    getUniqueBrands(products).map((b) => b.key),
     [products]
   );
 
@@ -195,7 +196,7 @@ export default function CatalogPage() {
     if (genderParam) list.push({ key: 'url-gender', id: genderParam, label: GENDER_LABELS[genderParam] || genderParam });
     for (const id of filters.categories) list.push({ key: 'categories', id, label: id });
     for (const id of filters.genders) list.push({ key: 'genders', id, label: GENDER_LABELS[id] || id });
-    for (const id of filters.brands) list.push({ key: 'brands', id, label: id });
+    for (const id of filters.brands) list.push({ key: 'brands', id, label: formatBrand(id) });
     for (const id of filters.sizes) list.push({ key: 'sizes', id, label: id });
     return list;
   }, [filters, genderParam, saleParam]);

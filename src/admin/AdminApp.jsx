@@ -4,6 +4,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import AdminProductForm from './AdminProductForm';
 import NotificationBell from './NotificationBell';
 import sortSizes from '../utils/sortSizes';
+import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
@@ -61,21 +62,8 @@ export default function AdminApp() {
   }, [products]);
 
   const brandFilterOptions = useMemo(() => {
-    const list = Array.isArray(products) ? products : [];
-    // key = normalized (lower), value = { count, displayLabel }
-    const map = {};
-    list.forEach((p) => {
-      const b = p?.brand;
-      if (b && typeof b === 'string' && b.trim()) {
-        const key = b.trim().toLowerCase();
-        if (!map[key]) {
-          map[key] = { count: 0, displayLabel: b.trim().toUpperCase() };
-        }
-        map[key].count += 1;
-      }
-    });
-    const brands = Object.keys(map).sort((a, b) => a.localeCompare(b, 'ru'));
-    return [{ id: '', label: 'Все', count: null }, ...brands.map((key) => ({ id: key, label: map[key].displayLabel, count: map[key].count }))];
+    const brands = getUniqueBrands(Array.isArray(products) ? products : []);
+    return [{ id: '', label: 'Все', count: null }, ...brands.map((b) => ({ id: b.key, label: b.label, count: b.count }))];
   }, [products]);
 
   // Live-превью итоговой цены для bulk-изменения
@@ -394,7 +382,7 @@ export default function AdminApp() {
       list = list.filter((p) => p.gender === genderFilter);
     }
     if (brandFilter) {
-      list = list.filter((p) => p?.brand?.trim().toLowerCase() === brandFilter);
+      list = list.filter((p) => normalizeBrand(p?.brand) === brandFilter);
     }
     return list;
   }, [products, search, catFilter, genderFilter, brandFilter]);
