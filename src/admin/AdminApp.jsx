@@ -17,7 +17,7 @@ function formatDate(dateStr) {
 }
 
 export default function AdminApp() {
-  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdate, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts } = useProducts();
+  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdate, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts, verifyAdminPin } = useProducts();
   const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
@@ -44,8 +44,7 @@ export default function AdminApp() {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
-  // Блокировка UI во время массовой операции
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  // ADMIN_PIN больше не хранится на клиенте — проверка идёт через /api/admin/verify-pin
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
@@ -89,8 +88,6 @@ export default function AdminApp() {
     }
   };
 
-  const ADMIN_PIN = '3188';
-
   const handleBulkDelete = async () => {
     if (selected.size === 0 || bulkActionLoading) return;
     if (selected.size >= 10) {
@@ -110,12 +107,19 @@ export default function AdminApp() {
   };
 
   const handleConfirmPinDelete = async () => {
-    if (pinInput !== ADMIN_PIN) {
+    setBulkActionLoading(true);
+    let pinOk = false;
+    try {
+      pinOk = await verifyAdminPin(pinInput);
+    } catch {
+      // apiFetch уже показал toast
+    }
+    if (!pinOk) {
       setPinError(true);
+      setBulkActionLoading(false);
       return;
     }
     const count = selected.size;
-    setBulkActionLoading(true);
     try {
       await bulkDelete([...selected]);
       notify('success', `Удалено: ${count} товар(ов)`);

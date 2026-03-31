@@ -226,13 +226,22 @@ export function ProductsProvider({ children }) {
     await fetchProducts();
   }, [fetchProducts]);
 
+  // ── Проверка admin PIN на сервере ──
+  const verifyAdminPin = useCallback(async (pin) => {
+    const res = await apiFetch('/api/admin/verify-pin', {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+    return res.ok === true;
+  }, []);
+
   return (
     <ProductsContext.Provider value={{
       products, loading, bulkLoading,
       fetchProducts,
       addProduct, updateProduct, deleteProduct,
       bulkUpdate, bulkUpdatePrices, bulkDelete, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority,
-      uploadImage, reloadProducts,
+      uploadImage, reloadProducts, verifyAdminPin,
     }}>
       {children}
     </ProductsContext.Provider>

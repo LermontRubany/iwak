@@ -43,7 +43,14 @@ const logger = pino({
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+
+// Критичная проверка: JWT_SECRET обязателен — нет fallback
+if (!process.env.JWT_SECRET) {
+  // eslint-disable-next-line no-console
+  console.error('[FATAL] JWT_SECRET не задан в .env — запуск невозможен');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const BCRYPT_ROUNDS = 10;
 
 // ── PostgreSQL ──────────────────────────────
@@ -95,6 +102,9 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
+// Доверяем proxy-заголовкам (nginx / Cloudflare) — req.ip будет читать CF-Connecting-IP
+app.set('trust proxy', 1);
+
 // In production without CORS_ORIGIN, same-origin requests still work
 // (nginx serves both frontend and API on same domain).
 // Set CORS_ORIGIN=https://example.com to allow specific origins explicitly.
@@ -119,7 +129,42 @@ const apiLimiter = rateLimit({
   skip: (req) => req.path.startsWith('/api/products/bulk-'),
 });
 app.use('/api', apiLimiter);
+// ── Upload Rate Limit (20 req / 15 min per IP) ──
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Превышен лимит загрузки файлов' },
+});
 
+// ── Счётчик неудачных попыток авторизации (brute-force защита) ──
+const loginFailures = new Map(); // ip → { count, blockedUntil }
+
+function checkLoginBlock(ip) {
+  const entry = loginFailures.get(ip);
+  if (!entry) return false;
+  if (entry.blockedUntil && Date.now() < entry.blockedUntil) return true;
+  if (entry.blockedUntil && Date.now() >= entry.blockedUntil) {
+    loginFailures.delete(ip);
+    return false;
+  }
+  return false;
+}
+
+function recordLoginFailure(ip) {
+  const entry = loginFailures.get(ip) || { count: 0, blockedUntil: null };
+  entry.count += 1;
+  if (entry.count >= 5) {
+    entry.blockedUntil = Date.now() + 15 * 60 * 1000; // 15 минут
+    entry.count = 0;
+  }
+  loginFailures.set(ip, entry);
+}
+
+function clearLoginFailures(ip) {
+  loginFailures.delete(ip);
+}
 // ── Request logging ─────────────────────────
 app.use((req, _res, next) => {
   logger.info({ method: req.method, url: req.url });
@@ -156,7 +201,7 @@ app.use('/uploads', express.static(uploadDir, {
 // ── Rate limiting ───────────────────────────
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 5,
   message: { error: 'Слишком много попыток. Попробуйте позже.' },
 });
 
@@ -200,12 +245,21 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   if (!login || !password) {
     return res.status(400).json({ error: 'Введите логин и пароль' });
   }
+  const ip = req.ip || 'unknown';
+  if (checkLoginBlock(ip)) {
+    logger.warn({ ip }, 'Login blocked: too many failures');
+    return res.status(429).json({ error: 'Слишком много неудачных попыток. Блок на 15 минут.' });
+  }
   try {
     const result = await pool.query('SELECT * FROM admin_users WHERE login = $1', [login]);
     const user = result.rows[0];
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      recordLoginFailure(ip);
+      logger.warn({ ip, login }, 'Failed login attempt');
       return res.status(401).json({ error: 'Неверный логин или пароль' });
     }
+    clearLoginFailures(ip);
+    logger.info({ ip, login: user.login }, 'Successful login');
     const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, login: user.login });
   } catch (err) {
@@ -238,6 +292,27 @@ app.post('/api/auth/setup', async (req, res) => {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ login: req.admin.login });
+});
+
+// POST /api/admin/verify-pin — проверка PIN-кода на сервере (не хранится в клиенте)
+const pinLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  message: { error: 'Слишком много попыток PIN. Подождите.' },
+});
+
+app.post('/api/admin/verify-pin', requireAuth, pinLimiter, (req, res) => {
+  const { pin } = req.body;
+  const correctPin = process.env.ADMIN_DELETE_PIN;
+  if (!correctPin) {
+    logger.error('ADMIN_DELETE_PIN не задан в .env');
+    return res.status(500).json({ error: 'Конфигурация сервера неполна' });
+  }
+  if (!pin || String(pin) !== String(correctPin)) {
+    logger.warn({ ip: req.ip }, 'Wrong admin PIN attempt');
+    return res.status(403).json({ error: 'Неверный PIN-код' });
+  }
+  res.json({ ok: true });
 });
 
 // ════════════════════════════════════════════
@@ -467,6 +542,9 @@ app.post('/api/products/bulk-delete', requireAuth, async (req, res) => {
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'ids обязателен (массив)' });
   }
+  if (ids.length > 100) {
+    return res.status(400).json({ error: 'Максимально 100 товаров в одной операции' });
+  }
   try {
     const result = await pool.query('DELETE FROM products WHERE id = ANY($1) RETURNING image, images', [ids]);
     // Очистка загруженных файлов
@@ -490,6 +568,9 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
   const { ids, data, priceTransform } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'ids обязателен (массив)' });
+  }
+  if (ids.length > 100) {
+    return res.status(400).json({ error: 'Максимально 100 товаров в одной операции' });
   }
   try {
     if (priceTransform) {
@@ -558,11 +639,18 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
 // UPLOAD (admin)
 // ════════════════════════════════════════════
 
-app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) => {
+app.post('/api/upload', requireAuth, uploadLimiter, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`;
   const outPath = path.join(uploadDir, filename);
   try {
+    // Проверка magic bytes через sharp.metadata() — отклоняет не-изображения до обработки
+    const meta = await sharp(req.file.buffer).metadata();
+    const ALLOWED_FORMATS = ['jpeg', 'png', 'webp', 'avif', 'gif'];
+    if (!ALLOWED_FORMATS.includes(meta.format)) {
+      logger.warn({ ip: req.ip, format: meta.format }, 'Upload rejected: invalid image format');
+      return res.status(415).json({ success: false, error: 'Недопустимый формат файла' });
+    }
     await sharp(req.file.buffer)
       .rotate()
       .resize({ width: 1200, withoutEnlargement: true })
@@ -570,7 +658,12 @@ app.post('/api/upload', requireAuth, upload.single('image'), async (req, res) =>
       .toFile(outPath);
     res.json({ path: `/uploads/${filename}` });
   } catch (err) {
-    logger.error({ err }, 'Sharp error');
+    logger.error({ err, ip: req.ip }, 'Upload/Sharp error');
+    // Если sharp не смог распознать — это не изображение
+    if (err.message?.includes('Input buffer contains unsupported image format') ||
+        err.message?.includes('VipsJpeg') || err.message?.includes('Input file is missing')) {
+      return res.status(415).json({ success: false, error: 'Недопустимый формат файла' });
+    }
     res.status(422).json({ success: false, error: 'Не удалось обработать изображение' });
   }
 });
