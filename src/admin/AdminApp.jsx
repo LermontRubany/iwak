@@ -39,6 +39,9 @@ export default function AdminApp() {
   const [bulkConfirmPending, setBulkConfirmPending] = useState(null);
   const debounceRef = useRef(null);
 
+  // Блокировка UI во время bulk-операций
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
   // PIN-защита массового удаления
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -52,7 +55,7 @@ export default function AdminApp() {
 
   // Derive gender filter chips from product data
   const genderFilterOptions = useMemo(() => {
-    const gs = [...new Set(products.map((p) => p.gender).filter(Boolean))].sort();
+    const gs = [...new Set((Array.isArray(products) ? products : []).map((p) => p?.gender).filter(Boolean))].sort();
     return [{ id: '', label: 'Все' }, ...gs.map((g) => ({ id: g, label: GENDER_LABELS[g] || g }))];
   }, [products]);
 
@@ -325,12 +328,12 @@ export default function AdminApp() {
 
   // Derive category filter chips from product data
   const categoryFilterOptions = useMemo(() => {
-    const cats = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+    const cats = [...new Set((Array.isArray(products) ? products : []).map((p) => p?.category).filter(Boolean))].sort();
     return [{ id: '', label: 'Все' }, ...cats.map((c) => ({ id: c, label: c }))];
   }, [products]);
 
   const filtered = useMemo(() => {
-    let list = products;
+    let list = (Array.isArray(products) ? products : []).filter((p) => p && p.id != null);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((p) =>

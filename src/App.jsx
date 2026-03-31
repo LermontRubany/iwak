@@ -53,6 +53,9 @@ function AppRoutes() {
 class ErrorBoundary extends Component {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error, info) {
+    console.error('UI CRASH:', error.message, error.stack, info?.componentStack);
+  }
   render() {
     if (this.state.hasError) {
       return (
