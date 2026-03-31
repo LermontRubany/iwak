@@ -637,6 +637,22 @@
   animation: adm-shake 0.3s;
 }
 
+.adm-input--warn {
+  border-color: #f59f00;
+  box-shadow: 0 0 0 3px rgba(245,159,0,0.14);
+}
+
+.adm-field-warn {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(245,159,0,0.10);
+  border-left: 3px solid #f59f00;
+  color: #b37400;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 @keyframes adm-shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-6px); }

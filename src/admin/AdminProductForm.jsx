@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { normalizeBrand, formatBrand } from '../utils/brandUtils';
 
 let _imgId = 0;
 const nextImgId = () => ++_imgId;
@@ -128,6 +129,28 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   // Derive category options from existing products
   const existingCategories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+
+  // ── Duplicate detection ──
+  const brandWarn = useMemo(() => {
+    const val = form.brand.trim();
+    if (!val) return null;
+    const normVal = normalizeBrand(val);
+    // Skip check for the product being edited
+    const otherProducts = initial ? products.filter((p) => p.id !== initial.id) : products;
+    const match = otherProducts.find((p) => normalizeBrand(p?.brand) === normVal);
+    if (!match) return null;
+    const displayed = formatBrand(normVal);
+    return displayed;
+  }, [form.brand, products, initial]);
+
+  const categoryWarn = useMemo(() => {
+    const val = form.category?.trim();
+    if (!val) return null;
+    const normVal = val.toLowerCase();
+    const otherProducts = initial ? products.filter((p) => p.id !== initial.id) : products;
+    const exists = otherProducts.some((p) => p?.category?.trim().toLowerCase() === normVal);
+    return exists ? val : null;
+  }, [form.category, products, initial]);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
@@ -386,13 +409,18 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <div className="adm-field">
           <label className="adm-label">БРЕНД</label>
           <input
-            className="adm-input"
+            className={`adm-input${brandWarn ? ' adm-input--warn' : ''}`}
             type="text"
             placeholder="Nike"
             value={form.brand}
             onChange={(e) => set('brand', e.target.value)}
             required
           />
+          {brandWarn && (
+            <div className="adm-field-warn">
+              ⚠️ Такой бренд уже есть — вы имели в виду <strong>{brandWarn}</strong>?
+            </div>
+          )}
         </div>
 
         <div className="adm-field">
@@ -422,6 +450,11 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
                 autoFocus
               />
               <button type="button" className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCategory}>Добавить</button>
+            </div>
+          )}
+          {categoryWarn && (
+            <div className="adm-field-warn">
+              ⚠️ Категория <strong>{categoryWarn}</strong> уже существует
             </div>
           )}
         </div>
