@@ -203,7 +203,13 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   }, []);
 
   const enqueueUpload = useCallback((id, file) => {
+    // Если активных < MAX_CONCURRENT — сразу uploading, иначе — waiting
+    const willStart = activeRef.current < MAX_CONCURRENT;
+    if (!willStart) {
+      updateImg(id, { status: 'waiting' });
+    }
     queueRef.current.push(async () => {
+      updateImg(id, { status: 'uploading', progress: 0 });
       try {
         const path = await uploadImage(file);
         if (!path) throw new Error('Сервер не вернул путь');
@@ -219,12 +225,14 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   // Загрузка фото: мгновенное preview + очередь
   const handleFiles = (files) => {
     const arr = Array.from(files).slice(0, 10 - form.images.length);
-    const newImgs = arr.map((file) => {
+    const currentActive = activeRef.current;
+    const newImgs = arr.map((file, i) => {
       const id = nextImgId();
       const preview = URL.createObjectURL(file);
-      // Enqueue upload after state update (via setTimeout)
+      // Первые MAX_CONCURRENT файлов — uploading, остальные — waiting
+      const status = currentActive + i < MAX_CONCURRENT ? 'uploading' : 'waiting';
       setTimeout(() => enqueueUpload(id, file), 0);
-      return { id, preview, url: '', status: 'uploading', progress: 0 };
+      return { id, preview, url: '', status, progress: 0 };
     });
     setForm((f) => ({ ...f, images: [...f.images, ...newImgs].slice(0, 10) }));
   };
@@ -262,7 +270,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
     // Only use successfully uploaded images
     const doneImages = form.images.filter((img) => img.status === 'done');
-    if (form.images.some((img) => img.status === 'uploading')) {
+    if (form.images.some((img) => img.status === 'uploading' || img.status === 'waiting')) {
       notify('error', 'Дождитесь окончания загрузки фото');
       return;
     }
@@ -325,11 +333,16 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <div className="adm-section__title">ФОТО</div>
         <div className="adm-images-grid">
           {form.images.map((img, i) => (
-            <div key={img.id} className={`adm-img-thumb${i === 0 ? ' adm-img-thumb--main' : ''}${img.status === 'uploading' ? ' adm-img-thumb--uploading' : ''}${img.status === 'error' ? ' adm-img-thumb--error' : ''}`}>
+            <div key={img.id} className={`adm-img-thumb${i === 0 ? ' adm-img-thumb--main' : ''}${img.status === 'uploading' ? ' adm-img-thumb--uploading' : ''}${img.status === 'waiting' ? ' adm-img-thumb--uploading' : ''}${img.status === 'error' ? ' adm-img-thumb--error' : ''}`}>
               <img src={img.preview} alt="" />
               {img.status === 'uploading' && (
                 <div className="adm-img-overlay">
                   <div className="adm-img-spinner" />
+                </div>
+              )}
+              {img.status === 'waiting' && (
+                <div className="adm-img-overlay">
+                  <span style={{ fontSize: 10, color: '#fff', textAlign: 'center', padding: '0 4px' }}>Очередь...</span>
                 </div>
               )}
               {img.status === 'error' && (

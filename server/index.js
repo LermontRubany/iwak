@@ -119,23 +119,36 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 
-// ── API Rate Limit (100 req / 15 min per IP) ──
+// ── Проверяем наличие JWT в заголовке (rate limit skip) ──
+function hasValidToken(req) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return false;
+  try {
+    jwt.verify(header.slice(7), JWT_SECRET);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ── API Rate Limit (100 req / 15 min per IP) — отключен для админов ──
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
-  skip: (req) => req.path.startsWith('/api/products/bulk-'),
+  skip: (req) => hasValidToken(req) || req.path.startsWith('/api/products/bulk-'),
 });
 app.use('/api', apiLimiter);
-// ── Upload Rate Limit (20 req / 15 min per IP) ──
+// ── Upload Rate Limit (300 req / 15 min) — отключён для админов ──
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Превышен лимит загрузки файлов' },
+  skip: (req) => hasValidToken(req),
 });
 
 // ── Счётчик неудачных попыток авторизации (brute-force защита) ──

@@ -193,7 +193,7 @@ export function ProductsProvider({ children }) {
     }
   }, []);
 
-  // ── Загрузка изображения → API ──
+  // ── Загрузка изображения → API (с retry при ошибках) ──
   const uploadImage = useCallback(async (file) => {
     let fileToUpload = file;
     try {
@@ -205,20 +205,40 @@ export function ProductsProvider({ children }) {
     } catch (_e) {
       // fallback: send original if compression fails
     }
-    const formData = new FormData();
-    formData.append('image', fileToUpload);
     const token = localStorage.getItem('iwak_admin_token');
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Ошибка загрузки');
+    const delays = [0, 500, 1500];
+    let lastError;
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt] > 0) {
+        await new Promise((r) => setTimeout(r, delays[attempt]));
+      }
+      try {
+        const formData = new FormData();
+        formData.append('image', fileToUpload);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const msg = err.error || `Ошибка загрузки (${res.status})`;
+          // При 429 — retry, при других ошибках — сразу бросаем
+          if (res.status !== 429) throw new Error(msg);
+          lastError = new Error(msg);
+          continue;
+        }
+        const data = await res.json();
+        return data.path;
+      } catch (e) {
+        if (e.message?.includes('429') && attempt < delays.length - 1) {
+          lastError = e;
+          continue;
+        }
+        throw e;
+      }
     }
-    const data = await res.json();
-    return data.path;
+    throw lastError || new Error('Ошибка загрузки');
   }, []);
 
   // ── Полная перезагрузка ──
