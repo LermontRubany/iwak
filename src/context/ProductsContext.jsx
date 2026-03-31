@@ -147,6 +147,23 @@ export function ProductsProvider({ children }) {
     }
   }, []);
 
+  // ── Массовое обновление полей → API (универсальный, 1 запрос) ──
+  const bulkUpdate = useCallback(async (ids, data) => {
+    setBulkLoading(true);
+    try {
+      const res = await apiFetch('/api/products/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ ids, data }),
+      });
+      if (res.updated) {
+        const updMap = new Map(res.updated.map((p) => [p.id, p]));
+        setProducts((prev) => prev.map((p) => updMap.get(p.id) || p));
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }, []);
+
   // ── Массовая установка featured → API ──
   const bulkSetFeatured = useCallback(async (ids, featured) => {
     const res = await apiFetch('/api/products/bulk-update', {
@@ -214,7 +231,7 @@ export function ProductsProvider({ children }) {
       products, loading, bulkLoading,
       fetchProducts,
       addProduct, updateProduct, deleteProduct,
-      bulkUpdatePrices, bulkDelete, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority,
+      bulkUpdate, bulkUpdatePrices, bulkDelete, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority,
       uploadImage, reloadProducts,
     }}>
       {children}

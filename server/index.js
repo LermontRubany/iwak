@@ -116,6 +116,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
+  skip: (req) => req.path.startsWith('/api/products/bulk-'),
 });
 app.use('/api', apiLimiter);
 
@@ -521,7 +522,7 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
       const setClauses = [];
       const params = [ids];
       let pIdx = 1;
-      const allowedFields = ['featured', 'badge', 'badge2', 'category', 'gender', 'brand', 'color', 'color_hex', 'priority'];
+      const allowedFields = ['featured', 'badge', 'badge2', 'category', 'gender', 'brand', 'color', 'color_hex', 'priority', 'name', 'price'];
       for (const [key, val] of Object.entries(snakeData)) {
         if (allowedFields.includes(key)) {
           pIdx++;
@@ -531,6 +532,9 @@ app.post('/api/products/bulk-update', requireAuth, async (req, res) => {
           } else {
             setClauses.push(`${key} = $${pIdx}`);
             params.push(val);
+          }
+          if (key === 'price') {
+            setClauses.push('original_price = NULL');
           }
         }
       }

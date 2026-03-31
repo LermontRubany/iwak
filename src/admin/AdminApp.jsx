@@ -17,7 +17,7 @@ function formatDate(dateStr) {
 }
 
 export default function AdminApp() {
-  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts } = useProducts();
+  const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdate, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts } = useProducts();
   const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
@@ -43,6 +43,9 @@ export default function AdminApp() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
+
+  // Блокировка UI во время массовой операции
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
@@ -89,7 +92,7 @@ export default function AdminApp() {
   const ADMIN_PIN = '3188';
 
   const handleBulkDelete = async () => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || bulkActionLoading) return;
     if (selected.size >= 10) {
       setShowDeleteModal(true);
       setPinInput('');
@@ -97,11 +100,13 @@ export default function AdminApp() {
       return;
     }
     if (!window.confirm(`Удалить ${selected.size} товар(ов)?`)) return;
+    setBulkActionLoading(true);
     try {
       await bulkDelete([...selected]);
       notify('success', `Удалено: ${selected.size} товар(ов)`);
       setSelected(new Set());
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
   };
 
   const handleConfirmPinDelete = async () => {
@@ -110,69 +115,97 @@ export default function AdminApp() {
       return;
     }
     const count = selected.size;
+    setBulkActionLoading(true);
     try {
       await bulkDelete([...selected]);
       notify('success', `Удалено: ${count} товар(ов)`);
       setSelected(new Set());
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
     setShowDeleteModal(false);
     setPinInput('');
     setPinError(false);
   };
 
   const handleBulkPrice = async () => {
+    if (bulkActionLoading) return;
     const val = Number(priceValue);
     if (!val || val <= 0) return;
     const ids = [...selected];
+    setBulkActionLoading(true);
+    notify('info', `Обновление цен (${ids.length} товаров)...`);
     try {
       await bulkUpdatePrices(ids, { type: priceMode, value: val });
       notify('success', 'Цены обновлены');
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
     setShowPricePanel(false);
     setPriceValue('');
   };
 
   const handleBulkResetPrices = async () => {
+    if (bulkActionLoading) return;
     if (!window.confirm('Сбросить скидки для выбранных товаров?')) return;
+    setBulkActionLoading(true);
+    notify('info', `Сброс скидок (${selected.size} товаров)...`);
     try {
       await bulkResetPrices([...selected]);
       notify('success', 'Скидки сброшены');
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
   };
 
   const handleBulkBadgeApply = async () => {
+    if (bulkActionLoading) return;
     const ids = [...selected];
     const badge = bulkBadge.enabled
       ? { ...bulkBadge, text: bulkBadge.text.trim().toUpperCase() }
       : { ...bulkBadge, enabled: false };
+    setBulkActionLoading(true);
+    notify('info', `Обновление бейджей (${ids.length} товаров)...`);
     try {
-      await Promise.all(ids.map((id) => updateProduct(id, { badge })));
+      await bulkUpdate(ids, { badge });
       notify('success', 'Бейджи обновлены');
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
     setShowBadgePanel(false);
   };
 
   const handleBulkBadgeRemove = async () => {
+    if (bulkActionLoading) return;
     const ids = [...selected];
+    const removedBadge = { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect' };
+    setBulkActionLoading(true);
+    notify('info', `Удаление бейджей (${ids.length} товаров)...`);
     try {
-      await Promise.all(ids.map((id) => updateProduct(id, { badge: { enabled: false, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect' } })));
+      await bulkUpdate(ids, { badge: removedBadge });
       notify('success', 'Бейджи убраны');
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
     setShowBadgePanel(false);
   };
 
   const handleBulkPriority = async (priority) => {
+    if (bulkActionLoading) return;
+    setBulkActionLoading(true);
+    notify('info', `Установка приоритета (${selected.size} товаров)...`);
     try {
       await bulkUpdatePriority([...selected], priority);
       notify('success', `Приоритет установлен: ${priority}`);
       setSelected(new Set());
     } catch {} // apiFetch уже уведомил
+    setBulkActionLoading(false);
     setShowPriorityPanel(false);
   };
 
   // eslint-disable-next-line no-unused-vars
-  const handleBulkFeatured = (featured) => {
-    bulkSetFeatured([...selected], featured);
+  const handleBulkFeatured = async (featured) => {
+    if (bulkActionLoading) return;
+    setBulkActionLoading(true);
+    try {
+      await bulkSetFeatured([...selected], featured);
+    } catch {}
+    setBulkActionLoading(false);
   };
 
   // — Inline editing —
@@ -181,11 +214,17 @@ export default function AdminApp() {
     if (field === 'price' && (!val || val <= 0)) return;
     try {
       if (selected.size > 0) {
-        await Promise.all([...selected].map((pid) => updateProduct(pid, { [field]: val })));
+        if (bulkActionLoading) return;
+        setBulkActionLoading(true);
+        const ids = [...selected];
+        await bulkUpdate(ids, { [field]: val });
+        setBulkActionLoading(false);
       } else {
         await updateProduct(id, { [field]: val });
       }
-    } catch {} // apiFetch уже уведомил
+    } catch {
+      setBulkActionLoading(false);
+    } // apiFetch уже уведомил
   };
 
   const startInlineEdit = (productId, field, currentValue, e) => {
@@ -205,18 +244,21 @@ export default function AdminApp() {
     if (!editingField) return;
     const { id, field } = editingField;
     debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
       applyInlineChange(id, field, value);
     }, 400);
   };
 
   const commitInlineEdit = () => {
     if (debounceRef.current) {
+      // Дебаунс ещё пендинг — отменяем его и сами запускаем
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
+      if (editingField) {
+        applyInlineChange(editingField.id, editingField.field, editValue);
+      }
     }
-    if (editingField) {
-      applyInlineChange(editingField.id, editingField.field, editValue);
-    }
+    // Если дебаунс уже отработал (null) — ничего не делаем, запрос уже ушёл
     setEditingField(null);
     setEditValue('');
   };
@@ -389,7 +431,9 @@ export default function AdminApp() {
       {selected.size > 0 && (
         <div className="adm-bulk-banner">
           <span>Выбрано: {selected.size} товар(ов)</span>
-          <span className="adm-bulk-banner__badge">Массовое редактирование активно</span>
+          {bulkActionLoading
+            ? <span className="adm-bulk-banner__badge">Обновление...</span>
+            : <span className="adm-bulk-banner__badge">Массовое редактирование активно</span>}
         </div>
       )}
 
@@ -552,8 +596,8 @@ export default function AdminApp() {
                 </>
               )}
               <div className="adm-badge-panel__actions">
-                <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleBulkBadgeApply}>{bulkBadge.enabled ? 'ПРИМЕНИТЬ' : 'ВЫКЛЮЧИТЬ ВСЕ'}</button>
-                <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={handleBulkBadgeRemove}>УБРАТЬ ВСЕ</button>
+                <button className="adm-btn adm-btn--primary adm-btn--sm" disabled={bulkActionLoading} onClick={handleBulkBadgeApply}>{bulkBadge.enabled ? 'ПРИМЕНИТЬ' : 'ВЫКЛЮЧИТЬ ВСЕ'}</button>
+                <button className="adm-btn adm-btn--ghost adm-btn--sm" disabled={bulkActionLoading} onClick={handleBulkBadgeRemove}>УБРАТЬ ВСЕ</button>
               </div>
             </div>
           ) : showPriorityPanel ? (
@@ -571,11 +615,11 @@ export default function AdminApp() {
             </div>
           ) : (
             <div className="adm-selection-bar__actions">
-              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setShowPricePanel(true)}>ЦЕНЫ</button>
-              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => { setShowBadgePanel(true); setBulkBadge({ enabled: true, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left' }); }}>БЕЙДЖ</button>
-              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setShowPriorityPanel(true)}>ПРИОРИТЕТ</button>
-              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={handleBulkResetPrices}>СБРОС СКИДОК</button>
-              <button className="adm-btn adm-btn--danger adm-btn--sm" onClick={handleBulkDelete}>УДАЛИТЬ</button>
+              <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => setShowPricePanel(true)}>ЦЕНЫ</button>
+              <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => { setShowBadgePanel(true); setBulkBadge({ enabled: true, text: '', borderColor: 'rgba(0,0,0,0.8)', textColor: '#000', shape: 'rect', type: 'outline', position: 'top-left' }); }}>БЕЙДЖ</button>
+              <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={() => setShowPriorityPanel(true)}>ПРИОРИТЕТ</button>
+              <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={handleBulkResetPrices}>СБРОС СКИДОК</button>
+              <button className="adm-btn adm-btn--danger adm-btn--sm" disabled={bulkActionLoading} onClick={handleBulkDelete}>УДАЛИТЬ</button>
             </div>
           )}
         </div>
