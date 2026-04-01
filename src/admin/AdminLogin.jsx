@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { resetSessionExpired } from '../context/ProductsContext';
 
 export default function AdminLogin({ onAuth }) {
   const [login, setLogin] = useState('');
@@ -20,6 +21,7 @@ export default function AdminLogin({ onAuth }) {
       const data = await res.json();
       if (res.ok && data.token) {
         localStorage.setItem('iwak_admin_token', data.token);
+        resetSessionExpired();
         onAuth();
       } else {
         setError(true);

@@ -239,7 +239,10 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         updateImg(id, { url: path, preview: path, status: 'done', progress: 100 });
       } catch (err) {
         updateImg(id, { status: 'error', progress: 0 });
-        notify('error', err.message || 'Ошибка загрузки фото');
+        // 'Сессия истекла' уже обработана в uploadImage через notifyGlobal
+        if (err.message !== 'Сессия истекла') {
+          notify('error', err.message || 'Ошибка загрузки фото');
+        }
       }
     });
     processQueue();

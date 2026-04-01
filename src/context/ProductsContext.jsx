@@ -5,6 +5,12 @@ import { notifyGlobal } from './NotificationsContext';
 
 const ProductsContext = createContext(null);
 
+// ── Одноразовый флаг: предотвращает дублирование уведомлений при множественных 401 ──
+let _sessionExpired = false;
+
+// Вызвать при успешном логине, чтобы сбросить флаг
+export function resetSessionExpired() { _sessionExpired = false; }
+
 // ── Хелпер: JWT-токен из localStorage ──
 function getAuthHeaders() {
   const token = localStorage.getItem('iwak_admin_token');
@@ -23,10 +29,12 @@ async function apiFetch(url, options = {}) {
   }
   if (!res.ok) {
     if (res.status === 401) {
-      localStorage.removeItem('iwak_admin_token');
-      notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
-      // Программный редирект без reload
-      setTimeout(() => { window.location.href = '/adminpanel'; }, 100);
+      if (!_sessionExpired) {
+        _sessionExpired = true;
+        localStorage.removeItem('iwak_admin_token');
+        notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
+        setTimeout(() => { window.location.href = '/adminpanel'; }, 500);
+      }
       throw new Error('Сессия истекла');
     }
     const body = await res.json().catch(() => ({}));
@@ -229,8 +237,17 @@ export function ProductsProvider({ children }) {
           body: formData,
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          const msg = err.error || `Ошибка загрузки (${res.status})`;
+          const errBody = await res.json().catch(() => ({}));
+          const msg = errBody.error || `Ошибка загрузки (${res.status})`;
+          if (res.status === 401) {
+            if (!_sessionExpired) {
+              _sessionExpired = true;
+              localStorage.removeItem('iwak_admin_token');
+              notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
+              setTimeout(() => { window.location.href = '/adminpanel'; }, 500);
+            }
+            throw new Error('Сессия истекла');
+          }
           // При 429 — retry, при других ошибках — сразу бросаем
           if (res.status !== 429) throw new Error(msg);
           lastError = new Error(msg);
