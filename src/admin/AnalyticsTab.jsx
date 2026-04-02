@@ -6,6 +6,37 @@ const PERIODS = [
   { id: '30d',   label: '30 дней' },
 ];
 
+const EXPORT_PERIODS = [
+  { id: 'today', label: 'Сегодня' },
+  { id: '7d',    label: '7 дней' },
+  { id: '14d',   label: '14 дней' },
+  { id: '30d',   label: '30 дней' },
+];
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function fmtHour(h) { return `${pad2(h)}:00`; }
+
+function fmtDate(dateStr) {
+  const d = new Date(dateStr);
+  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
+}
+
+function handleExport(period) {
+  const token = localStorage.getItem('iwak_admin_token');
+  const url = `/api/analytics/export?period=${period}`;
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `analytics-${period}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => {});
+}
+
 export default function AnalyticsTab() {
   const [period, setPeriod] = useState('7d');
   const [data, setData] = useState(null);
@@ -31,7 +62,14 @@ export default function AnalyticsTab() {
 
   useEffect(() => { fetchAnalytics(period); }, [period, fetchAnalytics]);
 
-  const handlePeriod = (p) => { setPeriod(p); };
+  // Derive compact activity data
+  const peakHour = data?.activityByHour?.length
+    ? data.activityByHour.reduce((a, b) => b.count > a.count ? b : a)
+    : null;
+  const topHours = data?.activityByHour
+    ?.filter(e => e.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3) || [];
 
   return (
     <div className="anl">
@@ -41,7 +79,7 @@ export default function AnalyticsTab() {
           <button
             key={p.id}
             className={`adm-filter-chip${period === p.id ? ' adm-filter-chip--active' : ''}`}
-            onClick={() => handlePeriod(p.id)}
+            onClick={() => setPeriod(p.id)}
           >
             {p.label}
           </button>
@@ -61,7 +99,7 @@ export default function AnalyticsTab() {
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.productViews}</span>
-              <span className="anl-card__label">Просмотры товаров</span>
+              <span className="anl-card__label">Просмотры</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.shares}</span>
@@ -69,7 +107,31 @@ export default function AnalyticsTab() {
             </div>
           </div>
 
-          {/* Top products */}
+          {/* Activity — compact */}
+          <div className="anl-section">
+            <h3 className="anl-section__title">Активность</h3>
+            {!peakHour ? (
+              <div className="anl-empty">Нет данных</div>
+            ) : (
+              <div className="anl-activity">
+                <div className="anl-peak">
+                  <span className="anl-peak__icon">🔥</span>
+                  <span className="anl-peak__text">Пик: <strong>{fmtHour(peakHour.hour)}</strong> — {peakHour.count}</span>
+                </div>
+                {topHours.length > 1 && (
+                  <div className="anl-peak-list">
+                    {topHours.map(h => (
+                      <span key={h.hour} className="anl-peak-item">
+                        {fmtHour(h.hour)} — {h.count}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Top products with peak hour */}
           <div className="anl-section">
             <h3 className="anl-section__title">Топ товаров</h3>
             {data.topProducts.length === 0 ? (
@@ -81,7 +143,8 @@ export default function AnalyticsTab() {
                     <tr>
                       <th>#</th>
                       <th>Товар</th>
-                      <th>Просмотры</th>
+                      <th>👀</th>
+                      <th>⏰</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -94,6 +157,9 @@ export default function AnalyticsTab() {
                           <span>{p.name || `#${p.productId}`}</span>
                         </td>
                         <td className="anl-table__num">{p.views}</td>
+                        <td className="anl-table__num anl-table__peak">
+                          {p.peakHour != null ? fmtHour(p.peakHour) : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -102,34 +168,9 @@ export default function AnalyticsTab() {
             )}
           </div>
 
-          {/* Activity by hour */}
-          <div className="anl-section">
-            <h3 className="anl-section__title">Активность по часам</h3>
-            {(!data.activityByHour || data.activityByHour.length === 0) ? (
-              <div className="anl-empty">Нет данных</div>
-            ) : (
-              <div className="anl-hours">
-                {Array.from({ length: 24 }, (_, h) => {
-                  const entry = data.activityByHour.find(e => e.hour === h);
-                  const count = entry ? entry.count : 0;
-                  const max = Math.max(...data.activityByHour.map(e => e.count), 1);
-                  return (
-                    <div key={h} className="anl-hour-row">
-                      <span className="anl-hour-row__label">{String(h).padStart(2, '0')}:00</span>
-                      <div className="anl-hour-row__bar-bg">
-                        <div className="anl-hour-row__bar" style={{ width: `${(count / max) * 100}%` }} />
-                      </div>
-                      <span className="anl-hour-row__count">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Activity by day */}
           <div className="anl-section">
-            <h3 className="anl-section__title">Активность по дням</h3>
+            <h3 className="anl-section__title">По дням</h3>
             {(!data.activityByDay || data.activityByDay.length === 0) ? (
               <div className="anl-empty">Нет данных</div>
             ) : (
@@ -142,16 +183,12 @@ export default function AnalyticsTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.activityByDay.map((d) => {
-                      const dt = new Date(d.date);
-                      const label = `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}`;
-                      return (
-                        <tr key={d.date}>
-                          <td>{label}</td>
-                          <td className="anl-table__num">{d.count}</td>
-                        </tr>
-                      );
-                    })}
+                    {data.activityByDay.map((d) => (
+                      <tr key={d.date}>
+                        <td>{fmtDate(d.date)}</td>
+                        <td className="anl-table__num">{d.count}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -183,6 +220,22 @@ export default function AnalyticsTab() {
                 </table>
               </div>
             )}
+          </div>
+
+          {/* Export */}
+          <div className="anl-section">
+            <h3 className="anl-section__title">📥 Экспорт</h3>
+            <div className="anl-export">
+              {EXPORT_PERIODS.map((p) => (
+                <button
+                  key={p.id}
+                  className="adm-btn adm-btn--accent adm-btn--sm"
+                  onClick={() => handleExport(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       )}

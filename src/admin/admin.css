@@ -2058,54 +2058,55 @@
   .anl-card__value { font-size: 22px; }
 }
 
-/* ─── ACTIVITY BY HOUR (mini bars) ─── */
-.anl-hours {
+/* ─── ACTIVITY — COMPACT PEAK ─── */
+.anl-activity {
   background: var(--adm-surface);
   border: 1px solid var(--adm-border);
   border-radius: var(--adm-radius);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  padding: 14px 16px;
 }
 
-.anl-hour-row {
+.anl-peak {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 22px;
 }
 
-.anl-hour-row__label {
-  width: 40px;
-  flex-shrink: 0;
-  font-size: 11px;
+.anl-peak__icon { font-size: 18px; line-height: 1; }
+
+.anl-peak__text {
+  font-size: 14px;
+  color: var(--adm-text);
+  letter-spacing: 0.02em;
+}
+
+.anl-peak__text strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.anl-peak-list {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--adm-border);
+}
+
+.anl-peak-item {
+  font-size: 12px;
   color: var(--adm-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.anl-hour-row__bar-bg {
-  flex: 1;
-  height: 14px;
-  background: var(--adm-bg);
-  border-radius: 3px;
-  overflow: hidden;
+/* ─── TABLE PEAK HOUR COLUMN ─── */
+.anl-table__peak {
+  color: var(--adm-text-muted);
+  font-size: 12px;
 }
 
-.anl-hour-row__bar {
-  height: 100%;
-  background: var(--adm-accent);
-  border-radius: 3px;
-  min-width: 0;
-  transition: width 0.2s ease;
-}
-
-.anl-hour-row__count {
-  width: 32px;
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--adm-text);
-  font-variant-numeric: tabular-nums;
+/* ─── EXPORT ─── */
+.anl-export {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }

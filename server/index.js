@@ -778,7 +778,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
   }
 
   try {
-    const [visits, views, shares, topProducts, topCities, byHour, byDay] = await Promise.all([
+    const [visits, views, shares, topProducts, topCities, byHour, byDay, productHours] = await Promise.all([
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
          WHERE type = 'page_view' AND created_at >= now() - $1::interval`, [interval]
@@ -821,6 +821,14 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          GROUP BY date
          ORDER BY date`, [interval]
       ),
+      pool.query(
+        `SELECT data->>'productId' AS product_id,
+                EXTRACT(HOUR FROM created_at)::int AS hour,
+                COUNT(*) AS cnt
+         FROM events
+         WHERE type = 'product_view' AND created_at >= now() - $1::interval
+         GROUP BY data->>'productId', hour`, [interval]
+      ),
     ]);
 
     // Enrich top products with names from products table
@@ -838,6 +846,16 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       }
     }
 
+    // Build peak hour map per product
+    const peakHourMap = {};
+    for (const r of productHours.rows) {
+      const pid = r.product_id;
+      const cnt = parseInt(r.cnt);
+      if (!peakHourMap[pid] || cnt > peakHourMap[pid].count) {
+        peakHourMap[pid] = { hour: r.hour, count: cnt };
+      }
+    }
+
     res.json({
       period,
       visits: parseInt(visits.rows[0].count),
@@ -848,6 +866,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         views: parseInt(r.views),
         name: productNames[r.product_id]?.name || null,
         brand: productNames[r.product_id]?.brand || null,
+        peakHour: peakHourMap[r.product_id]?.hour ?? null,
       })),
       topCities: topCities.rows.map(r => ({
         city: r.city,
@@ -865,6 +884,42 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
   } catch (err) {
     logger.error({ err }, 'GET /api/analytics error');
     res.status(500).json({ error: 'Analytics error' });
+  }
+});
+
+// ── CSV Export (admin-only) ──
+app.get('/api/analytics/export', requireAuth, async (req, res) => {
+  const period = req.query.period || '7d';
+  let interval;
+  switch (period) {
+    case 'today': interval = '1 day'; break;
+    case '14d':   interval = '14 days'; break;
+    case '30d':   interval = '30 days'; break;
+    default:      interval = '7 days';
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT created_at, type, data->>'productId' AS product_id, city
+       FROM events
+       WHERE created_at >= now() - $1::interval
+       ORDER BY created_at DESC`, [interval]
+    );
+
+    const lines = ['date,type,product_id,city'];
+    for (const r of result.rows) {
+      const date = new Date(r.created_at).toISOString();
+      const pid = r.product_id || '';
+      const city = (r.city || '').replace(/,/g, ' ');
+      lines.push(`${date},${r.type},${pid},${city}`);
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="analytics-${period}.csv"`);
+    res.send(lines.join('\n'));
+  } catch (err) {
+    logger.error({ err }, 'GET /api/analytics/export error');
+    res.status(500).json({ error: 'Export error' });
   }
 });
 
