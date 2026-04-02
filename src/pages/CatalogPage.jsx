@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useProducts } from '../context/ProductsContext';
+import { track } from '../utils/tracker';
 import ProductCard from '../components/ProductCard';
 import FilterPanel from '../components/FilterPanel';
 import MiniPlayer from '../components/MiniPlayer';
@@ -96,6 +97,8 @@ export default function CatalogPage() {
   const { products, loading } = useProducts();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => { track('page_view', { path: '/catalog' }); }, []);
 
   const query = searchParams.get('q') || '';
   const categoryFromURL = searchParams.get('category') || '';

@@ -3,6 +3,7 @@ import { useProducts } from '../context/ProductsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import AdminProductForm from './AdminProductForm';
 import NotificationBell from './NotificationBell';
+import AnalyticsTab from './AnalyticsTab';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 
@@ -22,6 +23,7 @@ export default function AdminApp() {
   const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
+  const [section, setSection] = useState('products'); // 'products' | 'analytics'
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
@@ -418,6 +420,25 @@ export default function AdminApp() {
     );
   }
 
+  if (section === 'analytics') {
+    return (
+      <div className="adm-root">
+        <div className="adm-header">
+          <span className="adm-header__brand">IWAK ADMIN</span>
+          <div className="adm-header__right">
+            <NotificationBell />
+            <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
+          </div>
+        </div>
+        <div className="adm-tabs">
+          <button className="adm-tab" onClick={() => setSection('products')}>ТОВАРЫ</button>
+          <button className="adm-tab adm-tab--active">АНАЛИТИКА</button>
+        </div>
+        <AnalyticsTab />
+      </div>
+    );
+  }
+
   return (
     <div className="adm-root">
       <div className="adm-header">
@@ -426,6 +447,11 @@ export default function AdminApp() {
           <NotificationBell />
           <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
         </div>
+      </div>
+
+      <div className="adm-tabs">
+        <button className="adm-tab adm-tab--active">ТОВАРЫ</button>
+        <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
       </div>
 
       <div className="adm-toolbar">

@@ -4,6 +4,7 @@ import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
 import { idFromSlug, makeProductSlug } from '../utils/slug';
 import sortSizes from '../utils/sortSizes';
+import { track } from '../utils/tracker';
 
 function setMetaTag(attr, name, value) {
   const selector = `meta[${attr}="${name}"]`;
@@ -52,6 +53,11 @@ export default function ProductPage() {
     setLightboxIdx(null);
     galleryRef.current?.scrollTo({ left: 0 });
   }, [slug]);
+
+  // Analytics: track product view
+  useEffect(() => {
+    if (product) track('product_view', { productId: product.id });
+  }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // OG meta tags — обновляем при каждом открытии товара
   useEffect(() => {
@@ -146,6 +152,7 @@ export default function ProductPage() {
 
   const handleShare = useCallback(() => {
     if (!product) return;
+    track('share', { productId: product.id });
     const url = `${window.location.origin}/product/${makeProductSlug(product)}`;
     const title = product.name;
     const sharePrice = product.originalPrice && product.originalPrice > product.price

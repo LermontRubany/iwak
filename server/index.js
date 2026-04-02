@@ -717,6 +717,136 @@ app.post('/api/logs', requireAuth, (req, res) => {
 });
 
 // ════════════════════════════════════════════
+// ANALYTICS — EVENT COLLECTION (public)
+// ════════════════════════════════════════════
+
+const ALLOWED_EVENT_TYPES = new Set(['page_view', 'product_view', 'share']);
+
+app.post('/api/events', async (req, res) => {
+  const events = req.body;
+  if (!Array.isArray(events) || events.length === 0 || events.length > 20) {
+    return res.status(400).json({ error: 'Expected array of 1-20 events' });
+  }
+
+  // City from Cloudflare header (enable "Add visitor location headers" in CF dashboard)
+  const rawCity = req.headers['cf-ipcity'];
+  const city = rawCity ? decodeURIComponent(rawCity) : null;
+
+  try {
+    const values = [];
+    const params = [];
+    let idx = 0;
+
+    for (const evt of events) {
+      if (!evt.type || typeof evt.type !== 'string') continue;
+      if (!ALLOWED_EVENT_TYPES.has(evt.type)) continue;
+
+      const data = evt.data && typeof evt.data === 'object' && !Array.isArray(evt.data) ? evt.data : {};
+      const sessionId = typeof evt.sessionId === 'string' ? evt.sessionId.slice(0, 36) : null;
+
+      const base = idx * 4;
+      values.push(`($${base + 1}, $${base + 2}::jsonb, $${base + 3}, $${base + 4})`);
+      params.push(evt.type, JSON.stringify(data), sessionId, city);
+      idx++;
+    }
+
+    if (values.length === 0) return res.status(400).json({ error: 'No valid events' });
+
+    await pool.query(
+      `INSERT INTO events (type, data, session_id, city) VALUES ${values.join(', ')}`,
+      params
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/events error');
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ════════════════════════════════════════════
+// ANALYTICS — AGGREGATED DATA (admin-only)
+// ════════════════════════════════════════════
+
+app.get('/api/analytics', requireAuth, async (req, res) => {
+  const period = req.query.period || '7d';
+  let interval;
+  switch (period) {
+    case 'today': interval = '1 day'; break;
+    case '30d':   interval = '30 days'; break;
+    default:      interval = '7 days';
+  }
+
+  try {
+    const [visits, views, shares, topProducts, topCities] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(DISTINCT session_id) AS count FROM events
+         WHERE type = 'page_view' AND created_at >= now() - $1::interval`, [interval]
+      ),
+      pool.query(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE type = 'product_view' AND created_at >= now() - $1::interval`, [interval]
+      ),
+      pool.query(
+        `SELECT COUNT(*) AS count FROM events
+         WHERE type = 'share' AND created_at >= now() - $1::interval`, [interval]
+      ),
+      pool.query(
+        `SELECT data->>'productId' AS product_id, COUNT(*) AS views
+         FROM events
+         WHERE type = 'product_view' AND created_at >= now() - $1::interval
+         GROUP BY data->>'productId'
+         ORDER BY views DESC
+         LIMIT 20`, [interval]
+      ),
+      pool.query(
+        `SELECT COALESCE(city, 'Неизвестно') AS city, COUNT(DISTINCT session_id) AS visits
+         FROM events
+         WHERE type = 'page_view' AND created_at >= now() - $1::interval
+         GROUP BY city
+         ORDER BY visits DESC
+         LIMIT 15`, [interval]
+      ),
+    ]);
+
+    // Enrich top products with names from products table
+    const productIds = topProducts.rows
+      .map(r => parseInt(r.product_id))
+      .filter(id => !isNaN(id));
+
+    let productNames = {};
+    if (productIds.length > 0) {
+      const pResult = await pool.query(
+        'SELECT id, name, brand FROM products WHERE id = ANY($1)', [productIds]
+      );
+      for (const p of pResult.rows) {
+        productNames[p.id] = { name: p.name, brand: p.brand };
+      }
+    }
+
+    res.json({
+      period,
+      visits: parseInt(visits.rows[0].count),
+      productViews: parseInt(views.rows[0].count),
+      shares: parseInt(shares.rows[0].count),
+      topProducts: topProducts.rows.map(r => ({
+        productId: parseInt(r.product_id),
+        views: parseInt(r.views),
+        name: productNames[r.product_id]?.name || null,
+        brand: productNames[r.product_id]?.brand || null,
+      })),
+      topCities: topCities.rows.map(r => ({
+        city: r.city,
+        visits: parseInt(r.visits),
+      })),
+    });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/analytics error');
+    res.status(500).json({ error: 'Analytics error' });
+  }
+});
+
+// ════════════════════════════════════════════
 // FILTERS META
 // ════════════════════════════════════════════
 
