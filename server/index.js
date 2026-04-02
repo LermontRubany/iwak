@@ -808,14 +808,14 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          LIMIT 15`, [interval]
       ),
       pool.query(
-        `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS count
+        `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour, COUNT(*) AS count
          FROM events
          WHERE created_at >= now() - $1::interval
          GROUP BY hour
          ORDER BY hour`, [interval]
       ),
       pool.query(
-        `SELECT DATE(created_at) AS date, COUNT(*) AS count
+        `SELECT DATE(created_at AT TIME ZONE 'Europe/Moscow') AS date, COUNT(*) AS count
          FROM events
          WHERE created_at >= now() - $1::interval
          GROUP BY date
@@ -823,7 +823,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       ),
       pool.query(
         `SELECT data->>'productId' AS product_id,
-                EXTRACT(HOUR FROM created_at)::int AS hour,
+                EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour,
                 COUNT(*) AS cnt
          FROM events
          WHERE type = 'product_view' AND created_at >= now() - $1::interval
