@@ -2057,3 +2057,55 @@
   .anl-card { padding: 12px 8px; }
   .anl-card__value { font-size: 22px; }
 }
+
+/* ─── ACTIVITY BY HOUR (mini bars) ─── */
+.anl-hours {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.anl-hour-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+}
+
+.anl-hour-row__label {
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--adm-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.anl-hour-row__bar-bg {
+  flex: 1;
+  height: 14px;
+  background: var(--adm-bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.anl-hour-row__bar {
+  height: 100%;
+  background: var(--adm-accent);
+  border-radius: 3px;
+  min-width: 0;
+  transition: width 0.2s ease;
+}
+
+.anl-hour-row__count {
+  width: 32px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adm-text);
+  font-variant-numeric: tabular-nums;
+}

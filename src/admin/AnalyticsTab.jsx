@@ -102,6 +102,62 @@ export default function AnalyticsTab() {
             )}
           </div>
 
+          {/* Activity by hour */}
+          <div className="anl-section">
+            <h3 className="anl-section__title">Активность по часам</h3>
+            {(!data.activityByHour || data.activityByHour.length === 0) ? (
+              <div className="anl-empty">Нет данных</div>
+            ) : (
+              <div className="anl-hours">
+                {Array.from({ length: 24 }, (_, h) => {
+                  const entry = data.activityByHour.find(e => e.hour === h);
+                  const count = entry ? entry.count : 0;
+                  const max = Math.max(...data.activityByHour.map(e => e.count), 1);
+                  return (
+                    <div key={h} className="anl-hour-row">
+                      <span className="anl-hour-row__label">{String(h).padStart(2, '0')}:00</span>
+                      <div className="anl-hour-row__bar-bg">
+                        <div className="anl-hour-row__bar" style={{ width: `${(count / max) * 100}%` }} />
+                      </div>
+                      <span className="anl-hour-row__count">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Activity by day */}
+          <div className="anl-section">
+            <h3 className="anl-section__title">Активность по дням</h3>
+            {(!data.activityByDay || data.activityByDay.length === 0) ? (
+              <div className="anl-empty">Нет данных</div>
+            ) : (
+              <div className="anl-table-wrap">
+                <table className="anl-table">
+                  <thead>
+                    <tr>
+                      <th>Дата</th>
+                      <th>События</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.activityByDay.map((d) => {
+                      const dt = new Date(d.date);
+                      const label = `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                      return (
+                        <tr key={d.date}>
+                          <td>{label}</td>
+                          <td className="anl-table__num">{d.count}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           {/* Top cities */}
           <div className="anl-section">
             <h3 className="anl-section__title">География</h3>

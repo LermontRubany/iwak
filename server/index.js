@@ -778,7 +778,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
   }
 
   try {
-    const [visits, views, shares, topProducts, topCities] = await Promise.all([
+    const [visits, views, shares, topProducts, topCities, byHour, byDay] = await Promise.all([
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
          WHERE type = 'page_view' AND created_at >= now() - $1::interval`, [interval]
@@ -806,6 +806,20 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          GROUP BY city
          ORDER BY visits DESC
          LIMIT 15`, [interval]
+      ),
+      pool.query(
+        `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS count
+         FROM events
+         WHERE created_at >= now() - $1::interval
+         GROUP BY hour
+         ORDER BY hour`, [interval]
+      ),
+      pool.query(
+        `SELECT DATE(created_at) AS date, COUNT(*) AS count
+         FROM events
+         WHERE created_at >= now() - $1::interval
+         GROUP BY date
+         ORDER BY date`, [interval]
       ),
     ]);
 
@@ -838,6 +852,14 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       topCities: topCities.rows.map(r => ({
         city: r.city,
         visits: parseInt(r.visits),
+      })),
+      activityByHour: byHour.rows.map(r => ({
+        hour: r.hour,
+        count: parseInt(r.count),
+      })),
+      activityByDay: byDay.rows.map(r => ({
+        date: r.date,
+        count: parseInt(r.count),
       })),
     });
   } catch (err) {
