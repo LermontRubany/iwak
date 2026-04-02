@@ -928,6 +928,138 @@ app.get('/api/analytics/export', requireAuth, async (req, res) => {
   }
 });
 
+// ── Aggregated Report CSV (admin-only) ──
+app.get('/api/analytics/export-report', requireAuth, async (req, res) => {
+  const period = req.query.period || '7d';
+  let interval;
+  switch (period) {
+    case 'today': interval = '1 day'; break;
+    case '14d':   interval = '14 days'; break;
+    case '30d':   interval = '30 days'; break;
+    default:      interval = '7 days';
+  }
+
+  try {
+    const [summary, topViews, topShares, byDay, byHour, geo] = await Promise.all([
+      pool.query(
+        `SELECT
+           COUNT(DISTINCT session_id) FILTER (WHERE type = 'page_view') AS visits,
+           COUNT(*) FILTER (WHERE type = 'product_view') AS product_views,
+           COUNT(*) FILTER (WHERE type = 'share') AS shares
+         FROM events WHERE created_at >= now() - $1::interval`, [interval]
+      ),
+      pool.query(
+        `SELECT data->>'productId' AS pid, COUNT(*) AS views
+         FROM events WHERE type = 'product_view' AND created_at >= now() - $1::interval
+         GROUP BY pid ORDER BY views DESC LIMIT 20`, [interval]
+      ),
+      pool.query(
+        `SELECT data->>'productId' AS pid, COUNT(*) AS shares
+         FROM events WHERE type = 'share' AND created_at >= now() - $1::interval
+         GROUP BY pid`, [interval]
+      ),
+      pool.query(
+        `SELECT DATE(created_at AT TIME ZONE 'Europe/Moscow') AS date,
+                COUNT(*) AS events,
+                COUNT(DISTINCT session_id) AS visits
+         FROM events WHERE created_at >= now() - $1::interval
+         GROUP BY date ORDER BY date`, [interval]
+      ),
+      pool.query(
+        `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour,
+                COUNT(*) AS events
+         FROM events WHERE created_at >= now() - $1::interval
+         GROUP BY hour ORDER BY hour`, [interval]
+      ),
+      pool.query(
+        `SELECT COALESCE(city, 'Unknown') AS city, COUNT(DISTINCT session_id) AS visits
+         FROM events WHERE type = 'page_view' AND created_at >= now() - $1::interval
+         GROUP BY city ORDER BY visits DESC LIMIT 15`, [interval]
+      ),
+    ]);
+
+    // Product peak hours
+    const peakRes = await pool.query(
+      `SELECT data->>'productId' AS pid,
+              EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour,
+              COUNT(*) AS cnt
+       FROM events WHERE type = 'product_view' AND created_at >= now() - $1::interval
+       GROUP BY pid, hour`, [interval]
+    );
+    const peakMap = {};
+    for (const r of peakRes.rows) {
+      const cnt = parseInt(r.cnt);
+      if (!peakMap[r.pid] || cnt > peakMap[r.pid].count) {
+        peakMap[r.pid] = { hour: r.hour, count: cnt };
+      }
+    }
+
+    // Shares map
+    const sharesMap = {};
+    for (const r of topShares.rows) sharesMap[r.pid] = parseInt(r.shares);
+
+    // Product names
+    const pids = topViews.rows.map(r => parseInt(r.pid)).filter(id => !isNaN(id));
+    const nameMap = {};
+    if (pids.length > 0) {
+      const pRes = await pool.query('SELECT id, name, brand FROM products WHERE id = ANY($1)', [pids]);
+      for (const p of pRes.rows) nameMap[p.id] = `${p.brand} ${p.name}`.trim();
+    }
+
+    const s = summary.rows[0];
+    const visits = parseInt(s.visits);
+    const pViews = parseInt(s.product_views);
+    const shares = parseInt(s.shares);
+    const avg = visits > 0 ? (pViews / visits).toFixed(1) : '0';
+    const conv = pViews > 0 ? ((shares / pViews) * 100).toFixed(1) : '0';
+
+    const lines = [];
+    lines.push('== SUMMARY ==');
+    lines.push('visits,product_views,shares,avg_views_per_visit,conversion_rate');
+    lines.push(`${visits},${pViews},${shares},${avg},${conv}%`);
+    lines.push('');
+
+    lines.push('== TOP PRODUCTS ==');
+    lines.push('product,views,shares,peak_hour');
+    for (const r of topViews.rows) {
+      const name = (nameMap[r.pid] || `#${r.pid}`).replace(/,/g, ' ');
+      const sh = sharesMap[r.pid] || 0;
+      const ph = peakMap[r.pid] ? String(peakMap[r.pid].hour).padStart(2, '0') + ':00' : '';
+      lines.push(`${name},${r.views},${sh},${ph}`);
+    }
+    lines.push('');
+
+    lines.push('== ACTIVITY BY DAY ==');
+    lines.push('date,events,visits');
+    for (const r of byDay.rows) {
+      const d = new Date(r.date);
+      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      lines.push(`${ds},${r.events},${r.visits}`);
+    }
+    lines.push('');
+
+    lines.push('== ACTIVITY BY HOUR ==');
+    lines.push('hour,events');
+    for (const r of byHour.rows) {
+      lines.push(`${String(r.hour).padStart(2, '0')}:00,${r.events}`);
+    }
+    lines.push('');
+
+    lines.push('== GEO ==');
+    lines.push('city,visits');
+    for (const r of geo.rows) {
+      lines.push(`${(r.city || '').replace(/,/g, ' ')},${r.visits}`);
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="report-${period}.csv"`);
+    res.send('\uFEFF' + lines.join('\n'));
+  } catch (err) {
+    logger.error({ err }, 'GET /api/analytics/export-report error');
+    res.status(500).json({ error: 'Export report error' });
+  }
+});
+
 // ════════════════════════════════════════════
 // FILTERS META
 // ════════════════════════════════════════════

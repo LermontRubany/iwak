@@ -37,6 +37,21 @@ function handleExport(period) {
     .catch(() => {});
 }
 
+function handleExportReport(period) {
+  const token = localStorage.getItem('iwak_admin_token');
+  const url = `/api/analytics/export-report?period=${period}`;
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `report-${period}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => {});
+}
+
 export default function AnalyticsTab() {
   const [period, setPeriod] = useState('7d');
   const [data, setData] = useState(null);
@@ -259,6 +274,18 @@ export default function AnalyticsTab() {
                   key={p.id}
                   className="adm-btn adm-btn--accent adm-btn--sm"
                   onClick={() => handleExport(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <h3 className="anl-section__title" style={{ marginTop: 14 }}>📊 Отчёт</h3>
+            <div className="anl-export">
+              {EXPORT_PERIODS.map((p) => (
+                <button
+                  key={p.id}
+                  className="adm-btn adm-btn--accent adm-btn--sm"
+                  onClick={() => handleExportReport(p.id)}
                 >
                   {p.label}
                 </button>
