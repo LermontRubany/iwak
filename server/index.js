@@ -778,7 +778,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
   }
 
   try {
-    const [visits, views, shares, topProducts, topCities, byHour, byDay, productHours] = await Promise.all([
+    const [visits, views, shares, topProducts, topCities, byHour, byDay, productHours, online] = await Promise.all([
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
          WHERE type = 'page_view' AND created_at >= now() - $1::interval`, [interval]
@@ -829,6 +829,10 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          WHERE type = 'product_view' AND created_at >= now() - $1::interval
          GROUP BY data->>'productId', hour`, [interval]
       ),
+      pool.query(
+        `SELECT COUNT(DISTINCT session_id) AS count FROM events
+         WHERE created_at >= now() - interval '2 minutes'`
+      ),
     ]);
 
     // Enrich top products with names from products table
@@ -858,6 +862,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
 
     res.json({
       period,
+      onlineNow: parseInt(online.rows[0].count),
       visits: parseInt(visits.rows[0].count),
       productViews: parseInt(views.rows[0].count),
       shares: parseInt(shares.rows[0].count),

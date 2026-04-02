@@ -42,6 +42,7 @@ export default function AnalyticsTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [onlineNow, setOnlineNow] = useState(null);
 
   const fetchAnalytics = useCallback(async (p) => {
     setLoading(true);
@@ -52,7 +53,9 @@ export default function AnalyticsTab() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      setData(await res.json());
+      const json = await res.json();
+      setData(json);
+      setOnlineNow(json.onlineNow ?? 0);
     } catch {
       setError('Не удалось загрузить аналитику');
     } finally {
@@ -61,6 +64,23 @@ export default function AnalyticsTab() {
   }, []);
 
   useEffect(() => { fetchAnalytics(period); }, [period, fetchAnalytics]);
+
+  // Lightweight polling for onlineNow every 15s
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('iwak_admin_token');
+        const res = await fetch(`/api/analytics?period=${period}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setOnlineNow(json.onlineNow ?? 0);
+        }
+      } catch { /* ignore */ }
+    }, 15000);
+    return () => clearInterval(iv);
+  }, [period]);
 
   // Derive compact activity data
   const peakHour = data?.activityByHour?.length
@@ -88,6 +108,14 @@ export default function AnalyticsTab() {
 
       {loading && <div className="anl-loading">Загрузка...</div>}
       {error && <div className="anl-error">{error}</div>}
+
+      {/* Online indicator — always visible when data loaded */}
+      {onlineNow != null && !loading && (
+        <div className="anl-online">
+          <span className={`anl-online__dot${onlineNow > 0 ? ' anl-online__dot--active' : ''}`} />
+          <span className="anl-online__text">Сейчас на сайте: <strong>{onlineNow}</strong></span>
+        </div>
+      )}
 
       {data && !loading && (
         <>
