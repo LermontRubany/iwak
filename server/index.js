@@ -693,6 +693,30 @@ app.use((err, _req, res, next) => {
 });
 
 // ════════════════════════════════════════════
+// CLIENT ERROR LOGS (admin-only)
+// ════════════════════════════════════════════
+
+const clientLogPath = path.join(logDir, 'client-errors.log');
+
+app.post('/api/logs', requireAuth, (req, res) => {
+  const { timestamp, url: errorUrl, method, status, message } = req.body || {};
+  if (!message) return res.status(400).json({ error: 'message required' });
+  const entry = {
+    timestamp: timestamp || new Date().toISOString(),
+    url: errorUrl || null,
+    method: method || null,
+    status: status || null,
+    message: String(message).slice(0, 500),
+    adminId: req.admin?.id || null,
+    ip: req.ip,
+  };
+  logger.warn({ clientError: entry }, 'Client error report');
+  // Append to dedicated log file (one JSON per line)
+  fs.appendFile(clientLogPath, JSON.stringify(entry) + '\n', () => {});
+  res.json({ ok: true });
+});
+
+// ════════════════════════════════════════════
 // FILTERS META
 // ════════════════════════════════════════════
 

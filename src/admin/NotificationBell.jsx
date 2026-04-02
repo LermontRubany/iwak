@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '../context/NotificationsContext';
+import { getErrorLogs, clearErrorLogs } from '../utils/errorLogger';
 
 const TYPE_ICON = { error: '✕', success: '✓', info: 'ℹ', system: '⚙' };
 const TYPE_CLASS = { error: 'ntf--error', success: 'ntf--success', info: 'ntf--info', system: 'ntf--system' };
@@ -15,6 +16,8 @@ function timeAgo(ts) {
 export default function NotificationBell() {
   const { events, toasts, unreadCount, hasUnreadErrors, markAllRead, clearAll, dismissToast } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('notifications'); // 'notifications' | 'errors'
+  const [errorLogs, setErrorLogs] = useState([]);
   const panelRef = useRef(null);
 
   // Close on outside click
@@ -26,8 +29,17 @@ export default function NotificationBell() {
   }, [open]);
 
   const toggle = () => {
-    setOpen((v) => !v);
-    if (!open && unreadCount > 0) markAllRead();
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen) {
+      if (unreadCount > 0) markAllRead();
+      setErrorLogs(getErrorLogs());
+    }
+  };
+
+  const handleClearErrors = () => {
+    clearErrorLogs();
+    setErrorLogs([]);
   };
 
   return (
@@ -49,27 +61,68 @@ export default function NotificationBell() {
       {open && (
         <div className="ntf-panel" ref={panelRef}>
           <div className="ntf-panel__header">
-            <span className="ntf-panel__title">Уведомления</span>
+            <div className="ntf-panel__tabs">
+              <button
+                className={`ntf-panel__tab${tab === 'notifications' ? ' ntf-panel__tab--active' : ''}`}
+                onClick={() => setTab('notifications')}
+              >Уведомления</button>
+              <button
+                className={`ntf-panel__tab${tab === 'errors' ? ' ntf-panel__tab--active' : ''}`}
+                onClick={() => { setTab('errors'); setErrorLogs(getErrorLogs()); }}
+              >Ошибки{errorLogs.length > 0 ? ` (${errorLogs.length})` : ''}</button>
+            </div>
             <div className="ntf-panel__actions">
-              {events.length > 0 && (
+              {tab === 'notifications' && events.length > 0 && (
                 <button className="ntf-panel__btn" onClick={clearAll}>Очистить</button>
+              )}
+              {tab === 'errors' && errorLogs.length > 0 && (
+                <button className="ntf-panel__btn" onClick={handleClearErrors}>Очистить</button>
               )}
             </div>
           </div>
-          <div className="ntf-panel__list">
-            {events.length === 0 && (
-              <div className="ntf-panel__empty">Нет уведомлений</div>
-            )}
-            {events.map((ev) => (
-              <div key={ev.id} className={`ntf-item ${TYPE_CLASS[ev.type] || ''}`}>
-                <span className="ntf-item__icon">{TYPE_ICON[ev.type] || '•'}</span>
-                <div className="ntf-item__body">
-                  <span className="ntf-item__msg">{ev.message}</span>
-                  <span className="ntf-item__time">{timeAgo(ev.timestamp)}</span>
+
+          {tab === 'notifications' && (
+            <div className="ntf-panel__list">
+              {events.length === 0 && (
+                <div className="ntf-panel__empty">Нет уведомлений</div>
+              )}
+              {events.map((ev) => (
+                <div key={ev.id} className={`ntf-item ${TYPE_CLASS[ev.type] || ''}`}>
+                  <span className="ntf-item__icon">{TYPE_ICON[ev.type] || '•'}</span>
+                  <div className="ntf-item__body">
+                    <span className="ntf-item__msg">{ev.message}</span>
+                    <span className="ntf-item__time">{timeAgo(ev.timestamp)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'errors' && (
+            <div className="ntf-panel__list">
+              {errorLogs.length === 0 && (
+                <div className="ntf-panel__empty">Нет записей об ошибках</div>
+              )}
+              {errorLogs.map((log, i) => (
+                <div key={i} className="ntf-item ntf--error">
+                  <span className="ntf-item__icon">✕</span>
+                  <div className="ntf-item__body">
+                    <span className="ntf-item__msg">
+                      {log.message}
+                      {log.count > 1 && <span className="ntf-errlog__count"> ×{log.count}</span>}
+                    </span>
+                    <span className="ntf-errlog__meta">
+                      {log.status && <span className="ntf-errlog__status">{log.status}</span>}
+                      {log.method && log.url && <span className="ntf-errlog__endpoint">{log.method} {log.url}</span>}
+                    </span>
+                    <span className="ntf-item__time">
+                      {new Date(log.lastSeen || log.timestamp).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

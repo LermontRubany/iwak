@@ -202,10 +202,10 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     }));
   };
 
-  // ── Upload queue (max 3 concurrent) ──
+  // ── Upload queue (max 2 concurrent) ──
   const queueRef = useRef([]);
   const activeRef = useRef(0);
-  const MAX_CONCURRENT = 3;
+  const MAX_CONCURRENT = 2;
 
   const updateImg = useCallback((id, patch) => {
     setForm((f) => ({
@@ -225,6 +225,27 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     }
   }, []);
 
+  // ── Ранняя валидация файла (до отправки на сервер) ──
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+  const MAX_ORIGINAL_SIZE = 25 * 1024 * 1024; // 25 MB — макс. до сжатия
+
+  // ── Трекер батча загрузок для итогового уведомления ──
+  const batchRef = useRef(null);
+
+  const finishBatchItem = useCallback((success) => {
+    if (!batchRef.current) return;
+    if (success) batchRef.current.ok++; else batchRef.current.fail++;
+    const { ok, fail, total } = batchRef.current;
+    if (ok + fail >= total) {
+      if (fail > 0) {
+        notify('error', `Загружено ${ok} из ${total} фото (${fail} не удалось)`);
+      } else if (total > 1) {
+        notify('success', `Все ${total} фото загружены`);
+      }
+      batchRef.current = null;
+    }
+  }, [notify]);
+
   const enqueueUpload = useCallback((id, file) => {
     // Если активных < MAX_CONCURRENT — сразу uploading, иначе — waiting
     const willStart = activeRef.current < MAX_CONCURRENT;
@@ -237,8 +258,10 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         const path = await uploadImage(file);
         if (!path) throw new Error('Сервер не вернул путь');
         updateImg(id, { url: path, preview: path, status: 'done', progress: 100 });
+        finishBatchItem(true);
       } catch (err) {
         updateImg(id, { status: 'error', progress: 0 });
+        finishBatchItem(false);
         // 'Сессия истекла' уже обработана в uploadImage через notifyGlobal
         if (err.message !== 'Сессия истекла') {
           notify('error', err.message || 'Ошибка загрузки фото');
@@ -246,13 +269,28 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       }
     });
     processQueue();
-  }, [uploadImage, updateImg, processQueue, notify]);
+  }, [uploadImage, updateImg, processQueue, notify, finishBatchItem]);
 
-  // Загрузка фото: мгновенное preview + очередь
+  // Загрузка фото: мгновенное preview + очередь + ранняя валидация
   const handleFiles = (files) => {
     const arr = Array.from(files).slice(0, 10 - form.images.length);
+    const validFiles = [];
+    for (const file of arr) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        notify('error', `«${file.name}»: недопустимый формат (нужен JPEG, PNG, WebP или AVIF)`);
+        continue;
+      }
+      if (file.size > MAX_ORIGINAL_SIZE) {
+        notify('error', `«${file.name}»: файл слишком большой (макс. 25 МБ)`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+    if (validFiles.length === 0) return;
+    // Инициализировать счётчик батча
+    batchRef.current = { total: validFiles.length, ok: 0, fail: 0 };
     const currentActive = activeRef.current;
-    const newImgs = arr.map((file, i) => {
+    const newImgs = validFiles.map((file, i) => {
       const id = nextImgId();
       const preview = URL.createObjectURL(file);
       // Первые MAX_CONCURRENT файлов — uploading, остальные — waiting

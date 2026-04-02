@@ -1660,6 +1660,29 @@
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
+.ntf-panel__tabs {
+  display: flex;
+  gap: 0;
+}
+
+.ntf-panel__tab {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ntf-panel__tab:hover { color: rgba(255,255,255,0.7); }
+.ntf-panel__tab--active {
+  color: rgba(255,255,255,0.9);
+  border-bottom-color: var(--adm-accent, #00b4a0);
+}
+
 .ntf-panel__title {
   font-size: 13px;
   font-weight: 600;
@@ -1742,6 +1765,38 @@
   font-size: 10px;
   color: rgba(255,255,255,0.3);
   margin-top: 2px;
+}
+
+/* ─── Error log meta (status + endpoint) ─── */
+.ntf-errlog__meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.ntf-errlog__status {
+  background: rgba(229,57,53,0.15);
+  color: #e57373;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.ntf-errlog__endpoint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.ntf-errlog__count {
+  color: #e57373;
+  font-weight: 700;
+  font-size: 11px;
+  margin-left: 4px;
 }
 
 /* ─── Toast stack ─── */

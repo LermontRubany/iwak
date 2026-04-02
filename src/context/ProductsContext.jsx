@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import imageCompression from 'browser-image-compression';
 import { notifyGlobal } from './NotificationsContext';
+import { friendlyErrorMessage, logError } from '../utils/errorLogger';
 
 const ProductsContext = createContext(null);
 
@@ -19,26 +20,35 @@ function getAuthHeaders() {
   return headers;
 }
 
+// ── Общая обработка 401 (вызывается из apiFetch и uploadImage) ──
+function handleUnauthorized(url, method) {
+  if (_sessionExpired) return;
+  _sessionExpired = true;
+  localStorage.removeItem('iwak_admin_token');
+  logError({ url, method, status: 401, message: 'Сессия истекла' });
+  notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
+  setTimeout(() => { window.location.href = '/adminpanel'; }, 500);
+}
+
 async function apiFetch(url, options = {}) {
   let res;
   try {
     res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
-  } catch {
-    notifyGlobal('error', 'Нет соединения с сервером');
-    throw new Error('Нет соединения с сервером');
+  } catch (e) {
+    const msg = friendlyErrorMessage(null, e.message);
+    logError({ url, method: options.method || 'GET', status: null, message: e.message, stack: e.stack });
+    notifyGlobal('error', msg);
+    throw new Error(msg);
   }
   if (!res.ok) {
     if (res.status === 401) {
-      if (!_sessionExpired) {
-        _sessionExpired = true;
-        localStorage.removeItem('iwak_admin_token');
-        notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
-        setTimeout(() => { window.location.href = '/adminpanel'; }, 500);
-      }
+      handleUnauthorized(url, options.method || 'GET');
       throw new Error('Сессия истекла');
     }
     const body = await res.json().catch(() => ({}));
-    const msg = body.error || `Ошибка сервера (${res.status})`;
+    const raw = body.error || `Ошибка сервера (${res.status})`;
+    const msg = body.error || friendlyErrorMessage(res.status, raw);
+    logError({ url, method: options.method || 'GET', status: res.status, message: raw });
     notifyGlobal('error', msg);
     throw new Error(msg);
   }
@@ -222,7 +232,7 @@ export function ProductsProvider({ children }) {
       // fallback: send original if compression fails
     }
     const token = localStorage.getItem('iwak_admin_token');
-    const delays = [0, 500, 1500];
+    const delays = [0, 800, 2000];
     let lastError;
     for (let attempt = 0; attempt < delays.length; attempt++) {
       if (delays[attempt] > 0) {
@@ -238,28 +248,34 @@ export function ProductsProvider({ children }) {
         });
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({}));
-          const msg = errBody.error || `Ошибка загрузки (${res.status})`;
+          const serverMsg = errBody.error || '';
           if (res.status === 401) {
-            if (!_sessionExpired) {
-              _sessionExpired = true;
-              localStorage.removeItem('iwak_admin_token');
-              notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
-              setTimeout(() => { window.location.href = '/adminpanel'; }, 500);
-            }
+            handleUnauthorized('/api/upload', 'POST');
             throw new Error('Сессия истекла');
           }
-          // При 429 — retry, при других ошибках — сразу бросаем
-          if (res.status !== 429) throw new Error(msg);
-          lastError = new Error(msg);
-          continue;
+          // При 429 или 5xx — retry
+          if ((res.status === 429 || res.status >= 500) && attempt < delays.length - 1) {
+            lastError = new Error(serverMsg || friendlyErrorMessage(res.status));
+            continue;
+          }
+          const userMsg = serverMsg || friendlyErrorMessage(res.status);
+          logError({ url: '/api/upload', method: 'POST', status: res.status, message: serverMsg || userMsg });
+          throw new Error(userMsg);
         }
         const data = await res.json();
         return data.path;
       } catch (e) {
-        if (e.message?.includes('429') && attempt < delays.length - 1) {
-          lastError = e;
-          continue;
+        // Сетевая ошибка (fetch бросает TypeError)
+        if (e.name === 'TypeError' || e.message === 'Load failed' || e.message === 'Failed to fetch') {
+          const msg = friendlyErrorMessage(null, e.message);
+          if (attempt < delays.length - 1) {
+            lastError = new Error(msg);
+            continue;
+          }
+          logError({ url: '/api/upload', method: 'POST', status: null, message: e.message, stack: e.stack });
+          throw new Error(msg);
         }
+        // 429/5xx retry уже обработан выше, остальные ошибки — сразу бросаем
         throw e;
       }
     }
