@@ -1532,7 +1532,7 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }
   let result;
 
   if (photos.length === 0) {
-    result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', reply_markup: keyboard });
+    result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', disable_web_page_preview: true, reply_markup: keyboard });
   } else if (photos.length === 1) {
     result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
   } else {
@@ -1548,9 +1548,9 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }
       try {
         await tgApiCall(`${TG}/sendMessage`, {
           chat_id: chatId,
-          text: '👆 Подробнее о товаре',
+          text: '\u2800',
           reply_to_message_id: lastMsgId,
-          parse_mode: 'Markdown',
+          disable_web_page_preview: true,
           reply_markup: keyboard,
         });
       } catch (btnErr) {
