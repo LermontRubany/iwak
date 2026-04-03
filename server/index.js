@@ -1395,10 +1395,7 @@ function escapeMarkdown(text) {
 const TG_FOOTER = [
   '',
   '📲 *IWAK*',
-  'Канал: https://t.me/IWAK3',
-  'Отзывы: https://t.me/iwakotzivi',
-  'Менеджер: https://t.me/IWAKm',
-  'Max: https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo',
+  '[Канал](https://t.me/IWAK3) • [Отзывы](https://t.me/iwakotzivi) • [Менеджер](https://t.me/IWAKm) • [Max](https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo)',
   '',
   '*IWAK.RU*',
 ].join('\n');
@@ -1459,7 +1456,7 @@ function buildPostText(p, template = 'basic') {
 
 // ── Inline keyboard for product ──
 function productKeyboard(p) {
-  return { inline_keyboard: [[{ text: '🛒 Купить', url: productUrl(p) }]] };
+  return { inline_keyboard: [[{ text: 'Смотреть товар', url: productUrl(p) }]] };
 }
 
 // ── In-memory TG send queue ──
@@ -1530,7 +1527,7 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }
     // sendMediaGroup doesn't support reply_markup — send button separately
     if (result.ok !== false) {
       try {
-        await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text: 'Перейти →', parse_mode: 'Markdown', reply_markup: keyboard });
+        await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text: 'Смотреть товар', parse_mode: 'Markdown', reply_markup: keyboard });
       } catch (btnErr) {
         logger.warn({ productId, err: btnErr }, 'TG inline button send failed (post itself was sent)');
       }
