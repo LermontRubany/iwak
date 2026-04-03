@@ -224,6 +224,16 @@ export default function TelegramTab() {
                   onChange={e => setEditText(e.target.value)}
                   rows={8}
                 />
+                {(() => {
+                  const limit = preview.photos.length > 0 ? 1024 : 4096;
+                  const len = editText.length;
+                  const over = len > limit;
+                  return (
+                    <div className={`tg-charcount${over ? ' tg-charcount--over' : ''}`}>
+                      {len} / {limit}{over ? ' — превышен лимит Telegram' : ''}
+                    </div>
+                  );
+                })()}
                 {editText !== preview.text && (
                   <button
                     className="adm-btn adm-btn--sm tg-reset-btn"
@@ -235,7 +245,7 @@ export default function TelegramTab() {
                 <button
                   className="adm-btn adm-btn--accent"
                   onClick={handleSend}
-                  disabled={sending || !editText.trim()}
+                  disabled={sending || !editText.trim() || editText.length > (preview.photos.length > 0 ? 1024 : 4096)}
                 >
                   {sending ? 'Отправка...' : '📤 Отправить в Telegram'}
                 </button>

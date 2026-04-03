@@ -2371,6 +2371,17 @@
   color: var(--adm-text-muted);
 }
 
+.tg-charcount {
+  font-size: 11px;
+  color: var(--adm-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tg-charcount--over {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 .tg-link {
   color: #3b82f6;
   text-decoration: none;
