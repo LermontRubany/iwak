@@ -1378,9 +1378,25 @@ app.post('/api/tg/config', requireAuth, async (req, res) => {
   }
 });
 
+// ── Product URL helper ──
+function productUrl(p) {
+  const slug = (p.brand ? p.brand + ' ' : '').concat(p.name)
+    .toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return `${SITE_ORIGIN}/product/${slug}-${p.id}`;
+}
+
 // ── Build Telegram post text from product ──
-function buildPostText(p) {
+function buildPostText(p, template = 'basic') {
   const lines = [];
+  if (template === 'new') {
+    lines.push('🆕 *Новинка*');
+    lines.push('');
+  }
+  if (template === 'sale' && p.originalPrice && p.originalPrice > p.price) {
+    const pct = Math.round(100 - (p.price / p.originalPrice) * 100);
+    lines.push(`🔥 *Скидка ${pct}%*`);
+    lines.push('');
+  }
   if (p.brand) lines.push(`*${p.brand}*`);
   lines.push(p.name);
   lines.push('');
@@ -1392,96 +1408,163 @@ function buildPostText(p) {
   if (p.sizes && p.sizes.length > 0) {
     lines.push(`Размеры: ${p.sizes.join(', ')}`);
   }
-  lines.push('');
-  // Product link
-  const slug = (p.brand ? p.brand + ' ' : '').concat(p.name)
-    .toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  lines.push(`[🛒 Смотреть на сайте](${SITE_ORIGIN}/product/${slug}-${p.id})`);
   return lines.join('\n');
 }
+
+// ── Inline keyboard for product ──
+function productKeyboard(p) {
+  return { inline_keyboard: [[{ text: '🛒 Купить', url: productUrl(p) }]] };
+}
+
+// ── In-memory TG send queue ──
+const tgQueue = [];
+let tgProcessing = false;
+
+function tgEnqueue(job) {
+  return new Promise((resolve, reject) => {
+    tgQueue.push({ ...job, resolve, reject });
+    tgProcessNext();
+  });
+}
+
+async function tgProcessNext() {
+  if (tgProcessing || tgQueue.length === 0) return;
+  tgProcessing = true;
+  const job = tgQueue.shift();
+  try {
+    const result = await tgSendOne(job);
+    job.resolve(result);
+  } catch (err) {
+    job.reject(err);
+  }
+  tgProcessing = false;
+  if (tgQueue.length > 0) setTimeout(tgProcessNext, 1500);
+}
+
+async function tgApiCall(url, body, retriesLeft = 2) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await resp.json();
+  if (json.ok === false && json.error_code === 429 && retriesLeft > 0) {
+    const wait = (json.parameters?.retry_after || 2) * 1000;
+    logger.warn({ wait }, 'Telegram 429 — waiting');
+    await new Promise(r => setTimeout(r, wait));
+    return tgApiCall(url, body, retriesLeft - 1);
+  }
+  return json;
+}
+
+async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }) {
+  const TG = `https://api.telegram.org/bot${botToken}`;
+  const sendType = photos.length === 0 ? 'text' : photos.length === 1 ? 'photo' : 'mediaGroup';
+  let result;
+
+  if (photos.length === 0) {
+    result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', reply_markup: keyboard });
+  } else if (photos.length === 1) {
+    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+  } else {
+    const media = photos.map((img, i) => ({
+      type: 'photo',
+      media: `${SITE_ORIGIN}${img}`,
+      ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
+    }));
+    result = await tgApiCall(`${TG}/sendMediaGroup`, { chat_id: chatId, media });
+    // sendMediaGroup doesn't support reply_markup — send button separately
+    if (result.ok !== false) {
+      try {
+        await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text: '\u200b', parse_mode: 'Markdown', reply_markup: keyboard });
+      } catch (btnErr) {
+        logger.warn({ productId, err: btnErr }, 'TG inline button send failed (post itself was sent)');
+      }
+    }
+  }
+
+  const status = result.ok === false ? 'error' : 'success';
+  logger.info({ tgSend: true, productId, sendType, status, description: result.description || null }, `TG send ${status}`);
+
+  return result;
+}
+
+// ── Test bot (getMe) ──
+app.post('/api/tg/test', requireAuth, async (_req, res) => {
+  try {
+    const cfg = await pool.query('SELECT bot_token FROM tg_config WHERE id = 1');
+    if (cfg.rows.length === 0 || !cfg.rows[0].bot_token) {
+      return res.status(400).json({ error: 'Bot token не задан' });
+    }
+    const resp = await fetch(`https://api.telegram.org/bot${cfg.rows[0].bot_token}/getMe`);
+    const json = await resp.json();
+    if (json.ok) {
+      res.json({ ok: true, username: json.result.username, firstName: json.result.first_name });
+    } else {
+      res.status(400).json({ error: json.description || 'Неверный токен' });
+    }
+  } catch (err) {
+    logger.error({ err }, 'POST /api/tg/test error');
+    res.status(500).json({ error: 'Ошибка проверки' });
+  }
+});
+
+// ── Delete config ──
+app.delete('/api/tg/config', requireAuth, async (_req, res) => {
+  try {
+    await pool.query("UPDATE tg_config SET bot_token = '', chat_id = '', updated_at = now() WHERE id = 1");
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'DELETE /api/tg/config error');
+    res.status(500).json({ error: 'Ошибка удаления' });
+  }
+});
 
 // ── Preview post for product ──
 app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid product id' });
+  const template = req.query.template || 'basic';
   try {
     const r = await pool.query('SELECT id, name, brand, price, original_price, sizes, images, category, gender FROM products WHERE id = $1', [id]);
     if (r.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
     const p = rowToCamel(r.rows[0]);
 
-    const text = buildPostText(p);
+    const text = buildPostText(p, template);
     const photos = (p.images || []).slice(0, 10);
+    const url = productUrl(p);
 
-    res.json({ text, photos, product: { id: p.id, name: p.name, brand: p.brand, price: p.price } });
+    res.json({ text, photos, url, product: { id: p.id, name: p.name, brand: p.brand, price: p.price, originalPrice: p.originalPrice } });
   } catch (err) {
     logger.error({ err }, 'GET /api/tg/preview error');
     res.status(500).json({ error: 'Preview error' });
   }
 });
 
-// ── Send post to Telegram ──
+// ── Send post to Telegram (via queue) ──
 app.post('/api/tg/send', requireAuth, async (req, res) => {
-  const { productId, text: customText } = req.body;
+  const { productId, text: customText, template } = req.body;
   if (!productId) return res.status(400).json({ error: 'productId required' });
 
   try {
-    // Read config
     const cfg = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
     if (cfg.rows.length === 0 || !cfg.rows[0].bot_token || !cfg.rows[0].chat_id) {
       return res.status(400).json({ error: 'Telegram не настроен' });
     }
     const { bot_token, chat_id } = cfg.rows[0];
 
-    // Get product
     const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images FROM products WHERE id = $1', [parseInt(productId)]);
     if (pr.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
     const p = rowToCamel(pr.rows[0]);
 
-    // Build text if not custom
-    let text = customText;
-    if (!text) {
-      text = buildPostText(p);
-    }
-
+    const text = customText || buildPostText(p, template || 'basic');
     const photos = (p.images || []).slice(0, 10);
-    const TG = `https://api.telegram.org/bot${bot_token}`;
+    const keyboard = productKeyboard(p);
 
-    let tgResult;
-
-    if (photos.length === 0) {
-      // Text-only message
-      const resp = await fetch(`${TG}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown' }),
-      });
-      tgResult = await resp.json();
-    } else if (photos.length === 1) {
-      // Single photo
-      const photoUrl = `${SITE_ORIGIN}${photos[0]}`;
-      const resp = await fetch(`${TG}/sendPhoto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, photo: photoUrl, caption: text, parse_mode: 'Markdown' }),
-      });
-      tgResult = await resp.json();
-    } else {
-      // Media group (2-10 photos)
-      const media = photos.map((img, i) => ({
-        type: 'photo',
-        media: `${SITE_ORIGIN}${img}`,
-        ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
-      }));
-      const resp = await fetch(`${TG}/sendMediaGroup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, media }),
-      });
-      tgResult = await resp.json();
-    }
+    const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id });
 
     if (tgResult.ok === false) {
-      logger.warn({ tgResult }, 'Telegram API rejected the request');
+      logger.warn({ tgResult, productId: p.id }, 'Telegram API rejected the request');
       return res.status(502).json({ error: 'Telegram отклонил запрос', details: tgResult.description });
     }
 

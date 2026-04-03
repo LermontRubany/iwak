@@ -138,6 +138,50 @@ export default function TelegramTab() {
     }
   }, [preview, selectedId, editText]);
 
+  // ── Test bot ──
+  const [testing, setTesting] = useState(false);
+
+  const handleTestBot = useCallback(async () => {
+    setTesting(true);
+    setConfigMsg(null);
+    try {
+      const res = await fetch('/api/tg/test', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setConfigMsg({ type: 'ok', text: `Бот работает: @${json.username}` });
+      } else {
+        setConfigMsg({ type: 'error', text: json.error || 'Ошибка проверки' });
+      }
+    } catch {
+      setConfigMsg({ type: 'error', text: 'Ошибка соединения' });
+    } finally {
+      setTesting(false);
+    }
+  }, []);
+
+  // ── Delete config ──
+  const handleDeleteConfig = useCallback(async () => {
+    if (!window.confirm('Удалить настройки Telegram бота?')) return;
+    try {
+      const res = await fetch('/api/tg/config', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        setConfigured(false);
+        setMasked('');
+        setChatId('');
+        setBotToken('');
+        setConfigMsg({ type: 'ok', text: 'Бот удалён' });
+      }
+    } catch {
+      setConfigMsg({ type: 'error', text: 'Ошибка удаления' });
+    }
+  }, []);
+
   return (
     <div className="tg">
       {/* ── Config ── */}
@@ -166,13 +210,32 @@ export default function TelegramTab() {
             value={chatId}
             onChange={e => setChatId(e.target.value)}
           />
-          <button
-            className="adm-btn adm-btn--accent adm-btn--sm"
-            onClick={handleSaveConfig}
-            disabled={configSaving}
-          >
-            {configSaving ? 'Сохранение...' : 'Сохранить'}
-          </button>
+          <div className="tg-config__actions">
+            <button
+              className="adm-btn adm-btn--accent adm-btn--sm"
+              onClick={handleSaveConfig}
+              disabled={configSaving}
+            >
+              {configSaving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+            {configured && (
+              <>
+                <button
+                  className="adm-btn adm-btn--sm"
+                  onClick={handleTestBot}
+                  disabled={testing}
+                >
+                  {testing ? 'Проверка...' : 'Проверить'}
+                </button>
+                <button
+                  className="adm-btn adm-btn--ghost adm-btn--sm tg-config__delete"
+                  onClick={handleDeleteConfig}
+                >
+                  Удалить бота
+                </button>
+              </>
+            )}
+          </div>
           {configMsg && (
             <div className={`tg-msg tg-msg--${configMsg.type}`}>{configMsg.text}</div>
           )}
