@@ -771,64 +771,76 @@ app.post('/api/events', async (req, res) => {
 app.get('/api/analytics', requireAuth, async (req, res) => {
   const period = req.query.period || '7d';
   const mode = req.query.mode === 'data' ? 'data' : 'analysis';
-  let interval;
-  switch (period) {
-    case 'today': interval = '1 day'; break;
-    case '30d':   interval = '30 days'; break;
-    default:      interval = '7 days';
+
+  // For "today" we use midnight Moscow time, not a sliding 24h window
+  const isToday = period === 'today';
+  let interval, sinceExpr, prevFromExpr, prevToExpr;
+
+  if (isToday) {
+    // "today" = from 00:00 Moscow → now
+    sinceExpr = `date_trunc('day', now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow'`;
+    // "previous" for today = yesterday (same structure)
+    prevFromExpr = `(date_trunc('day', now() AT TIME ZONE 'Europe/Moscow') - interval '1 day') AT TIME ZONE 'Europe/Moscow'`;
+    prevToExpr = `date_trunc('day', now() AT TIME ZONE 'Europe/Moscow') AT TIME ZONE 'Europe/Moscow'`;
+  } else {
+    interval = period === '30d' ? '30 days' : '7 days';
+    sinceExpr = `now() - '${interval}'::interval`;
+    prevFromExpr = `now() - ('${interval}'::interval * 2)`;
+    prevToExpr = `now() - '${interval}'::interval`;
   }
 
   try {
+    // sinceExpr/prevFromExpr/prevToExpr are built from fixed period values above (no user input)
     const baseQueries = [
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
-         WHERE type = 'page_view' AND created_at >= now() - $1::interval`, [interval]
+         WHERE type = 'page_view' AND created_at >= ${sinceExpr}`
       ),
       pool.query(
         `SELECT COUNT(*) AS count FROM events
-         WHERE type = 'product_view' AND created_at >= now() - $1::interval`, [interval]
+         WHERE type = 'product_view' AND created_at >= ${sinceExpr}`
       ),
       pool.query(
         `SELECT COUNT(*) AS count FROM events
-         WHERE type = 'share' AND created_at >= now() - $1::interval`, [interval]
+         WHERE type = 'share' AND created_at >= ${sinceExpr}`
       ),
       pool.query(
         `SELECT data->>'productId' AS product_id, COUNT(*) AS views
          FROM events
-         WHERE type = 'product_view' AND created_at >= now() - $1::interval
+         WHERE type = 'product_view' AND created_at >= ${sinceExpr}
          GROUP BY data->>'productId'
          ORDER BY views DESC
-         LIMIT 20`, [interval]
+         LIMIT 20`
       ),
       pool.query(
         `SELECT COALESCE(city, 'Неизвестно') AS city, COUNT(DISTINCT session_id) AS visits
          FROM events
-         WHERE type = 'page_view' AND created_at >= now() - $1::interval
+         WHERE type = 'page_view' AND created_at >= ${sinceExpr}
          GROUP BY city
          ORDER BY visits DESC
-         LIMIT 15`, [interval]
+         LIMIT 15`
       ),
       pool.query(
         `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour, COUNT(*) AS count
          FROM events
-         WHERE created_at >= now() - $1::interval
+         WHERE created_at >= ${sinceExpr}
          GROUP BY hour
-         ORDER BY hour`, [interval]
+         ORDER BY hour`
       ),
       pool.query(
         `SELECT DATE(created_at AT TIME ZONE 'Europe/Moscow') AS date, COUNT(*) AS count
          FROM events
-         WHERE created_at >= now() - $1::interval
+         WHERE created_at >= ${sinceExpr}
          GROUP BY date
-         ORDER BY date`, [interval]
+         ORDER BY date`
       ),
       pool.query(
         `SELECT data->>'productId' AS product_id,
                 EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour,
                 COUNT(*) AS cnt
          FROM events
-         WHERE type = 'product_view' AND created_at >= now() - $1::interval
-         GROUP BY data->>'productId', hour`, [interval]
+         WHERE type = 'product_view' AND created_at >= ${sinceExpr}
+         GROUP BY data->>'productId', hour`
       ),
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
@@ -845,16 +857,16 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
              COUNT(CASE WHEN type = 'product_view' THEN 1 END) AS prev_views,
              COUNT(CASE WHEN type = 'share' THEN 1 END) AS prev_shares
            FROM events
-           WHERE created_at >= now() - ($1::interval * 2)
-             AND created_at < now() - $1::interval`, [interval]
+           WHERE created_at >= ${prevFromExpr}
+             AND created_at < ${prevToExpr}`
         ),
         pool.query(
           `SELECT data->>'productId' AS product_id, COUNT(*) AS views
            FROM events
            WHERE type = 'product_view'
-             AND created_at >= now() - ($1::interval * 2)
-             AND created_at < now() - $1::interval
-           GROUP BY data->>'productId'`, [interval]
+             AND created_at >= ${prevFromExpr}
+             AND created_at < ${prevToExpr}
+           GROUP BY data->>'productId'`
         ),
       );
     }
