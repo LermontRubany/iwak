@@ -65,17 +65,18 @@ function handleExportReport(period) {
 
 export default function AnalyticsTab() {
   const [period, setPeriod] = useState('7d');
+  const [mode, setMode] = useState('data');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [onlineNow, setOnlineNow] = useState(null);
 
-  const fetchAnalytics = useCallback(async (p) => {
+  const fetchAnalytics = useCallback(async (p, m) => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('iwak_admin_token');
-      const res = await fetch(`/api/analytics?period=${p}`, {
+      const res = await fetch(`/api/analytics?period=${p}&mode=${m}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -89,14 +90,14 @@ export default function AnalyticsTab() {
     }
   }, []);
 
-  useEffect(() => { fetchAnalytics(period); }, [period, fetchAnalytics]);
+  useEffect(() => { fetchAnalytics(period, mode); }, [period, mode, fetchAnalytics]);
 
   // Lightweight polling for onlineNow every 15s
   useEffect(() => {
     const iv = setInterval(async () => {
       try {
         const token = localStorage.getItem('iwak_admin_token');
-        const res = await fetch(`/api/analytics?period=${period}`, {
+        const res = await fetch(`/api/analytics?period=${period}&mode=${mode}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -106,7 +107,7 @@ export default function AnalyticsTab() {
       } catch { /* ignore */ }
     }, 15000);
     return () => clearInterval(iv);
-  }, [period]);
+  }, [period, mode]);
 
   // Derive compact activity data
   const peakHour = data?.activityByHour?.length
@@ -132,6 +133,22 @@ export default function AnalyticsTab() {
         ))}
       </div>
 
+      {/* Mode toggle */}
+      <div className="anl-modes">
+        <button
+          className={`anl-mode-btn${mode === 'data' ? ' anl-mode-btn--active' : ''}`}
+          onClick={() => setMode('data')}
+        >
+          Сегодня
+        </button>
+        <button
+          className={`anl-mode-btn${mode === 'analysis' ? ' anl-mode-btn--active' : ''}`}
+          onClick={() => setMode('analysis')}
+        >
+          Анализ
+        </button>
+      </div>
+
       {loading && <div className="anl-loading">Загрузка...</div>}
       {error && <div className="anl-error">{error}</div>}
 
@@ -149,17 +166,17 @@ export default function AnalyticsTab() {
           <div className="anl-cards">
             <div className="anl-card">
               <span className="anl-card__value">{data.visits}</span>
-              <DeltaBadge delta={data.visitsDelta} percent={data.visitsPercent} showArrow />
+              {mode === 'analysis' && <DeltaBadge delta={data.visitsDelta} percent={data.visitsPercent} showArrow />}
               <span className="anl-card__label">Визиты</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.productViews}</span>
-              <DeltaBadge delta={data.productViewsDelta} percent={data.productViewsPercent} showArrow />
+              {mode === 'analysis' && <DeltaBadge delta={data.productViewsDelta} percent={data.productViewsPercent} showArrow />}
               <span className="anl-card__label">Просмотры</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.shares}</span>
-              <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} showArrow />
+              {mode === 'analysis' && <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} showArrow />}
               <span className="anl-card__label">Шаринг</span>
             </div>
           </div>
@@ -214,7 +231,7 @@ export default function AnalyticsTab() {
                           <span>{p.name || `#${p.productId}`}</span>
                         </td>
                         <td className="anl-table__num">{p.views}
-                          {p.delta != null && <DeltaBadge delta={p.delta} />}
+                          {mode === 'analysis' && p.delta != null && <DeltaBadge delta={p.delta} />}
                         </td>
                         <td className="anl-table__num anl-table__peak">
                           {p.peakHour != null ? fmtHour(p.peakHour) : '—'}
@@ -246,7 +263,7 @@ export default function AnalyticsTab() {
                       <tr key={d.date}>
                         <td>{fmtDate(d.date)}</td>
                         <td className="anl-table__num">{d.count}
-                          {d.delta != null && <DeltaBadge delta={d.delta} />}
+                          {mode === 'analysis' && d.delta != null && <DeltaBadge delta={d.delta} />}
                         </td>
                       </tr>
                     ))}

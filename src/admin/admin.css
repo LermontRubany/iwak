@@ -1953,6 +1953,38 @@
 
 .anl-error { color: #e74c3c; }
 
+/* ─── MODE TOGGLE ─── */
+.anl-modes {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  overflow: hidden;
+  width: fit-content;
+}
+
+.anl-mode-btn {
+  padding: 8px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border: none;
+  background: var(--adm-surface);
+  color: var(--adm-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.anl-mode-btn + .anl-mode-btn {
+  border-left: 1px solid var(--adm-border);
+}
+
+.anl-mode-btn--active {
+  background: var(--adm-text);
+  color: var(--adm-bg);
+}
+
 .anl-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
