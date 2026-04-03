@@ -1987,6 +1987,26 @@
   text-transform: uppercase;
 }
 
+/* ─── DELTA BADGES ─── */
+.anl-delta {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.anl-card .anl-delta {
+  display: block;
+  margin-left: 0;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.anl-delta--up { color: #22c55e; }
+.anl-delta--down { color: #ef4444; }
+.anl-delta--zero { color: var(--adm-text-muted); }
+
 .anl-section {
   margin-bottom: 20px;
 }

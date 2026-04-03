@@ -22,6 +22,17 @@ function fmtDate(dateStr) {
   return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
 }
 
+function DeltaBadge({ delta, percent, showArrow = false }) {
+  if (delta == null && percent == null) return null;
+  const cls = delta > 0 ? 'anl-delta--up' : delta < 0 ? 'anl-delta--down' : 'anl-delta--zero';
+  const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '';
+  const sign = delta > 0 ? '+' : '';
+  if (showArrow && percent != null) {
+    return <span className={`anl-delta ${cls}`}>{arrow} {sign}{percent}%</span>;
+  }
+  return <span className={`anl-delta ${cls}`}>{sign}{delta}</span>;
+}
+
 function handleExport(period) {
   const token = localStorage.getItem('iwak_admin_token');
   const url = `/api/analytics/export?period=${period}`;
@@ -138,14 +149,17 @@ export default function AnalyticsTab() {
           <div className="anl-cards">
             <div className="anl-card">
               <span className="anl-card__value">{data.visits}</span>
+              <DeltaBadge delta={data.visitsDelta} percent={data.visitsPercent} showArrow />
               <span className="anl-card__label">Визиты</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.productViews}</span>
+              <DeltaBadge delta={data.productViewsDelta} percent={data.productViewsPercent} showArrow />
               <span className="anl-card__label">Просмотры</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.shares}</span>
+              <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} showArrow />
               <span className="anl-card__label">Шаринг</span>
             </div>
           </div>
@@ -199,7 +213,9 @@ export default function AnalyticsTab() {
                           {' '}
                           <span>{p.name || `#${p.productId}`}</span>
                         </td>
-                        <td className="anl-table__num">{p.views}</td>
+                        <td className="anl-table__num">{p.views}
+                          {p.delta != null && <DeltaBadge delta={p.delta} />}
+                        </td>
                         <td className="anl-table__num anl-table__peak">
                           {p.peakHour != null ? fmtHour(p.peakHour) : '—'}
                         </td>
@@ -229,7 +245,9 @@ export default function AnalyticsTab() {
                     {data.activityByDay.map((d) => (
                       <tr key={d.date}>
                         <td>{fmtDate(d.date)}</td>
-                        <td className="anl-table__num">{d.count}</td>
+                        <td className="anl-table__num">{d.count}
+                          {d.delta != null && <DeltaBadge delta={d.delta} />}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

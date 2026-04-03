@@ -778,7 +778,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
   }
 
   try {
-    const [visits, views, shares, topProducts, topCities, byHour, byDay, productHours, online] = await Promise.all([
+    const [visits, views, shares, topProducts, topCities, byHour, byDay, productHours, online, prevKpi, prevTopProducts] = await Promise.all([
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
          WHERE type = 'page_view' AND created_at >= now() - $1::interval`, [interval]
@@ -833,6 +833,25 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
          WHERE created_at >= now() - interval '2 minutes'`
       ),
+      // Previous period KPI (single query)
+      pool.query(
+        `SELECT
+           COUNT(DISTINCT CASE WHEN type = 'page_view' THEN session_id END) AS prev_visits,
+           COUNT(CASE WHEN type = 'product_view' THEN 1 END) AS prev_views,
+           COUNT(CASE WHEN type = 'share' THEN 1 END) AS prev_shares
+         FROM events
+         WHERE created_at >= now() - ($1::interval * 2)
+           AND created_at < now() - $1::interval`, [interval]
+      ),
+      // Previous period top products
+      pool.query(
+        `SELECT data->>'productId' AS product_id, COUNT(*) AS views
+         FROM events
+         WHERE type = 'product_view'
+           AND created_at >= now() - ($1::interval * 2)
+           AND created_at < now() - $1::interval
+         GROUP BY data->>'productId'`, [interval]
+      ),
     ]);
 
     // Enrich top products with names from products table
@@ -850,6 +869,24 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       }
     }
 
+    // ── Delta computation ────────────────────
+    const curVisits = parseInt(visits.rows[0].count);
+    const curViews = parseInt(views.rows[0].count);
+    const curShares = parseInt(shares.rows[0].count);
+    const prevVisits = parseInt(prevKpi.rows[0].prev_visits) || 0;
+    const prevViews = parseInt(prevKpi.rows[0].prev_views) || 0;
+    const prevShares = parseInt(prevKpi.rows[0].prev_shares) || 0;
+
+    function calcPercent(cur, prev) {
+      if (prev > 0) return Math.round(((cur - prev) / prev) * 100);
+      return null;
+    }
+
+    const prevProductMap = {};
+    for (const r of prevTopProducts.rows) {
+      prevProductMap[r.product_id] = parseInt(r.views);
+    }
+
     // Build peak hour map per product
     const peakHourMap = {};
     for (const r of productHours.rows) {
@@ -863,16 +900,28 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
     res.json({
       period,
       onlineNow: parseInt(online.rows[0].count),
-      visits: parseInt(visits.rows[0].count),
-      productViews: parseInt(views.rows[0].count),
-      shares: parseInt(shares.rows[0].count),
-      topProducts: topProducts.rows.map(r => ({
-        productId: parseInt(r.product_id),
-        views: parseInt(r.views),
-        name: productNames[r.product_id]?.name || null,
-        brand: productNames[r.product_id]?.brand || null,
-        peakHour: peakHourMap[r.product_id]?.hour ?? null,
-      })),
+      visits: curVisits,
+      visitsDelta: curVisits - prevVisits,
+      visitsPercent: calcPercent(curVisits, prevVisits),
+      productViews: curViews,
+      productViewsDelta: curViews - prevViews,
+      productViewsPercent: calcPercent(curViews, prevViews),
+      shares: curShares,
+      sharesDelta: curShares - prevShares,
+      sharesPercent: calcPercent(curShares, prevShares),
+      topProducts: topProducts.rows.map(r => {
+        const v = parseInt(r.views);
+        const pv = prevProductMap[r.product_id] || 0;
+        return {
+          productId: parseInt(r.product_id),
+          views: v,
+          delta: v - pv,
+          percent: pv > 0 ? Math.round(((v - pv) / pv) * 100) : null,
+          name: productNames[r.product_id]?.name || null,
+          brand: productNames[r.product_id]?.brand || null,
+          peakHour: peakHourMap[r.product_id]?.hour ?? null,
+        };
+      }),
       topCities: topCities.rows.map(r => ({
         city: r.city,
         visits: parseInt(r.visits),
@@ -881,9 +930,10 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         hour: r.hour,
         count: parseInt(r.count),
       })),
-      activityByDay: byDay.rows.map(r => ({
+      activityByDay: byDay.rows.map((r, i) => ({
         date: r.date,
         count: parseInt(r.count),
+        delta: i > 0 ? parseInt(r.count) - parseInt(byDay.rows[i - 1].count) : null,
       })),
     });
   } catch (err) {
