@@ -1533,30 +1533,9 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }
 
   if (photos.length === 0) {
     result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', disable_web_page_preview: true, reply_markup: keyboard });
-  } else if (photos.length === 1) {
-    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
   } else {
-    // Album: sendMediaGroup (caption on first photo) + button as reply
-    const media = photos.slice(0, 10).map((img, i) => ({
-      type: 'photo',
-      media: `${SITE_ORIGIN}${img}`,
-      ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
-    }));
-    result = await tgApiCall(`${TG}/sendMediaGroup`, { chat_id: chatId, media });
-    if (result.ok !== false && Array.isArray(result.result) && result.result.length > 0) {
-      const lastMsgId = result.result[result.result.length - 1].message_id;
-      try {
-        await tgApiCall(`${TG}/sendMessage`, {
-          chat_id: chatId,
-          text: '\u2800',
-          reply_to_message_id: lastMsgId,
-          disable_web_page_preview: true,
-          reply_markup: keyboard,
-        });
-      } catch (btnErr) {
-        logger.warn({ productId, err: btnErr }, 'TG button reply failed (album was sent)');
-      }
-    }
+    // Always single photo — keeps button attached to post
+    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
   }
 
   const status = result.ok === false ? 'error' : 'success';
@@ -1619,7 +1598,7 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
 
 // ── Send post to Telegram (via queue) ──
 app.post('/api/tg/send', requireAuth, async (req, res) => {
-  const { productId, text: customText, template } = req.body;
+  const { productId, text: customText, template, imageIndex } = req.body;
   if (!productId) return res.status(400).json({ error: 'productId required' });
 
   try {
@@ -1634,7 +1613,9 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
     const p = rowToCamel(pr.rows[0]);
 
     const text = customText || buildPostText(p, template || 'basic');
-    const photos = (p.images || []).slice(0, 10);
+    const allImages = p.images || [];
+    const idx = Number.isInteger(imageIndex) && imageIndex >= 0 && imageIndex < allImages.length ? imageIndex : 0;
+    const photos = allImages.length > 0 ? [allImages[idx]] : [];
     const keyboard = productKeyboard(p);
 
     const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id });
@@ -1698,7 +1679,8 @@ async function processTgBatch(batchId, productIds, template, cfg) {
       if (pr.rows.length === 0) { batch.failed++; consecutiveFails++; continue; }
       const p = rowToCamel(pr.rows[0]);
       const text = buildPostText(p, template);
-      const photos = (p.images || []).slice(0, 10);
+      const allImages = p.images || [];
+      const photos = allImages.length > 0 ? [allImages[0]] : [];
       const keyboard = productKeyboard(p);
       const result = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id });
       if (result.ok === false) {

@@ -33,6 +33,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
   const [template, setTemplate] = useState('basic');
   const [previews, setPreviews] = useState([]); // [{text, photos, url, product}]
   const [activeIdx, setActiveIdx] = useState(0);
+  const [selectedPhoto, setSelectedPhoto] = useState(0);
   const [editText, setEditText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -62,6 +63,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       const valid = results.filter(Boolean);
       setPreviews(valid);
       setActiveIdx(0);
+      setSelectedPhoto(0);
       if (valid.length > 0) setEditText(valid[0].text);
       setLoading(false);
     }).catch(() => {
@@ -75,6 +77,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
   useEffect(() => {
     if (previews[activeIdx]) {
       setEditText(previews[activeIdx].text);
+      setSelectedPhoto(0);
     }
   }, [activeIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -90,7 +93,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       const p = previews[0];
       setSendProgress({ current: 1, total: 1 });
       try {
-        const body = { productId: p.product.id, template };
+        const body = { productId: p.product.id, template, imageIndex: selectedPhoto };
         if (editText !== p.text) body.text = editText;
         const res = await fetch('/api/tg/send', {
           method: 'POST',
@@ -161,7 +164,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       setSending(false);
       setResult({ type: 'error', text: 'Ошибка запуска отправки' });
     }
-  }, [previews, sending, editText, template, onSent]);
+  }, [previews, sending, editText, template, selectedPhoto, onSent]);
 
   const current = previews[activeIdx];
   const isSingle = previews.length === 1;
@@ -220,11 +223,18 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
             <div className="tg-drawer__preview">
               {current.photos.length > 0 && (
                 <div className="tg-drawer__photos">
-                  {current.photos.slice(0, 4).map((src, i) => (
-                    <img key={i} src={src} alt="" className="tg-drawer__photo" />
+                  {current.photos.slice(0, 8).map((src, i) => (
+                    <div
+                      key={i}
+                      className={`tg-drawer__photo-wrap${selectedPhoto === i ? ' tg-drawer__photo-wrap--selected' : ''}`}
+                      onClick={() => setSelectedPhoto(i)}
+                    >
+                      <img src={src} alt="" className="tg-drawer__photo" />
+                      {selectedPhoto === i && <span className="tg-drawer__photo-check">✓</span>}
+                    </div>
                   ))}
-                  {current.photos.length > 4 && (
-                    <span className="tg-drawer__more-photos">+{current.photos.length - 4}</span>
+                  {current.photos.length > 8 && (
+                    <span className="tg-drawer__more-photos">+{current.photos.length - 8}</span>
                   )}
                 </div>
               )}
