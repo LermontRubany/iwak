@@ -70,6 +70,7 @@ const SNAKE_TO_CAMEL = {
   created_at: 'createdAt',
   updated_at: 'updatedAt',
   password_hash: 'passwordHash',
+  tg_sent_at: 'tgSentAt',
 };
 
 const CAMEL_TO_SNAKE = Object.fromEntries(
@@ -1385,30 +1386,75 @@ function productUrl(p) {
   return `${SITE_ORIGIN}/product/${slug}-${p.id}`;
 }
 
+// ── Escape Markdown special chars (legacy parse_mode: Markdown) ──
+function escapeMarkdown(text) {
+  return String(text).replace(/([*_`\[])/g, '\\$1');
+}
+
 // ── Build Telegram post text from product ──
+const TG_FOOTER = [
+  '',
+  '📲 *IWAK*',
+  'Канал: https://t.me/IWAK3',
+  'Отзывы: https://t.me/iwakotzivi',
+  'Менеджер: https://t.me/IWAKm',
+  'Max: https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo',
+  '',
+  '*IWAK.RU*',
+].join('\n');
+
 function buildPostText(p, template = 'basic') {
+  const brand = p.brand ? escapeMarkdown(p.brand) : '';
+  const name = escapeMarkdown(p.name || '');
+  const hasSale = p.originalPrice && p.originalPrice > p.price;
+
+  // If sale template requested but no discount — fallback to basic
+  const tpl = (template === 'sale' && !hasSale) ? 'basic' : template;
+
   const lines = [];
-  if (template === 'new') {
-    lines.push('🆕 *Новинка*');
+
+  if (tpl === 'new') {
+    lines.push('\ud83c\udd95 *\u041d\u041e\u0412\u0418\u041d\u041a\u0410*');
     lines.push('');
-  }
-  if (template === 'sale' && p.originalPrice && p.originalPrice > p.price) {
-    const pct = Math.round(100 - (p.price / p.originalPrice) * 100);
-    lines.push(`🔥 *Скидка ${pct}%*`);
+    if (brand) lines.push(`*${brand}*`);
+    lines.push(name);
     lines.push('');
-  }
-  if (p.brand) lines.push(`*${p.brand}*`);
-  lines.push(p.name);
-  lines.push('');
-  if (p.originalPrice && p.originalPrice > p.price) {
-    lines.push(`~${Math.round(p.originalPrice)} ₽~ → *${Math.round(p.price)} ₽*`);
+    lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
+    lines.push('');
+    lines.push('\ud83d\udd25 \u0422\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0441\u0442\u0443\u043f\u0438\u043b\u0438');
+    lines.push('\u26a1 \u0420\u0430\u0437\u0431\u0438\u0440\u0430\u044e\u0442 \u0431\u044b\u0441\u0442\u0440\u043e');
+  } else if (tpl === 'sale') {
+    lines.push('\ud83d\udd25 *\u0421\u041a\u0418\u0414\u041a\u0410*');
+    lines.push('');
+    if (brand) lines.push(`*${brand}*`);
+    lines.push(name);
+    lines.push('');
+    lines.push(`\ud83d\udcb8 ${Math.round(p.originalPrice)} \u20bd \u2192 *${Math.round(p.price)} \u20bd*`);
+    lines.push('');
+    lines.push('\u26a1 \u0412\u044b\u0433\u043e\u0434\u043d\u043e\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435');
+    lines.push('\ud83d\udce6 \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438');
+  } else if (tpl === 'premium') {
+    lines.push(`\u2728 *${brand || name}*`);
+    lines.push('');
+    lines.push(name);
+    lines.push('');
+    lines.push('\ud83d\udc8e \u041f\u0440\u0435\u043c\u0438\u0443\u043c \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u043e');
+    lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
+    lines.push('');
+    lines.push('\ud83d\ude80 \u0411\u044b\u0441\u0442\u0440\u0430\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430');
+    lines.push('\ud83d\udce6 \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438');
   } else {
-    lines.push(`*${Math.round(p.price)} ₽*`);
+    // basic
+    if (brand) lines.push(`*${brand}*`);
+    lines.push(name);
+    lines.push('');
+    lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
+    lines.push('');
+    lines.push('\ud83d\udce6 \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438');
+    lines.push('\ud83d\ude80 \u0411\u044b\u0441\u0442\u0440\u0430\u044f \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0430');
   }
-  if (p.sizes && p.sizes.length > 0) {
-    lines.push(`Размеры: ${p.sizes.join(', ')}`);
-  }
-  return lines.join('\n');
+
+  return lines.join('\n') + '\n' + TG_FOOTER;
 }
 
 // ── Inline keyboard for product ──
@@ -1442,11 +1488,19 @@ async function tgProcessNext() {
 }
 
 async function tgApiCall(url, body, retriesLeft = 2) {
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   const json = await resp.json();
   if (json.ok === false && json.error_code === 429 && retriesLeft > 0) {
     const wait = (json.parameters?.retry_after || 2) * 1000;
@@ -1476,7 +1530,7 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }
     // sendMediaGroup doesn't support reply_markup — send button separately
     if (result.ok !== false) {
       try {
-        await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text: '\u200b', parse_mode: 'Markdown', reply_markup: keyboard });
+        await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text: 'Перейти →', parse_mode: 'Markdown', reply_markup: keyboard });
       } catch (btnErr) {
         logger.warn({ productId, err: btnErr }, 'TG inline button send failed (post itself was sent)');
       }
@@ -1568,11 +1622,87 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
       return res.status(502).json({ error: 'Telegram отклонил запрос', details: tgResult.description });
     }
 
+    await pool.query('UPDATE products SET tg_sent_at = now() WHERE id = $1', [p.id]);
+    cacheInvalidate();
     res.json({ ok: true });
   } catch (err) {
     logger.error({ err }, 'POST /api/tg/send error');
     res.status(500).json({ error: 'Ошибка отправки' });
   }
+});
+
+// ── Batch send (server-side queue, client polls for status) ──
+const tgBatches = new Map();
+
+app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
+  const { productIds, template } = req.body;
+  if (!Array.isArray(productIds) || productIds.length === 0) {
+    return res.status(400).json({ error: 'productIds required (array)' });
+  }
+  if (productIds.length > 500) {
+    return res.status(400).json({ error: 'Максимум 500 товаров в одном batch' });
+  }
+  try {
+    const cfg = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
+    if (cfg.rows.length === 0 || !cfg.rows[0].bot_token || !cfg.rows[0].chat_id) {
+      return res.status(400).json({ error: 'Telegram не настроен' });
+    }
+    const batchId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const batch = { total: productIds.length, sent: 0, failed: 0, errors: [], done: false };
+    tgBatches.set(batchId, batch);
+    // Process in background
+    processTgBatch(batchId, productIds, template || 'basic', cfg.rows[0]);
+    res.json({ batchId, total: productIds.length });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/tg/send-batch error');
+    res.status(500).json({ error: 'Ошибка запуска batch' });
+  }
+});
+
+async function processTgBatch(batchId, productIds, template, cfg) {
+  const batch = tgBatches.get(batchId);
+  const { bot_token, chat_id } = cfg;
+  let consecutiveFails = 0;
+
+  for (const productId of productIds) {
+    if (consecutiveFails >= 3) {
+      const remaining = productIds.length - batch.sent - batch.failed;
+      batch.failed += remaining;
+      batch.errors.push('Остановлено: 3 ошибки подряд');
+      break;
+    }
+    try {
+      const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images FROM products WHERE id = $1', [parseInt(productId)]);
+      if (pr.rows.length === 0) { batch.failed++; consecutiveFails++; continue; }
+      const p = rowToCamel(pr.rows[0]);
+      const text = buildPostText(p, template);
+      const photos = (p.images || []).slice(0, 10);
+      const keyboard = productKeyboard(p);
+      const result = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id });
+      if (result.ok === false) {
+        batch.failed++;
+        consecutiveFails++;
+        batch.errors.push(`#${productId}: ${result.description || 'Ошибка'}`);
+      } else {
+        batch.sent++;
+        consecutiveFails = 0;
+        await pool.query('UPDATE products SET tg_sent_at = now() WHERE id = $1', [p.id]);
+      }
+    } catch (err) {
+      batch.failed++;
+      consecutiveFails++;
+      logger.error({ err, productId }, 'Batch item error');
+    }
+  }
+  batch.done = true;
+  cacheInvalidate();
+  setTimeout(() => tgBatches.delete(batchId), 5 * 60 * 1000);
+}
+
+app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
+  const batch = tgBatches.get(req.params.id);
+  if (!batch) return res.status(404).json({ error: 'Batch not found' });
+  res.json(batch);
 });
 
 if (fs.existsSync(distPath)) {

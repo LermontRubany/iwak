@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useProducts } from '../context/ProductsContext';
+import { notifyGlobal } from '../context/NotificationsContext';
 import TgDrawer from './TgDrawer';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
@@ -21,7 +22,7 @@ function formatDate(dateStr) {
 }
 
 export default function TelegramTab() {
-  const { products } = useProducts();
+  const { products, reloadProducts } = useProducts();
 
   // ── Config state ──
   const [botToken, setBotToken] = useState('');
@@ -38,6 +39,8 @@ export default function TelegramTab() {
   const [brandFilter, setBrandFilter] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sentFilter, setSentFilter] = useState('');
+  const [quickSending, setQuickSending] = useState(false);
 
   // ── Load config on mount ──
   useEffect(() => {
@@ -155,8 +158,10 @@ export default function TelegramTab() {
     if (catFilter) list = list.filter(p => p.category === catFilter);
     if (genderFilter) list = list.filter(p => p.gender === genderFilter);
     if (brandFilter) list = list.filter(p => normalizeBrand(p?.brand) === brandFilter);
+    if (sentFilter === 'unsent') list = list.filter(p => !p.tgSentAt);
+    if (sentFilter === 'sent') list = list.filter(p => !!p.tgSentAt);
     return list;
-  }, [products, search, catFilter, genderFilter, brandFilter]);
+  }, [products, search, catFilter, genderFilter, brandFilter, sentFilter]);
 
   const toggleSelect = useCallback((id, e) => {
     if (e) e.stopPropagation();
@@ -166,6 +171,63 @@ export default function TelegramTab() {
       return next;
     });
   }, []);
+
+  const handleQuickSend = useCallback(async () => {
+    if (quickSending || selected.size === 0) return;
+    const ids = [...selected];
+    if (ids.length > 10 && !window.confirm(`Отправить ${ids.length} товаров в Telegram?`)) return;
+    setQuickSending(true);
+    try {
+      if (ids.length === 1) {
+        const res = await fetch('/api/tg/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ productId: ids[0], template: 'basic' }),
+        });
+        const json = await res.json();
+        if (res.ok && json.ok) {
+          notifyGlobal('success', 'Отправлено в Telegram');
+          setSelected(new Set());
+          reloadProducts();
+        } else {
+          notifyGlobal('error', json.error || 'Ошибка отправки');
+        }
+      } else {
+        const res = await fetch('/api/tg/send-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify({ productIds: ids, template: 'basic' }),
+        });
+        if (res.ok) {
+          const { batchId } = await res.json();
+          setSelected(new Set());
+          notifyGlobal('success', `Отправка: 0 из ${ids.length}...`);
+          const batchPoll = setInterval(async () => {
+            try {
+              const sr = await fetch(`/api/tg/batch/${batchId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              if (!sr.ok) { clearInterval(batchPoll); reloadProducts(); return; }
+              const st = await sr.json();
+              if (st.done) {
+                clearInterval(batchPoll);
+                notifyGlobal(st.failed === 0 ? 'success' : 'error',
+                  st.failed === 0 ? `Отправлено: ${st.sent} пост(ов)` : `Успешно: ${st.sent}, ошибок: ${st.failed}`);
+                reloadProducts();
+              } else {
+                notifyGlobal('info', `Отправка: ${st.sent + st.failed} из ${st.total}...`);
+              }
+            } catch { clearInterval(batchPoll); reloadProducts(); }
+          }, 2000);
+        } else {
+          const json = await res.json().catch(() => ({}));
+          notifyGlobal('error', json.error || 'Ошибка batch');
+        }
+      }
+    } catch {
+      notifyGlobal('error', 'Ошибка соединения');
+    } finally {
+      setQuickSending(false);
+    }
+  }, [quickSending, selected, reloadProducts]);
 
   const selectAll = () => {
     if (selected.size === filtered.length) setSelected(new Set());
@@ -289,6 +351,19 @@ export default function TelegramTab() {
               )}
             </div>
 
+            {/* TG status filter */}
+            <div className="adm-filter-row">
+              {[{ id: '', label: 'Все' }, { id: 'unsent', label: '📤 Не отправлены' }, { id: 'sent', label: '✅ Отправлены' }].map((s) => (
+                <button
+                  key={s.id}
+                  className={`adm-filter-chip${sentFilter === s.id ? ' adm-filter-chip--active' : ''}`}
+                  onClick={() => setSentFilter(s.id)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
             <div className="adm-stats">
               <span>Товаров: {products.length} · Показано: {filtered.length}</span>
               <button className="adm-select-all" onClick={selectAll}>
@@ -347,6 +422,7 @@ export default function TelegramTab() {
                         <span className="adm-card__date">{formatDate(product.createdAt)}</span>
                         <span className="adm-card__meta-badge">⭐{product.priority ?? 50}</span>
                         {product.badge && product.badge.enabled && <span className="adm-card__meta-badge">🏷</span>}
+                        {product.tgSentAt && <span className="adm-card__meta-badge" style={{color:'#4caf50'}}>✓ TG</span>}
                       </div>
                     )}
                   </div>
@@ -362,10 +438,9 @@ export default function TelegramTab() {
                   <button className="adm-selection-bar__close" onClick={() => setSelected(new Set())}>✕</button>
                 </div>
                 <div className="adm-selection-bar__actions">
-                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>👁 Preview</button>
-                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>✏️ Редактировать</button>
-                  <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={() => setDrawerOpen(true)}>📤 Отправить</button>
-                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSelected(new Set())}>❌ Снять выбор</button>
+                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>� Открыть</button>                  <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleQuickSend} disabled={quickSending}>
+                    {quickSending ? '⏳ Отправка...' : '⚡ Быстрая отправка'}
+                  </button>                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSelected(new Set())}>❌ Снять выбор</button>
                 </div>
               </div>
             )}
@@ -374,7 +449,7 @@ export default function TelegramTab() {
               <TgDrawer
                 productIds={[...selected]}
                 onClose={() => setDrawerOpen(false)}
-                onSent={() => { setDrawerOpen(false); setSelected(new Set()); }}
+                onSent={() => { setDrawerOpen(false); setSelected(new Set()); reloadProducts(); }}
               />
             )}
           </>

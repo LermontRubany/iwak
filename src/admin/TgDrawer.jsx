@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 function getToken() {
   return localStorage.getItem('iwak_admin_token');
@@ -23,9 +23,10 @@ function renderTgMarkdown(text) {
 }
 
 const TEMPLATES = [
-  { id: 'basic', label: 'Базовый' },
+  { id: 'basic', label: '📦 Базовый' },
   { id: 'new',   label: '🆕 Новинка' },
   { id: 'sale',  label: '🔥 Скидка' },
+  { id: 'premium', label: '✨ Премиум' },
 ];
 
 export default function TgDrawer({ productIds, onClose, onSent }) {
@@ -37,6 +38,10 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(null); // "2/5"
   const [result, setResult] = useState(null); // {type, text}
+  const pollRef = useRef(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   // Load previews when productIds or template changes
   useEffect(() => {
@@ -78,39 +83,83 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
     setSending(true);
     setResult(null);
 
-    let ok = 0;
-    let fail = 0;
     const total = previews.length;
 
-    for (let i = 0; i < total; i++) {
-      const p = previews[i];
-      setSendProgress({ current: i + 1, total });
+    if (total === 1) {
+      // Single product — direct send with custom text support
+      const p = previews[0];
+      setSendProgress({ current: 1, total: 1 });
       try {
         const body = { productId: p.product.id, template };
-        // For single product, use edited text if changed
-        if (total === 1 && editText !== p.text) {
-          body.text = editText;
-        }
+        if (editText !== p.text) body.text = editText;
         const res = await fetch('/api/tg/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
           body: JSON.stringify(body),
         });
         const json = await res.json();
-        if (res.ok && json.ok) ok++;
-        else fail++;
+        setSending(false);
+        setSendProgress(null);
+        if (res.ok && json.ok) {
+          setResult({ type: 'ok', text: 'Отправлено в Telegram' });
+          if (onSent) setTimeout(onSent, 1200);
+        } else {
+          setResult({ type: 'error', text: json.error || 'Ошибка отправки' });
+        }
       } catch {
-        fail++;
+        setSending(false);
+        setSendProgress(null);
+        setResult({ type: 'error', text: 'Ошибка соединения' });
       }
+      return;
     }
 
-    setSending(false);
-    setSendProgress(null);
-    if (fail === 0) {
-      setResult({ type: 'ok', text: total === 1 ? 'Отправлено в Telegram' : `Отправлено: ${ok} пост(ов)` });
-      if (onSent) setTimeout(onSent, 1200);
-    } else {
-      setResult({ type: 'error', text: `Успешно: ${ok}, ошибок: ${fail}` });
+    // Batch — server-side queue with polling
+    try {
+      const res = await fetch('/api/tg/send-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ productIds: previews.map(p => p.product.id), template }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setSending(false);
+        setResult({ type: 'error', text: json.error || 'Ошибка запуска batch' });
+        return;
+      }
+      const { batchId } = await res.json();
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const sr = await fetch(`/api/tg/batch/${batchId}`, {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          if (!sr.ok) { clearInterval(pollRef.current); pollRef.current = null; setSending(false); return; }
+          const status = await sr.json();
+          setSendProgress({ current: status.sent + status.failed, total: status.total });
+          if (status.done) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+            setSending(false);
+            setSendProgress(null);
+            if (status.failed === 0) {
+              setResult({ type: 'ok', text: `Отправлено: ${status.sent} пост(ов)` });
+              if (onSent) setTimeout(onSent, 1200);
+            } else {
+              const errMsg = status.errors.length > 0 ? `\n${status.errors.slice(0, 3).join('\n')}` : '';
+              setResult({ type: 'error', text: `Успешно: ${status.sent}, ошибок: ${status.failed}${errMsg}` });
+            }
+          }
+        } catch {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+          setSending(false);
+          setResult({ type: 'error', text: 'Потеряно соединение' });
+        }
+      }, 1500);
+    } catch {
+      setSending(false);
+      setResult({ type: 'error', text: 'Ошибка запуска отправки' });
     }
   }, [previews, sending, editText, template, onSent]);
 
