@@ -5,7 +5,6 @@ import AdminProductForm from './AdminProductForm';
 import NotificationBell from './NotificationBell';
 import AnalyticsTab from './AnalyticsTab';
 import TelegramTab from './TelegramTab';
-import TgDrawer from './TgDrawer';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 
@@ -44,10 +43,6 @@ export default function AdminApp() {
   const [bulkConfirmedSession, setBulkConfirmedSession] = useState(false);
   const [bulkConfirmPending, setBulkConfirmPending] = useState(null);
   const debounceRef = useRef(null);
-
-  // Telegram режим
-  const [tgMode, setTgMode] = useState(false);
-  const [tgDrawerOpen, setTgDrawerOpen] = useState(false);
 
   // Блокировка UI во время bulk-операций
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
@@ -482,19 +477,6 @@ export default function AdminApp() {
         <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
       </div>
 
-      {/* Mode toggle */}
-      <div className="adm-mode-toggle">
-        <button className={`adm-mode-btn${!tgMode ? ' adm-mode-btn--active' : ''}`} onClick={() => { setTgMode(false); setSelected(new Set()); }}>Обычный</button>
-        <button className={`adm-mode-btn${tgMode ? ' adm-mode-btn--active adm-mode-btn--tg' : ''}`} onClick={() => { setTgMode(true); setSelected(new Set()); }}>Telegram</button>
-      </div>
-
-      {tgMode && (
-        <div className="adm-tg-indicator">
-          <span className="adm-tg-indicator__dot" />
-          Telegram режим активен
-        </div>
-      )}
-
       <div className="adm-toolbar">
         <input
           className="adm-input adm-search"
@@ -503,11 +485,9 @@ export default function AdminApp() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        {!tgMode && (
-          <button className="adm-btn adm-btn--primary adm-add-btn" onClick={() => setView('add')}>
-            + ДОБАВИТЬ
-          </button>
-        )}
+        <button className="adm-btn adm-btn--primary adm-add-btn" onClick={() => setView('add')}>
+          + ДОБАВИТЬ
+        </button>
       </div>
 
       {/* Category + Gender + Brand filter chips */}
@@ -557,13 +537,11 @@ export default function AdminApp() {
       </div>
 
       {selected.size > 0 && (
-        <div className={`adm-bulk-banner${tgMode ? ' adm-bulk-banner--tg' : ''}`}>
+        <div className="adm-bulk-banner">
           <span>Выбрано: {selected.size} товар(ов)</span>
-          {tgMode
-            ? <span className="adm-bulk-banner__badge">Telegram отправка</span>
-            : bulkActionLoading
-              ? <span className="adm-bulk-banner__badge">Обновление...</span>
-              : <span className="adm-bulk-banner__badge">Массовое редактирование активно</span>}
+          {bulkActionLoading
+            ? <span className="adm-bulk-banner__badge">Обновление...</span>
+            : <span className="adm-bulk-banner__badge">Массовое редактирование активно</span>}
         </div>
       )}
 
@@ -574,8 +552,8 @@ export default function AdminApp() {
         {filtered.filter(Boolean).map((product) => (
           <div
             key={product.id}
-            className={`adm-card${tgMode ? ' adm-card--tg' : ' adm-card--clickable'}${selected.has(product.id) ? ' adm-card--selected' : ''}`}
-            onClick={tgMode ? (e) => toggleSelect(product.id, e) : () => handleEdit(product)}
+            className={`adm-card adm-card--clickable${selected.has(product.id) ? ' adm-card--selected' : ''}`}
+            onClick={() => handleEdit(product)}
           >
             <button
               className={`adm-checkbox${selected.has(product.id) ? ' adm-checkbox--on' : ''}`}
@@ -592,39 +570,33 @@ export default function AdminApp() {
               )}
             </div>
             <div className="adm-card__info">
-              {tgMode ? (
-                <span className="adm-card__brand">{product.brand}</span>
-              ) : renderInlineField(product, 'brand', 'adm-card__brand')}
-              {tgMode ? (
-                <span className="adm-card__name">{product.name}</span>
-              ) : renderInlineField(product, 'name', 'adm-card__name')}
+              {renderInlineField(product, 'brand', 'adm-card__brand')}
+              {renderInlineField(product, 'name', 'adm-card__name')}
               <span className="adm-card__meta">
                 {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {sortSizes(product.sizes)?.join(', ')}
               </span>
-              {!tgMode && (
-                editingField?.id === product.id && editingField?.field === 'price' ? (
-                  <input
-                    className="adm-inline-input adm-inline-input--price"
-                    type="number"
-                    min="1"
-                    value={editValue}
-                    onChange={(e) => handleInlineChange(e.target.value)}
-                    onBlur={commitInlineEdit}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') cancelInlineEdit(); }}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : product.originalPrice && product.originalPrice > product.price ? (
-                  <span className="adm-card__price-row adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>
-                    <span className="adm-card__price adm-card__price--sale">₽{Number.isFinite(product.price) ? product.price.toLocaleString('ru-RU') : product.price}</span>
-                    <span className="adm-card__price--old">₽{Number.isFinite(product.originalPrice) ? product.originalPrice.toLocaleString('ru-RU') : product.originalPrice}</span>
-                    <span className="adm-card__badge">-{Number.isFinite(product.price) && Number.isFinite(product.originalPrice) && product.originalPrice > 0 ? Math.round(100 - (product.price / product.originalPrice) * 100) : 0}%</span>
-                  </span>
-                ) : (
-                  <span className="adm-card__price adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>₽{product.price != null ? product.price?.toLocaleString('ru-RU') : '—'}</span>
-                )
+              {editingField?.id === product.id && editingField?.field === 'price' ? (
+                <input
+                  className="adm-inline-input adm-inline-input--price"
+                  type="number"
+                  min="1"
+                  value={editValue}
+                  onChange={(e) => handleInlineChange(e.target.value)}
+                  onBlur={commitInlineEdit}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') cancelInlineEdit(); }}
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : product.originalPrice && product.originalPrice > product.price ? (
+                <span className="adm-card__price-row adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>
+                  <span className="adm-card__price adm-card__price--sale">₽{Number.isFinite(product.price) ? product.price.toLocaleString('ru-RU') : product.price}</span>
+                  <span className="adm-card__price--old">₽{Number.isFinite(product.originalPrice) ? product.originalPrice.toLocaleString('ru-RU') : product.originalPrice}</span>
+                  <span className="adm-card__badge">-{Number.isFinite(product.price) && Number.isFinite(product.originalPrice) && product.originalPrice > 0 ? Math.round(100 - (product.price / product.originalPrice) * 100) : 0}%</span>
+                </span>
+              ) : (
+                <span className="adm-card__price adm-inline-editable" onClick={(e) => startInlineEdit(product.id, 'price', product.price, e)}>₽{product.price != null ? product.price?.toLocaleString('ru-RU') : '—'}</span>
               )}
-              {!tgMode && product.createdAt && (
+              {product.createdAt && (
                 <div className="adm-card__meta-row">
                   <span className="adm-card__date">{formatDate(product.createdAt)}</span>
                   <span className="adm-card__meta-badge">⭐{product.priority ?? 50}</span>
@@ -632,11 +604,9 @@ export default function AdminApp() {
                 </div>
               )}
             </div>
-            {!tgMode && (
-              <div className="adm-card__actions">
-                <button className="adm-action-btn adm-action-btn--del" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>✕</button>
-              </div>
-            )}
+            <div className="adm-card__actions">
+              <button className="adm-action-btn adm-action-btn--del" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>✕</button>
+            </div>
           </div>
         ))}
       </div>
@@ -649,14 +619,7 @@ export default function AdminApp() {
             <button className="adm-selection-bar__close" onClick={() => setSelected(new Set())}>✕</button>
           </div>
 
-          {tgMode ? (
-            <div className="adm-selection-bar__actions adm-selection-bar__actions--tg">
-              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setTgDrawerOpen(true)}>👁 Preview</button>
-              <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setTgDrawerOpen(true)}>✏️ Редактировать</button>
-              <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={() => setTgDrawerOpen(true)}>📤 Отправить</button>
-              <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSelected(new Set())}>❌ Снять выбор</button>
-            </div>
-          ) : showPricePanel ? (
+          {showPricePanel ? (
             <div className="adm-price-panel">
               <div className="adm-price-panel__modes">
                 <button className={`adm-filter-chip${priceMode === 'discount' ? ' adm-filter-chip--active' : ''}`} onClick={() => setPriceMode('discount')}>Скидка %</button>
@@ -831,14 +794,6 @@ export default function AdminApp() {
             </div>
           </div>
         </div>
-      )}
-
-      {tgMode && tgDrawerOpen && selected.size > 0 && (
-        <TgDrawer
-          productIds={[...selected]}
-          onClose={() => setTgDrawerOpen(false)}
-          onSent={() => { setTgDrawerOpen(false); setSelected(new Set()); }}
-        />
       )}
     </div>
   );

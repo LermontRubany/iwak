@@ -1,27 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useProducts } from '../context/ProductsContext';
+import TgDrawer from './TgDrawer';
+import sortSizes from '../utils/sortSizes';
+import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 
 function getToken() {
   return localStorage.getItem('iwak_admin_token');
 }
 
-function renderTgMarkdown(text) {
-  return text.split('\n').map((line, i) => {
-    const parts = [];
-    let last = 0;
-    // Links: [text](url), Bold: *text*, Strike: ~text~
-    const re = /\[([^\]]+)\]\(([^)]+)\)|\*(.*?)\*|~(.*?)~/g;
-    let m;
-    while ((m = re.exec(line)) !== null) {
-      if (m.index > last) parts.push(line.slice(last, m.index));
-      if (m[1] != null) parts.push(<a key={`${i}-${m.index}`} href={m[2]} target="_blank" rel="noreferrer" className="tg-link">{m[1]}</a>);
-      else if (m[3] != null) parts.push(<strong key={`${i}-${m.index}`}>{m[3]}</strong>);
-      else if (m[4] != null) parts.push(<s key={`${i}-${m.index}`}>{m[4]}</s>);
-      last = re.lastIndex;
-    }
-    if (last < line.length) parts.push(line.slice(last));
-    return <div key={i}>{parts.length > 0 ? parts : '\u00A0'}</div>;
-  });
+const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
+const GENDER_DISPLAY = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
+
+function formatDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}`;
 }
 
 export default function TelegramTab() {
@@ -35,13 +31,13 @@ export default function TelegramTab() {
   const [configSaving, setConfigSaving] = useState(false);
   const [configMsg, setConfigMsg] = useState(null);
 
-  // ── Preview / Send state ──
-  const [selectedId, setSelectedId] = useState('');
-  const [preview, setPreview] = useState(null);
-  const [editText, setEditText] = useState('');
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState(null);
+  // ── Posting state ──
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // ── Load config on mount ──
   useEffect(() => {
@@ -78,7 +74,6 @@ export default function TelegramTab() {
       setConfigMsg({ type: 'ok', text: 'Сохранено' });
       setBotToken('');
       setConfigured(true);
-      // Refresh masked value
       const r2 = await fetch('/api/tg/config', { headers: { Authorization: `Bearer ${getToken()}` } });
       if (r2.ok) {
         const j = await r2.json();
@@ -90,53 +85,6 @@ export default function TelegramTab() {
       setConfigSaving(false);
     }
   }, [botToken, chatId]);
-
-  // ── Load preview ──
-  const handlePreview = useCallback(async () => {
-    if (!selectedId) return;
-    setPreviewLoading(true);
-    setPreview(null);
-    setSendResult(null);
-    try {
-      const res = await fetch(`/api/tg/preview/${selectedId}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) throw new Error();
-      const json = await res.json();
-      setPreview(json);
-      setEditText(json.text);
-    } catch {
-      setPreview(null);
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, [selectedId]);
-
-  // ── Send ──
-  const handleSend = useCallback(async () => {
-    if (!preview) return;
-    setSending(true);
-    setSendResult(null);
-    try {
-      const body = { productId: parseInt(selectedId) };
-      if (editText !== preview.text) body.text = editText;
-      const res = await fetch('/api/tg/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (res.ok && json.ok) {
-        setSendResult({ type: 'ok', text: 'Отправлено в Telegram' });
-      } else {
-        setSendResult({ type: 'error', text: json.error || json.details || 'Ошибка' });
-      }
-    } catch {
-      setSendResult({ type: 'error', text: 'Ошибка отправки' });
-    } finally {
-      setSending(false);
-    }
-  }, [preview, selectedId, editText]);
 
   // ── Test bot ──
   const [testing, setTesting] = useState(false);
@@ -181,6 +129,48 @@ export default function TelegramTab() {
       setConfigMsg({ type: 'error', text: 'Ошибка удаления' });
     }
   }, []);
+
+  // ── Product filtering ──
+  const categoryOptions = useMemo(() => {
+    const cats = [...new Set((Array.isArray(products) ? products : []).map(p => p?.category).filter(Boolean))].sort();
+    return [{ id: '', label: 'Все' }, ...cats.map(c => ({ id: c, label: c }))];
+  }, [products]);
+
+  const genderOptions = useMemo(() => {
+    const gs = [...new Set((Array.isArray(products) ? products : []).map(p => p?.gender).filter(Boolean))].sort();
+    return [{ id: '', label: 'Все' }, ...gs.map(g => ({ id: g, label: GENDER_LABELS[g] || g }))];
+  }, [products]);
+
+  const brandOptions = useMemo(() => {
+    const brands = getUniqueBrands(Array.isArray(products) ? products : []);
+    return [{ id: '', label: 'Все', count: null }, ...brands.map(b => ({ id: b.key, label: b.label, count: b.count }))];
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    let list = (Array.isArray(products) ? products : []).filter(p => p && p.id != null);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(p => [p.name, p.brand, p.category].join(' ').toLowerCase().includes(q));
+    }
+    if (catFilter) list = list.filter(p => p.category === catFilter);
+    if (genderFilter) list = list.filter(p => p.gender === genderFilter);
+    if (brandFilter) list = list.filter(p => normalizeBrand(p?.brand) === brandFilter);
+    return list;
+  }, [products, search, catFilter, genderFilter, brandFilter]);
+
+  const toggleSelect = useCallback((id, e) => {
+    if (e) e.stopPropagation();
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = () => {
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map(p => p.id).filter(id => id != null)));
+  };
 
   return (
     <div className="tg">
@@ -242,82 +232,152 @@ export default function TelegramTab() {
         </div>
       </div>
 
-      {/* ── Preview + Send ── */}
+      {/* ── Posting ── */}
       <div className="tg-section">
-        <h3 className="tg-section__title">Отправка товара</h3>
+        <h3 className="tg-section__title">📤 Постинг в Telegram</h3>
         {!configured && (
           <div className="tg-empty">Сначала настройте Telegram</div>
         )}
         {configured && (
-          <div className="tg-send">
-            <div className="tg-send__row">
-              <select
-                className="adm-input tg-select"
-                value={selectedId}
-                onChange={e => { setSelectedId(e.target.value); setPreview(null); setEditText(''); setSendResult(null); }}
-              >
-                <option value="">Выберите товар</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.brand ? `${p.brand} — ` : ''}{p.name}</option>
+          <>
+            <div className="adm-toolbar">
+              <input
+                className="adm-input adm-search"
+                type="text"
+                placeholder="Поиск товара..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+
+            {/* Category + Gender + Brand filter chips */}
+            <div className="adm-filters">
+              <div className="adm-filter-row">
+                {categoryOptions.map((c) => (
+                  <button
+                    key={c.id}
+                    className={`adm-filter-chip${catFilter === c.id ? ' adm-filter-chip--active' : ''}`}
+                    onClick={() => setCatFilter(c.id)}
+                  >
+                    {c.label}
+                  </button>
                 ))}
-              </select>
-              <button
-                className="adm-btn adm-btn--accent adm-btn--sm"
-                onClick={handlePreview}
-                disabled={!selectedId || previewLoading}
-              >
-                {previewLoading ? '...' : 'Preview'}
+              </div>
+              <div className="adm-filter-row">
+                {genderOptions.map((g) => (
+                  <button
+                    key={g.id}
+                    className={`adm-filter-chip${genderFilter === g.id ? ' adm-filter-chip--active' : ''}`}
+                    onClick={() => setGenderFilter(g.id)}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+              {brandOptions.length > 1 && (
+                <div className="adm-filter-row adm-filter-row--scroll">
+                  {brandOptions.map((b) => (
+                    <button
+                      key={b.id}
+                      className={`adm-filter-chip${brandFilter === b.id ? ' adm-filter-chip--active' : ''}`}
+                      onClick={() => setBrandFilter(b.id)}
+                    >
+                      {b.label}{b.count !== null ? ` (${b.count})` : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="adm-stats">
+              <span>Товаров: {products.length} · Показано: {filtered.length}</span>
+              <button className="adm-select-all" onClick={selectAll}>
+                {selected.size === filtered.length && filtered.length > 0 ? 'Снять всё' : 'Выбрать все'}
               </button>
             </div>
 
-            {preview && (
-              <div className="tg-preview">
-                <div className="tg-preview__text">{renderTgMarkdown(editText)}</div>
-                {preview.photos.length > 0 && (
-                  <div className="tg-preview__photos">
-                    {preview.photos.map((src, i) => (
-                      <img key={i} src={src} alt="" className="tg-preview__img" />
-                    ))}
-                  </div>
-                )}
-                <label className="tg-label">Текст поста</label>
-                <textarea
-                  className="adm-input tg-textarea"
-                  value={editText}
-                  onChange={e => setEditText(e.target.value)}
-                  rows={8}
-                />
-                {(() => {
-                  const limit = preview.photos.length > 0 ? 1024 : 4096;
-                  const len = editText.length;
-                  const over = len > limit;
-                  return (
-                    <div className={`tg-charcount${over ? ' tg-charcount--over' : ''}`}>
-                      {len} / {limit}{over ? ' — превышен лимит Telegram' : ''}
-                    </div>
-                  );
-                })()}
-                {editText !== preview.text && (
-                  <button
-                    className="adm-btn adm-btn--sm tg-reset-btn"
-                    onClick={() => setEditText(preview.text)}
-                  >
-                    ← Сбросить к шаблону
-                  </button>
-                )}
-                <button
-                  className="adm-btn adm-btn--accent"
-                  onClick={handleSend}
-                  disabled={sending || !editText.trim() || editText.length > (preview.photos.length > 0 ? 1024 : 4096)}
-                >
-                  {sending ? 'Отправка...' : '📤 Отправить в Telegram'}
-                </button>
-                {sendResult && (
-                  <div className={`tg-msg tg-msg--${sendResult.type}`}>{sendResult.text}</div>
-                )}
+            {selected.size > 0 && (
+              <div className="adm-bulk-banner">
+                <span>Выбрано: {selected.size} товар(ов)</span>
+                <span className="adm-bulk-banner__badge">Telegram отправка</span>
               </div>
             )}
-          </div>
+
+            <div className={`adm-list${selected.size > 0 ? ' adm-list--with-bar' : ''}`}>
+              {filtered.length === 0 && (
+                <div className="adm-empty">Ничего не найдено</div>
+              )}
+              {filtered.filter(Boolean).map((product) => (
+                <div
+                  key={product.id}
+                  className={`adm-card adm-card--clickable${selected.has(product.id) ? ' adm-card--selected' : ''}`}
+                  onClick={(e) => toggleSelect(product.id, e)}
+                >
+                  <button
+                    className={`adm-checkbox${selected.has(product.id) ? ' adm-checkbox--on' : ''}`}
+                    onClick={(e) => toggleSelect(product.id, e)}
+                    aria-label="Выбрать"
+                  >
+                    {selected.has(product.id) ? '✓' : ''}
+                  </button>
+                  <div className="adm-card__img">
+                    {product.image ? (
+                      <img src={product.image} alt={product.name} loading="lazy" />
+                    ) : (
+                      <div className="adm-card__img-placeholder" style={{ background: product.colorHex || '#eee' }} />
+                    )}
+                  </div>
+                  <div className="adm-card__info">
+                    <span className="adm-card__brand">{product.brand}</span>
+                    <span className="adm-card__name">{product.name}</span>
+                    <span className="adm-card__meta">
+                      {product.category || '—'} · {GENDER_DISPLAY[product.gender] || product.gender} · {sortSizes(product.sizes)?.join(', ')}
+                    </span>
+                    {product.originalPrice && product.originalPrice > product.price ? (
+                      <span className="adm-card__price-row">
+                        <span className="adm-card__price adm-card__price--sale">₽{Number.isFinite(product.price) ? product.price.toLocaleString('ru-RU') : product.price}</span>
+                        <span className="adm-card__price--old">₽{Number.isFinite(product.originalPrice) ? product.originalPrice.toLocaleString('ru-RU') : product.originalPrice}</span>
+                        <span className="adm-card__badge">-{Number.isFinite(product.price) && Number.isFinite(product.originalPrice) && product.originalPrice > 0 ? Math.round(100 - (product.price / product.originalPrice) * 100) : 0}%</span>
+                      </span>
+                    ) : (
+                      <span className="adm-card__price">₽{product.price != null ? product.price?.toLocaleString('ru-RU') : '—'}</span>
+                    )}
+                    {product.createdAt && (
+                      <div className="adm-card__meta-row">
+                        <span className="adm-card__date">{formatDate(product.createdAt)}</span>
+                        <span className="adm-card__meta-badge">⭐{product.priority ?? 50}</span>
+                        {product.badge && product.badge.enabled && <span className="adm-card__meta-badge">🏷</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Selection toolbar */}
+            {selected.size > 0 && (
+              <div className="adm-selection-bar">
+                <div className="adm-selection-bar__top">
+                  <span className="adm-selection-bar__count">Выбрано: {selected.size}</span>
+                  <button className="adm-selection-bar__close" onClick={() => setSelected(new Set())}>✕</button>
+                </div>
+                <div className="adm-selection-bar__actions">
+                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>👁 Preview</button>
+                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>✏️ Редактировать</button>
+                  <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={() => setDrawerOpen(true)}>📤 Отправить</button>
+                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSelected(new Set())}>❌ Снять выбор</button>
+                </div>
+              </div>
+            )}
+
+            {drawerOpen && selected.size > 0 && (
+              <TgDrawer
+                productIds={[...selected]}
+                onClose={() => setDrawerOpen(false)}
+                onSent={() => { setDrawerOpen(false); setSelected(new Set()); }}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
