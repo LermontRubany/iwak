@@ -2354,3 +2354,28 @@
   border: 1px solid var(--adm-border);
   flex-shrink: 0;
 }
+
+.tg-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 120px;
+}
+
+.tg-reset-btn {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--adm-text-muted);
+}
+
+.tg-link {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.tg-link:hover {
+  text-decoration: underline;
+}

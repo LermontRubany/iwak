@@ -9,13 +9,14 @@ function renderTgMarkdown(text) {
   return text.split('\n').map((line, i) => {
     const parts = [];
     let last = 0;
-    // Bold: *text*
-    const re = /\*(.*?)\*|~(.*?)~/g;
+    // Links: [text](url), Bold: *text*, Strike: ~text~
+    const re = /\[([^\]]+)\]\(([^)]+)\)|\*(.*?)\*|~(.*?)~/g;
     let m;
     while ((m = re.exec(line)) !== null) {
       if (m.index > last) parts.push(line.slice(last, m.index));
-      if (m[1] != null) parts.push(<strong key={`${i}-${m.index}`}>{m[1]}</strong>);
-      if (m[2] != null) parts.push(<s key={`${i}-${m.index}`}>{m[2]}</s>);
+      if (m[1] != null) parts.push(<a key={`${i}-${m.index}`} href={m[2]} target="_blank" rel="noreferrer" className="tg-link">{m[1]}</a>);
+      else if (m[3] != null) parts.push(<strong key={`${i}-${m.index}`}>{m[3]}</strong>);
+      else if (m[4] != null) parts.push(<s key={`${i}-${m.index}`}>{m[4]}</s>);
       last = re.lastIndex;
     }
     if (last < line.length) parts.push(line.slice(last));
@@ -37,6 +38,7 @@ export default function TelegramTab() {
   // ── Preview / Send state ──
   const [selectedId, setSelectedId] = useState('');
   const [preview, setPreview] = useState(null);
+  const [editText, setEditText] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState(null);
@@ -102,6 +104,7 @@ export default function TelegramTab() {
       if (!res.ok) throw new Error();
       const json = await res.json();
       setPreview(json);
+      setEditText(json.text);
     } catch {
       setPreview(null);
     } finally {
@@ -115,10 +118,12 @@ export default function TelegramTab() {
     setSending(true);
     setSendResult(null);
     try {
+      const body = { productId: parseInt(selectedId) };
+      if (editText !== preview.text) body.text = editText;
       const res = await fetch('/api/tg/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ productId: parseInt(selectedId) }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (res.ok && json.ok) {
@@ -131,7 +136,7 @@ export default function TelegramTab() {
     } finally {
       setSending(false);
     }
-  }, [preview, selectedId]);
+  }, [preview, selectedId, editText]);
 
   return (
     <div className="tg">
@@ -186,7 +191,7 @@ export default function TelegramTab() {
               <select
                 className="adm-input tg-select"
                 value={selectedId}
-                onChange={e => { setSelectedId(e.target.value); setPreview(null); setSendResult(null); }}
+                onChange={e => { setSelectedId(e.target.value); setPreview(null); setEditText(''); setSendResult(null); }}
               >
                 <option value="">Выберите товар</option>
                 {products.map(p => (
@@ -204,7 +209,7 @@ export default function TelegramTab() {
 
             {preview && (
               <div className="tg-preview">
-                <div className="tg-preview__text">{renderTgMarkdown(preview.text)}</div>
+                <div className="tg-preview__text">{renderTgMarkdown(editText)}</div>
                 {preview.photos.length > 0 && (
                   <div className="tg-preview__photos">
                     {preview.photos.map((src, i) => (
@@ -212,10 +217,25 @@ export default function TelegramTab() {
                     ))}
                   </div>
                 )}
+                <label className="tg-label">Текст поста</label>
+                <textarea
+                  className="adm-input tg-textarea"
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  rows={8}
+                />
+                {editText !== preview.text && (
+                  <button
+                    className="adm-btn adm-btn--sm tg-reset-btn"
+                    onClick={() => setEditText(preview.text)}
+                  >
+                    ← Сбросить к шаблону
+                  </button>
+                )}
                 <button
                   className="adm-btn adm-btn--accent"
                   onClick={handleSend}
-                  disabled={sending}
+                  disabled={sending || !editText.trim()}
                 >
                   {sending ? 'Отправка...' : '📤 Отправить в Telegram'}
                 </button>

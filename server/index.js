@@ -1378,6 +1378,28 @@ app.post('/api/tg/config', requireAuth, async (req, res) => {
   }
 });
 
+// ── Build Telegram post text from product ──
+function buildPostText(p) {
+  const lines = [];
+  if (p.brand) lines.push(`*${p.brand}*`);
+  lines.push(p.name);
+  lines.push('');
+  if (p.originalPrice && p.originalPrice > p.price) {
+    lines.push(`~${Math.round(p.originalPrice)} ₽~ → *${Math.round(p.price)} ₽*`);
+  } else {
+    lines.push(`*${Math.round(p.price)} ₽*`);
+  }
+  if (p.sizes && p.sizes.length > 0) {
+    lines.push(`Размеры: ${p.sizes.join(', ')}`);
+  }
+  lines.push('');
+  // Product link
+  const slug = (p.brand ? p.brand + ' ' : '').concat(p.name)
+    .toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  lines.push(`[🛒 Смотреть на сайте](${SITE_ORIGIN}/product/${slug}-${p.id})`);
+  return lines.join('\n');
+}
+
 // ── Preview post for product ──
 app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
@@ -1387,22 +1409,7 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
     if (r.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
     const p = rowToCamel(r.rows[0]);
 
-    const lines = [];
-    if (p.brand) lines.push(`*${p.brand}*`);
-    lines.push(p.name);
-    lines.push('');
-    if (p.originalPrice && p.originalPrice > p.price) {
-      lines.push(`~${Math.round(p.originalPrice)} ₽~ → *${Math.round(p.price)} ₽*`);
-    } else {
-      lines.push(`*${Math.round(p.price)} ₽*`);
-    }
-    if (p.sizes && p.sizes.length > 0) {
-      lines.push(`Размеры: ${p.sizes.join(', ')}`);
-    }
-    lines.push('');
-    lines.push('🛒 Подробнее на сайте');
-
-    const text = lines.join('\n');
+    const text = buildPostText(p);
     const photos = (p.images || []).slice(0, 10);
 
     res.json({ text, photos, product: { id: p.id, name: p.name, brand: p.brand, price: p.price } });
@@ -1433,21 +1440,7 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
     // Build text if not custom
     let text = customText;
     if (!text) {
-      const lines = [];
-      if (p.brand) lines.push(`*${p.brand}*`);
-      lines.push(p.name);
-      lines.push('');
-      if (p.originalPrice && p.originalPrice > p.price) {
-        lines.push(`~${Math.round(p.originalPrice)} ₽~ → *${Math.round(p.price)} ₽*`);
-      } else {
-        lines.push(`*${Math.round(p.price)} ₽*`);
-      }
-      if (p.sizes && p.sizes.length > 0) {
-        lines.push(`Размеры: ${p.sizes.join(', ')}`);
-      }
-      lines.push('');
-      lines.push('🛒 Подробнее на сайте');
-      text = lines.join('\n');
+      text = buildPostText(p);
     }
 
     const photos = (p.images || []).slice(0, 10);
