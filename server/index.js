@@ -1533,9 +1533,30 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }
 
   if (photos.length === 0) {
     result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', reply_markup: keyboard });
-  } else {
-    // Always send first photo only — keeps button attached to the post
+  } else if (photos.length === 1) {
     result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+  } else {
+    // Album: sendMediaGroup (caption on first photo) + button as reply
+    const media = photos.slice(0, 10).map((img, i) => ({
+      type: 'photo',
+      media: `${SITE_ORIGIN}${img}`,
+      ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
+    }));
+    result = await tgApiCall(`${TG}/sendMediaGroup`, { chat_id: chatId, media });
+    if (result.ok !== false && Array.isArray(result.result) && result.result.length > 0) {
+      const lastMsgId = result.result[result.result.length - 1].message_id;
+      try {
+        await tgApiCall(`${TG}/sendMessage`, {
+          chat_id: chatId,
+          text: '👆 Подробнее о товаре',
+          reply_to_message_id: lastMsgId,
+          parse_mode: 'Markdown',
+          reply_markup: keyboard,
+        });
+      } catch (btnErr) {
+        logger.warn({ productId, err: btnErr }, 'TG button reply failed (album was sent)');
+      }
+    }
   }
 
   const status = result.ok === false ? 'error' : 'success';
