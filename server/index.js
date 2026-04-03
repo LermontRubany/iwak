@@ -1400,10 +1400,25 @@ const TG_FOOTER = [
   '*IWAK.RU*',
 ].join('\n');
 
+function formatSizes(sizes) {
+  if (!sizes || sizes.length === 0) return '';
+  const sorted = [...sizes].sort((a, b) => {
+    const na = Number(a), nb = Number(b);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+  if (sorted.length > 6) {
+    const allNum = sorted.every(s => !isNaN(Number(s)));
+    if (allNum) return `📏 ${sorted[0]}–${sorted[sorted.length - 1]}`;
+  }
+  return `📏 ${sorted.join(' • ')}`;
+}
+
 function buildPostText(p, template = 'basic') {
   const brand = p.brand ? escapeMarkdown(p.brand) : '';
   const name = escapeMarkdown(p.name || '');
   const hasSale = p.originalPrice && p.originalPrice > p.price;
+  const sizeLine = formatSizes(p.sizes);
 
   // If sale template requested but no discount — fallback to basic
   const tpl = (template === 'sale' && !hasSale) ? 'basic' : template;
@@ -1415,6 +1430,7 @@ function buildPostText(p, template = 'basic') {
     lines.push('');
     if (brand) lines.push(`*${brand}*`);
     lines.push(name);
+    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
     lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
     lines.push('');
@@ -1425,6 +1441,7 @@ function buildPostText(p, template = 'basic') {
     lines.push('');
     if (brand) lines.push(`*${brand}*`);
     lines.push(name);
+    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
     lines.push(`\ud83d\udcb8 ${Math.round(p.originalPrice)} \u20bd \u2192 *${Math.round(p.price)} \u20bd*`);
     lines.push('');
@@ -1434,6 +1451,7 @@ function buildPostText(p, template = 'basic') {
     lines.push(`\u2728 *${brand || name}*`);
     lines.push('');
     lines.push(name);
+    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
     lines.push('\ud83d\udc8e \u041f\u0440\u0435\u043c\u0438\u0443\u043c \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u043e');
     lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
@@ -1444,6 +1462,7 @@ function buildPostText(p, template = 'basic') {
     // basic
     if (brand) lines.push(`*${brand}*`);
     lines.push(name);
+    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
     lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
     lines.push('');
@@ -1510,32 +1529,17 @@ async function tgApiCall(url, body, retriesLeft = 2) {
 
 async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }) {
   const TG = `https://api.telegram.org/bot${botToken}`;
-  const sendType = photos.length === 0 ? 'text' : photos.length === 1 ? 'photo' : 'mediaGroup';
   let result;
 
   if (photos.length === 0) {
     result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', reply_markup: keyboard });
-  } else if (photos.length === 1) {
-    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
   } else {
-    const media = photos.map((img, i) => ({
-      type: 'photo',
-      media: `${SITE_ORIGIN}${img}`,
-      ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
-    }));
-    result = await tgApiCall(`${TG}/sendMediaGroup`, { chat_id: chatId, media });
-    // sendMediaGroup doesn't support reply_markup — send button separately
-    if (result.ok !== false) {
-      try {
-        await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text: 'Смотреть товар', parse_mode: 'Markdown', reply_markup: keyboard });
-      } catch (btnErr) {
-        logger.warn({ productId, err: btnErr }, 'TG inline button send failed (post itself was sent)');
-      }
-    }
+    // Always send first photo only — keeps button attached to the post
+    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
   }
 
   const status = result.ok === false ? 'error' : 'success';
-  logger.info({ tgSend: true, productId, sendType, status, description: result.description || null }, `TG send ${status}`);
+  logger.info({ tgSend: true, productId, status, description: result.description || null }, `TG send ${status}`);
 
   return result;
 }

@@ -232,7 +232,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
                 {renderTgMarkdown(isSingle ? editText : current.text)}
               </div>
               <div className="tg-drawer__button-preview">
-                <span className="tg-drawer__inline-btn">🛒 Купить</span>
+                <span className="tg-drawer__inline-btn">Смотреть товар</span>
               </div>
             </div>
 
