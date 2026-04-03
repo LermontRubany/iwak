@@ -1465,7 +1465,7 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
       tgResult = await resp.json();
     } else if (photos.length === 1) {
       // Single photo
-      const photoUrl = `${req.protocol}://${req.get('host')}${photos[0]}`;
+      const photoUrl = `${SITE_ORIGIN}${photos[0]}`;
       const resp = await fetch(`${TG}/sendPhoto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1474,10 +1474,9 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
       tgResult = await resp.json();
     } else {
       // Media group (2-10 photos)
-      const host = `${req.protocol}://${req.get('host')}`;
       const media = photos.map((img, i) => ({
         type: 'photo',
-        media: `${host}${img}`,
+        media: `${SITE_ORIGIN}${img}`,
         ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
       }));
       const resp = await fetch(`${TG}/sendMediaGroup`, {

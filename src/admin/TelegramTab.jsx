@@ -5,6 +5,24 @@ function getToken() {
   return localStorage.getItem('iwak_admin_token');
 }
 
+function renderTgMarkdown(text) {
+  return text.split('\n').map((line, i) => {
+    const parts = [];
+    let last = 0;
+    // Bold: *text*
+    const re = /\*(.*?)\*|~(.*?)~/g;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      if (m.index > last) parts.push(line.slice(last, m.index));
+      if (m[1] != null) parts.push(<strong key={`${i}-${m.index}`}>{m[1]}</strong>);
+      if (m[2] != null) parts.push(<s key={`${i}-${m.index}`}>{m[2]}</s>);
+      last = re.lastIndex;
+    }
+    if (last < line.length) parts.push(line.slice(last));
+    return <div key={i}>{parts.length > 0 ? parts : '\u00A0'}</div>;
+  });
+}
+
 export default function TelegramTab() {
   const { products } = useProducts();
 
@@ -186,7 +204,7 @@ export default function TelegramTab() {
 
             {preview && (
               <div className="tg-preview">
-                <div className="tg-preview__text">{preview.text}</div>
+                <div className="tg-preview__text">{renderTgMarkdown(preview.text)}</div>
                 {preview.photos.length > 0 && (
                   <div className="tg-preview__photos">
                     {preview.photos.map((src, i) => (
