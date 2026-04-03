@@ -2185,6 +2185,20 @@
 .anl-online__dot--active {
   background: #22c55e;
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  animation: anl-pulse 2s ease-in-out infinite;
+}
+
+@keyframes anl-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(34, 197, 94, 0.4); }
+  50% { box-shadow: 0 0 10px rgba(34, 197, 94, 0.8); }
+}
+
+.anl-online--stale {
+  opacity: 0.5;
+}
+
+.anl-online--stale .anl-online__dot {
+  background: #f59e0b;
 }
 
 .anl-online__text {

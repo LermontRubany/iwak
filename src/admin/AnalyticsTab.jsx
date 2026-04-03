@@ -73,6 +73,7 @@ export default function AnalyticsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [onlineNow, setOnlineNow] = useState(null);
+  const [onlineStale, setOnlineStale] = useState(false);
 
   const fetchAnalytics = useCallback(async (p, m) => {
     setLoading(true);
@@ -86,6 +87,7 @@ export default function AnalyticsTab() {
       const json = await res.json();
       setData(json);
       setOnlineNow(json.onlineNow ?? 0);
+      setOnlineStale(false);
     } catch {
       setError('Не удалось загрузить аналитику');
     } finally {
@@ -97,6 +99,7 @@ export default function AnalyticsTab() {
 
   // Lightweight polling for onlineNow every 15s (dedicated endpoint)
   useEffect(() => {
+    let failCount = 0;
     const iv = setInterval(async () => {
       try {
         const token = localStorage.getItem('iwak_admin_token');
@@ -106,8 +109,15 @@ export default function AnalyticsTab() {
         if (res.ok) {
           const json = await res.json();
           setOnlineNow(json.onlineNow ?? 0);
+          setOnlineStale(false);
+          failCount = 0;
+        } else {
+          failCount++;
         }
-      } catch { /* ignore */ }
+      } catch {
+        failCount++;
+      }
+      if (failCount >= 3) setOnlineStale(true);
     }, 15000);
     return () => clearInterval(iv);
   }, []);
@@ -157,9 +167,11 @@ export default function AnalyticsTab() {
 
       {/* Online indicator — always visible when data loaded */}
       {onlineNow != null && !loading && (
-        <div className="anl-online">
-          <span className={`anl-online__dot${onlineNow > 0 ? ' anl-online__dot--active' : ''}`} />
-          <span className="anl-online__text">Сейчас на сайте: <strong>{onlineNow}</strong></span>
+        <div className={`anl-online${onlineStale ? ' anl-online--stale' : ''}`}>
+          <span className={`anl-online__dot${onlineNow > 0 && !onlineStale ? ' anl-online__dot--active' : ''}`} />
+          <span className="anl-online__text">
+            {onlineStale ? 'Нет связи' : <>Сейчас на сайте: <strong>{onlineNow}</strong></>}
+          </span>
         </div>
       )}
 
