@@ -2038,6 +2038,12 @@
 .anl-delta--up { color: #22c55e; }
 .anl-delta--down { color: #ef4444; }
 .anl-delta--zero { color: var(--adm-text-muted); }
+.anl-delta--new {
+  color: #a78bfa;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
 .anl-section {
   margin-bottom: 20px;

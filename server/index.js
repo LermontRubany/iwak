@@ -805,10 +805,11 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          WHERE type = 'share' AND created_at >= ${sinceExpr}`
       ),
       pool.query(
-        `SELECT data->>'productId' AS product_id, COUNT(*) AS views
+        `SELECT (data->>'productId')::int AS product_id, COUNT(*) AS views
          FROM events
          WHERE type = 'product_view' AND created_at >= ${sinceExpr}
-         GROUP BY data->>'productId'
+           AND (data->>'productId') ~ '^[0-9]+$'
+         GROUP BY (data->>'productId')::int
          ORDER BY views DESC
          LIMIT 20`
       ),
@@ -835,12 +836,13 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          ORDER BY date`
       ),
       pool.query(
-        `SELECT data->>'productId' AS product_id,
+        `SELECT (data->>'productId')::int AS product_id,
                 EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour,
                 COUNT(*) AS cnt
          FROM events
          WHERE type = 'product_view' AND created_at >= ${sinceExpr}
-         GROUP BY data->>'productId', hour`
+           AND (data->>'productId') ~ '^[0-9]+$'
+         GROUP BY (data->>'productId')::int, hour`
       ),
       pool.query(
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
@@ -861,12 +863,13 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
              AND created_at < ${prevToExpr}`
         ),
         pool.query(
-          `SELECT data->>'productId' AS product_id, COUNT(*) AS views
+          `SELECT (data->>'productId')::int AS product_id, COUNT(*) AS views
            FROM events
            WHERE type = 'product_view'
              AND created_at >= ${prevFromExpr}
              AND created_at < ${prevToExpr}
-           GROUP BY data->>'productId'`
+             AND (data->>'productId') ~ '^[0-9]+$'
+           GROUP BY (data->>'productId')::int`
         ),
       );
     }
@@ -878,8 +881,8 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
 
     // Enrich top products with names from products table
     const productIds = topProducts.rows
-      .map(r => parseInt(r.product_id))
-      .filter(id => !isNaN(id));
+      .map(r => r.product_id)
+      .filter(id => typeof id === 'number' && !isNaN(id));
 
     let productNames = {};
     if (productIds.length > 0) {
@@ -935,17 +938,19 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       shares: curShares,
       topProducts: topProducts.rows.map(r => {
         const v = parseInt(r.views);
-        const pv = prevProductMap[r.product_id] || 0;
+        const pid = r.product_id;
+        const pv = prevProductMap[pid] || 0;
         const item = {
-          productId: parseInt(r.product_id),
+          productId: pid,
           views: v,
-          name: productNames[r.product_id]?.name || null,
-          brand: productNames[r.product_id]?.brand || null,
-          peakHour: peakHourMap[r.product_id]?.hour ?? null,
+          name: productNames[pid]?.name || null,
+          brand: productNames[pid]?.brand || null,
+          peakHour: peakHourMap[pid]?.hour ?? null,
         };
         if (isAnalysis) {
           item.delta = v - pv;
           item.percent = pv > 0 ? Math.round(((v - pv) / pv) * 100) : null;
+          item.isNew = pv === 0;
         }
         return item;
       }),
@@ -969,10 +974,13 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
     if (isAnalysis) {
       response.visitsDelta = curVisits - prevVisits;
       response.visitsPercent = calcPercent(curVisits, prevVisits);
+      response.visitsIsNew = prevVisits === 0;
       response.productViewsDelta = curViews - prevViews;
       response.productViewsPercent = calcPercent(curViews, prevViews);
+      response.productViewsIsNew = prevViews === 0;
       response.sharesDelta = curShares - prevShares;
       response.sharesPercent = calcPercent(curShares, prevShares);
+      response.sharesIsNew = prevShares === 0;
     }
 
     res.json(response);

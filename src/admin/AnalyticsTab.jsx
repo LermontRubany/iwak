@@ -22,8 +22,11 @@ function fmtDate(dateStr) {
   return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
 }
 
-function DeltaBadge({ delta, percent, showArrow = false }) {
+function DeltaBadge({ delta, percent, isNew, showArrow = false }) {
   if (delta == null && percent == null) return null;
+  if (isNew && delta > 0) {
+    return <span className="anl-delta anl-delta--new">new</span>;
+  }
   const cls = delta > 0 ? 'anl-delta--up' : delta < 0 ? 'anl-delta--down' : 'anl-delta--zero';
   const arrow = delta > 0 ? '↑' : delta < 0 ? '↓' : '';
   const sign = delta > 0 ? '+' : '';
@@ -166,17 +169,17 @@ export default function AnalyticsTab() {
           <div className="anl-cards">
             <div className="anl-card">
               <span className="anl-card__value">{data.visits}</span>
-              {mode === 'analysis' && <DeltaBadge delta={data.visitsDelta} percent={data.visitsPercent} showArrow />}
+              {mode === 'analysis' && <DeltaBadge delta={data.visitsDelta} percent={data.visitsPercent} isNew={data.visitsIsNew} showArrow />}
               <span className="anl-card__label">Визиты</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.productViews}</span>
-              {mode === 'analysis' && <DeltaBadge delta={data.productViewsDelta} percent={data.productViewsPercent} showArrow />}
+              {mode === 'analysis' && <DeltaBadge delta={data.productViewsDelta} percent={data.productViewsPercent} isNew={data.productViewsIsNew} showArrow />}
               <span className="anl-card__label">Просмотры</span>
             </div>
             <div className="anl-card">
               <span className="anl-card__value">{data.shares}</span>
-              {mode === 'analysis' && <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} showArrow />}
+              {mode === 'analysis' && <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} isNew={data.sharesIsNew} showArrow />}
               <span className="anl-card__label">Шаринг</span>
             </div>
           </div>
@@ -231,7 +234,7 @@ export default function AnalyticsTab() {
                           <span>{p.name || `#${p.productId}`}</span>
                         </td>
                         <td className="anl-table__num">{p.views}
-                          {mode === 'analysis' && p.delta != null && <DeltaBadge delta={p.delta} />}
+                          {mode === 'analysis' && p.delta != null && <DeltaBadge delta={p.delta} isNew={p.isNew} />}
                         </td>
                         <td className="anl-table__num anl-table__peak">
                           {p.peakHour != null ? fmtHour(p.peakHour) : '—'}
