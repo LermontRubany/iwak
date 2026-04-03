@@ -1334,6 +1334,172 @@ app.get('/product/:slug', async (req, res, next) => {
   }
 });
 
+// ════════════════════════════════════════════
+// TELEGRAM AUTOMATION (admin-only)
+// ════════════════════════════════════════════
+
+function maskToken(token) {
+  if (!token || token.length < 12) return '••••••';
+  return token.slice(0, 7) + '•••' + token.slice(-4);
+}
+
+// ── Get TG config (token masked) ──
+app.get('/api/tg/config', requireAuth, async (_req, res) => {
+  try {
+    const r = await pool.query('SELECT bot_token, chat_id, updated_at FROM tg_config WHERE id = 1');
+    if (r.rows.length === 0) return res.json({ botToken: '', chatId: '', configured: false });
+    const row = r.rows[0];
+    res.json({
+      botTokenMasked: maskToken(row.bot_token),
+      chatId: row.chat_id,
+      configured: !!(row.bot_token && row.chat_id),
+      updatedAt: row.updated_at,
+    });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/tg/config error');
+    res.status(500).json({ error: 'Config error' });
+  }
+});
+
+// ── Save TG config ──
+app.post('/api/tg/config', requireAuth, async (req, res) => {
+  const { botToken, chatId } = req.body;
+  if (!botToken || !chatId) return res.status(400).json({ error: 'botToken and chatId required' });
+  try {
+    await pool.query(
+      `INSERT INTO tg_config (id, bot_token, chat_id, updated_at) VALUES (1, $1, $2, now())
+       ON CONFLICT (id) DO UPDATE SET bot_token = $1, chat_id = $2, updated_at = now()`,
+      [botToken.trim(), chatId.trim()]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/tg/config error');
+    res.status(500).json({ error: 'Config save error' });
+  }
+});
+
+// ── Preview post for product ──
+app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid product id' });
+  try {
+    const r = await pool.query('SELECT id, name, brand, price, original_price, sizes, images, category, gender FROM products WHERE id = $1', [id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
+    const p = rowToCamel(r.rows[0]);
+
+    const lines = [];
+    if (p.brand) lines.push(`*${p.brand}*`);
+    lines.push(p.name);
+    lines.push('');
+    if (p.originalPrice && p.originalPrice > p.price) {
+      lines.push(`~${Math.round(p.originalPrice)} ₽~ → *${Math.round(p.price)} ₽*`);
+    } else {
+      lines.push(`*${Math.round(p.price)} ₽*`);
+    }
+    if (p.sizes && p.sizes.length > 0) {
+      lines.push(`Размеры: ${p.sizes.join(', ')}`);
+    }
+    lines.push('');
+    lines.push('🛒 Подробнее на сайте');
+
+    const text = lines.join('\n');
+    const photos = (p.images || []).slice(0, 10);
+
+    res.json({ text, photos, product: { id: p.id, name: p.name, brand: p.brand, price: p.price } });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/tg/preview error');
+    res.status(500).json({ error: 'Preview error' });
+  }
+});
+
+// ── Send post to Telegram ──
+app.post('/api/tg/send', requireAuth, async (req, res) => {
+  const { productId, text: customText } = req.body;
+  if (!productId) return res.status(400).json({ error: 'productId required' });
+
+  try {
+    // Read config
+    const cfg = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
+    if (cfg.rows.length === 0 || !cfg.rows[0].bot_token || !cfg.rows[0].chat_id) {
+      return res.status(400).json({ error: 'Telegram не настроен' });
+    }
+    const { bot_token, chat_id } = cfg.rows[0];
+
+    // Get product
+    const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images FROM products WHERE id = $1', [parseInt(productId)]);
+    if (pr.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
+    const p = rowToCamel(pr.rows[0]);
+
+    // Build text if not custom
+    let text = customText;
+    if (!text) {
+      const lines = [];
+      if (p.brand) lines.push(`*${p.brand}*`);
+      lines.push(p.name);
+      lines.push('');
+      if (p.originalPrice && p.originalPrice > p.price) {
+        lines.push(`~${Math.round(p.originalPrice)} ₽~ → *${Math.round(p.price)} ₽*`);
+      } else {
+        lines.push(`*${Math.round(p.price)} ₽*`);
+      }
+      if (p.sizes && p.sizes.length > 0) {
+        lines.push(`Размеры: ${p.sizes.join(', ')}`);
+      }
+      lines.push('');
+      lines.push('🛒 Подробнее на сайте');
+      text = lines.join('\n');
+    }
+
+    const photos = (p.images || []).slice(0, 10);
+    const TG = `https://api.telegram.org/bot${bot_token}`;
+
+    let tgResult;
+
+    if (photos.length === 0) {
+      // Text-only message
+      const resp = await fetch(`${TG}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown' }),
+      });
+      tgResult = await resp.json();
+    } else if (photos.length === 1) {
+      // Single photo
+      const photoUrl = `${req.protocol}://${req.get('host')}${photos[0]}`;
+      const resp = await fetch(`${TG}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, photo: photoUrl, caption: text, parse_mode: 'Markdown' }),
+      });
+      tgResult = await resp.json();
+    } else {
+      // Media group (2-10 photos)
+      const host = `${req.protocol}://${req.get('host')}`;
+      const media = photos.map((img, i) => ({
+        type: 'photo',
+        media: `${host}${img}`,
+        ...(i === 0 ? { caption: text, parse_mode: 'Markdown' } : {}),
+      }));
+      const resp = await fetch(`${TG}/sendMediaGroup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id, media }),
+      });
+      tgResult = await resp.json();
+    }
+
+    if (tgResult.ok === false) {
+      logger.warn({ tgResult }, 'Telegram API rejected the request');
+      return res.status(502).json({ error: 'Telegram отклонил запрос', details: tgResult.description });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/tg/send error');
+    res.status(500).json({ error: 'Ошибка отправки' });
+  }
+});
+
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
   app.get('*', (_req, res) => {

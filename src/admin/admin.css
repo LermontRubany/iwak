@@ -2217,3 +2217,140 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ═══════════════════════════════════════════
+   TELEGRAM AUTOMATION TAB
+   ═══════════════════════════════════════════ */
+
+.tg { padding: 16px; }
+
+.tg-section {
+  margin-bottom: 24px;
+}
+
+.tg-section__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+  margin: 0 0 12px;
+}
+
+.tg-config {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tg-config__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--adm-text-muted);
+  letter-spacing: 0.03em;
+}
+
+.tg-config__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+
+.tg-config__dot--ok {
+  background: #22c55e;
+}
+
+.tg-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+}
+
+.tg-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tg-msg {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.tg-msg--ok {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.tg-msg--error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.tg-empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--adm-text-muted);
+  font-size: 13px;
+}
+
+.tg-send {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tg-send__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tg-select {
+  flex: 1;
+}
+
+.tg-preview {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tg-preview__text {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--adm-text);
+}
+
+.tg-preview__photos {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.tg-preview__img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--adm-border);
+  flex-shrink: 0;
+}
