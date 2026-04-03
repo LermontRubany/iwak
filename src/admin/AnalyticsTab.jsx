@@ -95,12 +95,12 @@ export default function AnalyticsTab() {
 
   useEffect(() => { fetchAnalytics(period, mode); }, [period, mode, fetchAnalytics]);
 
-  // Lightweight polling for onlineNow every 15s
+  // Lightweight polling for onlineNow every 15s (dedicated endpoint)
   useEffect(() => {
     const iv = setInterval(async () => {
       try {
         const token = localStorage.getItem('iwak_admin_token');
-        const res = await fetch(`/api/analytics?period=${period}&mode=${mode}`, {
+        const res = await fetch('/api/analytics/online', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -110,7 +110,7 @@ export default function AnalyticsTab() {
       } catch { /* ignore */ }
     }, 15000);
     return () => clearInterval(iv);
-  }, [period, mode]);
+  }, []);
 
   // Derive compact activity data
   const peakHour = data?.activityByHour?.length

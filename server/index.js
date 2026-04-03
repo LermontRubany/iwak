@@ -990,6 +990,20 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
   }
 });
 
+// ── Online count (lightweight, for polling) ──
+app.get('/api/analytics/online', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(DISTINCT session_id) AS count FROM events
+       WHERE created_at >= now() - interval '2 minutes'`
+    );
+    res.json({ onlineNow: parseInt(result.rows[0].count) });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/analytics/online error');
+    res.status(500).json({ error: 'Online count error' });
+  }
+});
+
 // ── CSV Export (admin-only) ──
 app.get('/api/analytics/export', requireAuth, async (req, res) => {
   const period = req.query.period || '7d';
