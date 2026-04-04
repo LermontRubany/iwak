@@ -445,7 +445,12 @@ export default function ProductPage() {
 
         {saleItems.length >= 2 && (
           <div className="pp-sale">
-            <div className="pp-sale-header">🔥 Сейчас по скидке</div>
+            <div className="pp-sale-header">
+              <span className="pp-sale-title">Сейчас по скидке</span>
+              <Link to="/catalog?sale=true" state={{ backgroundLocation: location }} className="pp-sale-link">
+                Все&nbsp;›
+              </Link>
+            </div>
             <div className="pp-sale-track">
               {saleItems.map((p) => (
                 <div key={p.id} className="pp-sale-card">
@@ -453,7 +458,7 @@ export default function ProductPage() {
                 </div>
               ))}
               <Link to="/catalog?sale=true" state={{ backgroundLocation: location }} className="pp-sale-more">
-                Смотреть ещё&nbsp;→
+                Смотреть ещё&nbsp;›
               </Link>
             </div>
           </div>
