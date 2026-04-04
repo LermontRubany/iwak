@@ -219,6 +219,11 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
               </div>
             )}
 
+            {/* Sale fallback warning */}
+            {current.saleFallback && (
+              <div className="tg-msg tg-msg--warning">⚠️ У товара нет скидки — используется базовый шаблон</div>
+            )}
+
             {/* Preview */}
             <div className="tg-drawer__preview">
               {current.photos.length > 0 && (

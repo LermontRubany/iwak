@@ -2308,6 +2308,11 @@
   color: #ef4444;
 }
 
+.tg-msg--warning {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+}
+
 .tg-empty {
   text-align: center;
   padding: 24px 16px;

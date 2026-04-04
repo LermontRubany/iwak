@@ -1419,6 +1419,7 @@ function buildPostText(p, template = 'basic') {
   const name = escapeMarkdown(p.name || '');
   const hasSale = p.originalPrice && p.originalPrice > p.price;
   const sizeLine = formatSizes(p.sizes);
+  const delivery = '🌍 Доставка: 🇷🇺 Россия • 🇧🇾 Беларусь';
 
   // If sale template requested but no discount — fallback to basic
   const tpl = (template === 'sale' && !hasSale) ? 'basic' : template;
@@ -1426,48 +1427,51 @@ function buildPostText(p, template = 'basic') {
   const lines = [];
 
   if (tpl === 'new') {
-    lines.push('\ud83c\udd95 *\u041d\u041e\u0412\u0418\u041d\u041a\u0410*');
+    lines.push('🆕 *НОВИНКА*');
     lines.push('');
     if (brand) lines.push(`*${brand}*`);
     lines.push(name);
     if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
-    lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
+    lines.push(`💰 *${Math.round(p.price)} ₽*`);
     lines.push('');
-    lines.push('\ud83d\udd25 \u0422\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0441\u0442\u0443\u043f\u0438\u043b\u0438');
-    lines.push('\u26a1 \u0420\u0430\u0437\u0431\u0438\u0440\u0430\u044e\u0442 \u0431\u044b\u0441\u0442\u0440\u043e');
+    lines.push('🔥 Только поступили');
+    lines.push('📦 В наличии');
+    lines.push(delivery);
   } else if (tpl === 'sale') {
-    lines.push('\ud83d\udd25 *\u0421\u041a\u0418\u0414\u041a\u0410*');
+    const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+    lines.push(`🔥 *СКИДКА -${discount}%*`);
     lines.push('');
     if (brand) lines.push(`*${brand}*`);
     lines.push(name);
     if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
-    lines.push(`\ud83d\udcb8 ${Math.round(p.originalPrice)} \u20bd \u2192 *${Math.round(p.price)} \u20bd*`);
+    lines.push(`💸 Было: ${Math.round(p.originalPrice)} ₽`);
+    lines.push(`💰 *Сейчас: ${Math.round(p.price)} ₽*`);
     lines.push('');
-    lines.push('\u26a1 \u0412\u044b\u0433\u043e\u0434\u043d\u043e\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435');
-    lines.push('\ud83d\udce6 \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438');
+    lines.push('📦 В наличии');
+    lines.push(delivery);
   } else if (tpl === 'premium') {
-    lines.push(`\u2728 *${brand || name}*`);
+    lines.push(`✨ *${brand || name}*`);
     lines.push('');
     lines.push(name);
     if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
-    lines.push('\ud83d\udc8e \u041f\u0440\u0435\u043c\u0438\u0443\u043c \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u043e');
-    lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
+    lines.push('💎 Премиум качество');
+    lines.push(`💰 *${Math.round(p.price)} ₽*`);
     lines.push('');
-    lines.push('\ud83d\ude80 \u0411\u044b\u0441\u0442\u0440\u0430\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430');
-    lines.push('\ud83d\udce6 \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438');
+    lines.push('📦 В наличии');
+    lines.push(delivery);
   } else {
     // basic
     if (brand) lines.push(`*${brand}*`);
     lines.push(name);
     if (sizeLine) { lines.push(''); lines.push(sizeLine); }
     lines.push('');
-    lines.push(`\ud83d\udcb0 *${Math.round(p.price)} \u20bd*`);
+    lines.push(`💰 *${Math.round(p.price)} ₽*`);
     lines.push('');
-    lines.push('\ud83d\udce6 \u0412 \u043d\u0430\u043b\u0438\u0447\u0438\u0438');
-    lines.push('\ud83d\ude80 \u0411\u044b\u0441\u0442\u0440\u0430\u044f \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0430');
+    lines.push('📦 В наличии');
+    lines.push(delivery);
   }
 
   return lines.join('\n') + '\n' + TG_FOOTER;
@@ -1588,8 +1592,10 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
     const text = buildPostText(p, template);
     const photos = (p.images || []).slice(0, 10);
     const url = productUrl(p);
+    const hasSale = p.originalPrice && p.originalPrice > p.price;
+    const saleFallback = template === 'sale' && !hasSale;
 
-    res.json({ text, photos, url, product: { id: p.id, name: p.name, brand: p.brand, price: p.price, originalPrice: p.originalPrice } });
+    res.json({ text, photos, url, saleFallback, product: { id: p.id, name: p.name, brand: p.brand, price: p.price, originalPrice: p.originalPrice } });
   } catch (err) {
     logger.error({ err }, 'GET /api/tg/preview error');
     res.status(500).json({ error: 'Preview error' });
