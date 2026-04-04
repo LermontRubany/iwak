@@ -2291,6 +2291,17 @@
   box-sizing: border-box;
 }
 
+.tg-input--error {
+  border-color: #ef4444 !important;
+}
+
+.tg-field-error {
+  font-size: 11px;
+  color: #ef4444;
+  margin-top: -2px;
+  margin-bottom: 4px;
+}
+
 .tg-msg {
   font-size: 12px;
   font-weight: 600;

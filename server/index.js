@@ -1362,20 +1362,79 @@ app.get('/api/tg/config', requireAuth, async (_req, res) => {
   }
 });
 
-// ── Save TG config ──
+// ── Save TG config (with diagnostics) ──
 app.post('/api/tg/config', requireAuth, async (req, res) => {
   const { botToken, chatId } = req.body;
-  if (!botToken || !chatId) return res.status(400).json({ error: 'botToken and chatId required' });
+  if (!botToken || !chatId) return res.status(400).json({ error: 'botToken and chatId required', code: 'MISSING_FIELDS' });
+
+  const token = botToken.trim();
+  const chat = chatId.trim();
+
+  // Step 1: validate bot token via getMe
+  try {
+    const meResp = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+    const meJson = await meResp.json();
+    if (!meJson.ok) {
+      logger.warn({ step: 'token_check', description: meJson.description }, 'TG config: invalid token');
+      return res.status(400).json({ error: 'Неверный bot token', code: 'INVALID_TOKEN', field: 'botToken' });
+    }
+  } catch (err) {
+    logger.error({ step: 'token_check', err }, 'TG config: network error');
+    return res.status(502).json({ error: 'Нет соединения с Telegram API', code: 'NETWORK_ERROR' });
+  }
+
+  // Step 2: validate chat_id by sending a test message and deleting it
+  try {
+    const testResp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chat, text: '✅ IWAK бот подключен', disable_notification: true }),
+    });
+    const testJson = await testResp.json();
+    if (!testJson.ok) {
+      const desc = (testJson.description || '').toLowerCase();
+      let error = 'Ошибка доступа к каналу';
+      let code = 'CHAT_ERROR';
+      if (desc.includes('chat not found') || desc.includes('not found')) {
+        error = 'Канал не найден — проверьте chat_id';
+        code = 'CHAT_NOT_FOUND';
+      } else if (desc.includes('bot is not a member')) {
+        error = 'Бот не добавлен в канал';
+        code = 'BOT_NOT_MEMBER';
+      } else if (desc.includes('not enough rights') || desc.includes('have no rights')) {
+        error = 'Боту не выданы права администратора';
+        code = 'NO_RIGHTS';
+      } else if (desc.includes('kicked') || desc.includes('banned')) {
+        error = 'Бот заблокирован в канале';
+        code = 'BOT_BANNED';
+      }
+      logger.warn({ step: 'chat_check', description: testJson.description, code }, 'TG config: chat access error');
+      return res.status(400).json({ error, code, field: 'chatId' });
+    }
+    // Delete the test message
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/deleteMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chat, message_id: testJson.result.message_id }),
+      });
+    } catch { /* ignore delete failure */ }
+  } catch (err) {
+    logger.error({ step: 'chat_check', err }, 'TG config: network error on chat test');
+    return res.status(502).json({ error: 'Нет соединения с Telegram API', code: 'NETWORK_ERROR' });
+  }
+
+  // Step 3: save to DB
   try {
     await pool.query(
       `INSERT INTO tg_config (id, bot_token, chat_id, updated_at) VALUES (1, $1, $2, now())
        ON CONFLICT (id) DO UPDATE SET bot_token = $1, chat_id = $2, updated_at = now()`,
-      [botToken.trim(), chatId.trim()]
+      [token, chat]
     );
     res.json({ ok: true });
   } catch (err) {
-    logger.error({ err }, 'POST /api/tg/config error');
-    res.status(500).json({ error: 'Config save error' });
+    logger.error({ err }, 'POST /api/tg/config DB error');
+    res.status(500).json({ error: 'Ошибка сохранения в базу', code: 'DB_ERROR' });
   }
 });
 

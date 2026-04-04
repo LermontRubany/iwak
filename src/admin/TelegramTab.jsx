@@ -60,6 +60,8 @@ export default function TelegramTab() {
   }, []);
 
   // ── Save config ──
+  const [fieldError, setFieldError] = useState(null); // {botToken?, chatId?}
+
   const handleSaveConfig = useCallback(async () => {
     if (!botToken.trim() || !chatId.trim()) {
       setConfigMsg({ type: 'error', text: 'Заполните оба поля' });
@@ -67,23 +69,35 @@ export default function TelegramTab() {
     }
     setConfigSaving(true);
     setConfigMsg(null);
+    setFieldError(null);
     try {
       const res = await fetch('/api/tg/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ botToken: botToken.trim(), chatId: chatId.trim() }),
       });
-      if (!res.ok) throw new Error();
-      setConfigMsg({ type: 'ok', text: 'Сохранено' });
+      const json = await res.json();
+      if (!res.ok) {
+        const msg = json.error || 'Ошибка сохранения';
+        setConfigMsg({ type: 'error', text: msg });
+        notifyGlobal('error', msg);
+        if (json.field) setFieldError({ [json.field]: msg });
+        return;
+      }
+      setConfigMsg({ type: 'ok', text: '✅ Telegram успешно подключен' });
+      notifyGlobal('success', 'Telegram успешно подключен');
       setBotToken('');
       setConfigured(true);
+      setFieldError(null);
       const r2 = await fetch('/api/tg/config', { headers: { Authorization: `Bearer ${getToken()}` } });
       if (r2.ok) {
         const j = await r2.json();
         setMasked(j.botTokenMasked || '');
       }
     } catch {
-      setConfigMsg({ type: 'error', text: 'Ошибка сохранения' });
+      const msg = 'Нет соединения с сервером';
+      setConfigMsg({ type: 'error', text: msg });
+      notifyGlobal('error', msg);
     } finally {
       setConfigSaving(false);
     }
@@ -248,20 +262,22 @@ export default function TelegramTab() {
           )}
           <label className="tg-label">Bot Token</label>
           <input
-            className="adm-input tg-input"
+            className={`adm-input tg-input${fieldError?.botToken ? ' tg-input--error' : ''}`}
             type="password"
             placeholder={configured ? 'Введите новый токен для замены' : 'Вставьте Bot Token'}
             value={botToken}
-            onChange={e => setBotToken(e.target.value)}
+            onChange={e => { setBotToken(e.target.value); setFieldError(null); }}
           />
+          {fieldError?.botToken && <div className="tg-field-error">{fieldError.botToken}</div>}
           <label className="tg-label">Chat ID</label>
           <input
-            className="adm-input tg-input"
+            className={`adm-input tg-input${fieldError?.chatId ? ' tg-input--error' : ''}`}
             type="text"
             placeholder="-100... или @channel"
             value={chatId}
-            onChange={e => setChatId(e.target.value)}
+            onChange={e => { setChatId(e.target.value); setFieldError(null); }}
           />
+          {fieldError?.chatId && <div className="tg-field-error">{fieldError.chatId}</div>}
           <div className="tg-config__actions">
             <button
               className="adm-btn adm-btn--accent adm-btn--sm"
