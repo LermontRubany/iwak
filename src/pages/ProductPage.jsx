@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
+import ProductCard from '../components/ProductCard';
 import { idFromSlug, makeProductSlug } from '../utils/slug';
 import sortSizes from '../utils/sortSizes';
 import { track } from '../utils/tracker';
@@ -21,6 +22,7 @@ export default function ProductPage() {
 
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { addItem } = useCart();
   const { products, loading } = useProducts();
 
@@ -44,6 +46,28 @@ export default function ProductPage() {
   const product = productId != null
     ? products.find((p) => String(p.id) === String(productId))
     : undefined;
+
+  // ── Sale carousel items ──
+  const saleItems = useMemo(() => {
+    if (!product) return [];
+    const isSale = (p) => p.originalPrice && p.originalPrice > p.price;
+    const discountPct = (p) => (p.originalPrice - p.price) / p.originalPrice;
+
+    // Step 1: same category + sale
+    const sameCat = products.filter(
+      (p) => p.id !== product.id && p.category === product.category && isSale(p)
+    );
+    // Step 2: fallback — all sale items
+    const picked = new Set(sameCat.map((p) => p.id));
+    picked.add(product.id);
+    const rest = sameCat.length < 5
+      ? products.filter((p) => !picked.has(p.id) && isSale(p))
+      : [];
+    // Merge, sort by discount, take 5
+    return [...sameCat, ...rest]
+      .sort((a, b) => discountPct(b) - discountPct(a))
+      .slice(0, 5);
+  }, [products, product?.id, product?.category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset on product change
   useEffect(() => {
@@ -418,6 +442,22 @@ export default function ProductPage() {
              product.gender === 'kids' ? 'Детское' : 'Унисекс'}
           </strong></p>
         </div>
+
+        {saleItems.length >= 2 && (
+          <div className="pp-sale">
+            <div className="pp-sale-header">🔥 Сейчас по скидке</div>
+            <div className="pp-sale-track">
+              {saleItems.map((p) => (
+                <div key={p.id} className="pp-sale-card">
+                  <ProductCard product={p} />
+                </div>
+              ))}
+              <Link to="/catalog?sale=true" state={{ backgroundLocation: location }} className="pp-sale-more">
+                Смотреть ещё&nbsp;→
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
 
