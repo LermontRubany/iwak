@@ -1922,7 +1922,6 @@ img {
   display: grid;
   grid-template-columns: 1fr;
   min-height: calc(100vh - 56px);
-  min-height: calc(100dvh - 56px);
   padding-top: env(safe-area-inset-top, 0px);
   min-width: 0;
 }
