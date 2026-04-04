@@ -1790,6 +1790,89 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
 });
 
+// ── Health/diagnostics (auth protected) ──
+app.get('/api/diag', requireAuth, async (_req, res) => {
+  const checks = {};
+
+  // 1. DB connection
+  try {
+    const r = await pool.query('SELECT 1 AS ok');
+    checks.db = { ok: true };
+  } catch (err) {
+    checks.db = { ok: false, error: err.message };
+  }
+
+  // 2. events table
+  try {
+    const r = await pool.query('SELECT COUNT(*) AS c FROM events');
+    checks.events = { ok: true, count: parseInt(r.rows[0].c) };
+  } catch (err) {
+    checks.events = { ok: false, error: err.message };
+  }
+
+  // 3. tg_config table
+  try {
+    const r = await pool.query('SELECT id, chat_id, LENGTH(bot_token) AS token_len, updated_at FROM tg_config WHERE id = 1');
+    if (r.rows.length === 0) {
+      checks.tgConfig = { ok: true, configured: false };
+    } else {
+      checks.tgConfig = { ok: true, configured: true, chatId: r.rows[0].chat_id, tokenLen: r.rows[0].token_len, updatedAt: r.rows[0].updated_at };
+    }
+  } catch (err) {
+    checks.tgConfig = { ok: false, error: err.message };
+  }
+
+  // 4. tg_sent_at column
+  try {
+    await pool.query('SELECT tg_sent_at FROM products LIMIT 1');
+    checks.tgSentAt = { ok: true };
+  } catch (err) {
+    checks.tgSentAt = { ok: false, error: err.message };
+  }
+
+  // 5. Telegram API reachability
+  try {
+    const r = await fetch('https://api.telegram.org/bot000/getMe');
+    const j = await r.json();
+    // We expect 401 — that means API is reachable
+    checks.tgApi = { ok: true, reachable: true };
+  } catch (err) {
+    checks.tgApi = { ok: false, error: err.message };
+  }
+
+  // 6. Saved bot token test (if configured)
+  if (checks.tgConfig?.configured) {
+    try {
+      const cfg = await pool.query('SELECT bot_token FROM tg_config WHERE id = 1');
+      const token = cfg.rows[0].bot_token;
+      checks.tgToken = { tokenPreview: token.slice(0, 5) + '...' + token.slice(-5), length: token.length };
+      const r = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const j = await r.json();
+      if (j.ok) {
+        checks.tgToken.valid = true;
+        checks.tgToken.botUsername = j.result.username;
+      } else {
+        checks.tgToken.valid = false;
+        checks.tgToken.tgError = j.description;
+      }
+    } catch (err) {
+      checks.tgToken = { valid: false, error: err.message };
+    }
+  }
+
+  // 7. Env summary
+  checks.env = {
+    nodeVersion: process.version,
+    hasDbUrl: !!process.env.DATABASE_URL,
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    port: PORT,
+    siteOrigin: process.env.SITE_ORIGIN || '(not set)',
+  };
+
+  const allOk = checks.db?.ok && checks.events?.ok && checks.tgConfig?.ok;
+  res.json({ ok: allOk, checks });
+});
+
 // ════════════════════════════════════════════
 // START
 // ════════════════════════════════════════════
