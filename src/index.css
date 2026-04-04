@@ -1924,6 +1924,7 @@ img {
   min-height: calc(100vh - 56px);
   min-height: calc(100dvh - 56px);
   padding-top: env(safe-area-inset-top, 0px);
+  min-width: 0;
 }
 
 @media (min-width: 768px) {
@@ -2152,6 +2153,8 @@ img {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* Строка бренд + кнопка шаринга */
