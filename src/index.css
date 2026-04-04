@@ -2489,11 +2489,13 @@ img {
 
 .pp-sale-card .product-card__image-wrap {
   aspect-ratio: 3/4;
+  border-radius: 12px;
+  background: #f5f5f5;
 }
 
 .pp-sale-card .product-card__info {
   padding: 6px 8px;
-  gap: 1px;
+  gap: 4px;
 }
 
 .pp-sale-card .product-card__brand {
