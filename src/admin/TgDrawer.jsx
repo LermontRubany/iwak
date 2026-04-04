@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-function getToken() {
-  return localStorage.getItem('iwak_admin_token');
-}
+import authFetch from './authFetch';
 
 function renderTgMarkdown(text) {
   return text.split('\n').map((line, i) => {
@@ -54,9 +51,8 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
 
     Promise.all(
       productIds.map(id =>
-        fetch(`/api/tg/preview/${id}?template=${template}`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        }).then(r => r.ok ? r.json() : null)
+        authFetch(`/api/tg/preview/${id}?template=${template}`)
+          .then(r => r.ok ? r.json() : null)
       )
     ).then(results => {
       if (cancelled) return;
@@ -95,9 +91,9 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       try {
         const body = { productId: p.product.id, template, imageIndex: selectedPhoto };
         if (editText !== p.text) body.text = editText;
-        const res = await fetch('/api/tg/send', {
+        const res = await authFetch('/api/tg/send', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
         const json = await res.json();
@@ -119,9 +115,9 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
 
     // Batch — server-side queue with polling
     try {
-      const res = await fetch('/api/tg/send-batch', {
+      const res = await authFetch('/api/tg/send-batch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productIds: previews.map(p => p.product.id), template }),
       });
       if (!res.ok) {
@@ -134,9 +130,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
 
       pollRef.current = setInterval(async () => {
         try {
-          const sr = await fetch(`/api/tg/batch/${batchId}`, {
-            headers: { Authorization: `Bearer ${getToken()}` },
-          });
+          const sr = await authFetch(`/api/tg/batch/${batchId}`);
           if (!sr.ok) { clearInterval(pollRef.current); pollRef.current = null; setSending(false); return; }
           const status = await sr.json();
           setSendProgress({ current: status.sent + status.failed, total: status.total });

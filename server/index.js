@@ -239,14 +239,19 @@ const upload = multer({
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
+    logger.warn({ url: req.originalUrl, ip: req.ip }, 'Auth: missing token');
+    return res.status(401).json({ error: 'Требуется авторизация', reason: 'missing_token' });
   }
   try {
     const payload = jwt.verify(header.slice(7), JWT_SECRET);
     req.admin = payload;
     next();
-  } catch {
-    return res.status(401).json({ error: 'Недействительный токен' });
+  } catch (err) {
+    const reason = err.name === 'TokenExpiredError' ? 'expired'
+      : err.name === 'JsonWebTokenError' ? 'invalid_signature'
+      : 'unknown';
+    logger.warn({ url: req.originalUrl, ip: req.ip, reason, errName: err.name }, 'Auth: token rejected');
+    return res.status(401).json({ error: 'Недействительный токен', reason });
   }
 }
 
@@ -274,7 +279,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
     clearLoginFailures(ip);
     logger.info({ ip, login: user.login }, 'Successful login');
-    const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, login: user.login });
   } catch (err) {
     logger.error({ err }, 'Auth error');
@@ -1775,6 +1780,11 @@ app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
 });
 
 // ── Health/diagnostics (auth protected) ──
+// ── Health check (no auth) ──────────────────
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, time: new Date().toISOString(), uptime: Math.floor(process.uptime()) });
+});
+
 app.get('/api/diag', requireAuth, async (_req, res) => {
   const checks = {};
   try {

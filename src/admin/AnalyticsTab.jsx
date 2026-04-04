@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import authFetch from './authFetch';
 
 const PERIODS = [
   { id: 'today', label: 'Сегодня' },
@@ -37,9 +38,8 @@ function DeltaBadge({ delta, percent, isNew, showArrow = false }) {
 }
 
 function handleExport(period) {
-  const token = localStorage.getItem('iwak_admin_token');
   const url = `/api/analytics/export?period=${period}`;
-  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  authFetch(url)
     .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
     .then(blob => {
       const a = document.createElement('a');
@@ -52,9 +52,8 @@ function handleExport(period) {
 }
 
 function handleExportReport(period) {
-  const token = localStorage.getItem('iwak_admin_token');
   const url = `/api/analytics/export-report?period=${period}`;
-  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  authFetch(url)
     .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
     .then(blob => {
       const a = document.createElement('a');
@@ -79,10 +78,7 @@ export default function AnalyticsTab() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('iwak_admin_token');
-      const res = await fetch(`/api/analytics?period=${p}&mode=${m}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`/api/analytics?period=${p}&mode=${m}`);
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
       setData(json);
@@ -102,10 +98,7 @@ export default function AnalyticsTab() {
     let failCount = 0;
     const iv = setInterval(async () => {
       try {
-        const token = localStorage.getItem('iwak_admin_token');
-        const res = await fetch('/api/analytics/online', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authFetch('/api/analytics/online');
         if (res.ok) {
           const json = await res.json();
           setOnlineNow(json.onlineNow ?? 0);

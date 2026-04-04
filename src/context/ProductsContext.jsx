@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import imageCompression from 'browser-image-compression';
 import { notifyGlobal } from './NotificationsContext';
 import { friendlyErrorMessage, logError } from '../utils/errorLogger';
+import { getToken, logout, resetAuthGuard } from '../admin/authFetch';
 
 const ProductsContext = createContext(null);
 
@@ -10,11 +11,14 @@ const ProductsContext = createContext(null);
 let _sessionExpired = false;
 
 // Вызвать при успешном логине, чтобы сбросить флаг
-export function resetSessionExpired() { _sessionExpired = false; }
+export function resetSessionExpired() {
+  _sessionExpired = false;
+  resetAuthGuard();
+}
 
 // ── Хелпер: JWT-токен из localStorage ──
 function getAuthHeaders() {
-  const token = localStorage.getItem('iwak_admin_token');
+  const token = getToken();
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
@@ -24,10 +28,8 @@ function getAuthHeaders() {
 function handleUnauthorized(url, method) {
   if (_sessionExpired) return;
   _sessionExpired = true;
-  localStorage.removeItem('iwak_admin_token');
   logError({ url, method, status: 401, message: 'Сессия истекла' });
-  notifyGlobal('error', 'Сессия истекла — требуется повторный вход');
-  setTimeout(() => { window.location.href = '/adminpanel'; }, 500);
+  logout('apiFetch 401 from ' + url);
 }
 
 async function apiFetch(url, options = {}) {
@@ -231,7 +233,7 @@ export function ProductsProvider({ children }) {
     } catch (_e) {
       // fallback: send original if compression fails
     }
-    const token = localStorage.getItem('iwak_admin_token');
+    const tkn = getToken();
     const delays = [0, 800, 2000];
     let lastError;
     for (let attempt = 0; attempt < delays.length; attempt++) {
@@ -243,7 +245,7 @@ export function ProductsProvider({ children }) {
         formData.append('image', fileToUpload);
         const res = await fetch('/api/upload', {
           method: 'POST',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          headers: tkn ? { 'Authorization': `Bearer ${tkn}` } : {},
           body: formData,
         });
         if (!res.ok) {

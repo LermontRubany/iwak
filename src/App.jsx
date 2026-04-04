@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Component } from 'react';
+import { Component, useState, useEffect } from 'react';
 import { CartProvider } from './context/CartContext';
 import { ProductsProvider } from './context/ProductsContext';
-import { NotificationsProvider } from './context/NotificationsContext';
+import { NotificationsProvider, notifyGlobal } from './context/NotificationsContext';
 import AdminApp from './admin/AdminApp';
 import AdminLogin from './admin/AdminLogin';
+import { isTokenValid, tokenMinutesLeft, resetAuthGuard } from './admin/authFetch';
 import Header from './components/Header';
 import CatalogPage from './pages/CatalogPage';
 import ProductPage from './pages/ProductPage';
@@ -72,20 +73,44 @@ class ErrorBoundary extends Component {
   }
 }
 
+/** Soft-expiry: shows toast when JWT is about to expire */
+function SessionExpiryWarning() {
+  const [warned, setWarned] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      if (warned) return;
+      const mins = tokenMinutesLeft();
+      if (mins > 0 && mins <= 10) {
+        setWarned(true);
+        notifyGlobal('warning', `Сессия истекает через ${mins} мин. Сохраните работу.`);
+      }
+    };
+    check();
+    const iv = setInterval(check, 60000);
+    return () => clearInterval(iv);
+  }, [warned]);
+  return null;
+}
+
 function App() {
   const isAdmin = window.location.pathname.startsWith('/adminpanel');
 
   if (isAdmin) {
-    // Проверяем наличие JWT-токена (валидность проверится при первом API-запросе)
-    const token = localStorage.getItem('iwak_admin_token');
-    const authed = !!token;
+    const authed = isTokenValid();
+    const handleAuth = () => {
+      resetAuthGuard();
+      window.location.reload();
+    };
     return (
       <ErrorBoundary>
       <NotificationsProvider>
       <ProductsProvider>
         {authed
-          ? <AdminApp />
-          : <AdminLogin onAuth={() => window.location.reload()} />
+          ? <>
+              <SessionExpiryWarning />
+              <AdminApp />
+            </>
+          : <AdminLogin onAuth={handleAuth} />
         }
       </ProductsProvider>
       </NotificationsProvider>

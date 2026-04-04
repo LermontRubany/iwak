@@ -7,6 +7,7 @@ import AnalyticsTab from './AnalyticsTab';
 import TelegramTab from './TelegramTab';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
+import { logout } from './authFetch';
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 
@@ -100,8 +101,7 @@ export default function AdminApp() {
   }, [priceValue, priceMode, selected, products]);
 
   const handleLogout = () => {
-    localStorage.removeItem('iwak_admin_token');
-    window.location.reload();
+    logout('user clicked logout');
   };
 
   const handleSave = () => {

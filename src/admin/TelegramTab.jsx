@@ -2,12 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import { notifyGlobal } from '../context/NotificationsContext';
 import TgDrawer from './TgDrawer';
+import authFetch from './authFetch';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
-
-function getToken() {
-  return localStorage.getItem('iwak_admin_token');
-}
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 const GENDER_DISPLAY = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
@@ -46,9 +43,7 @@ export default function TelegramTab() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/tg/config', {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
+        const res = await authFetch('/api/tg/config');
         if (res.ok) {
           const json = await res.json();
           setMasked(json.botTokenMasked || '');
@@ -71,9 +66,9 @@ export default function TelegramTab() {
     setConfigMsg(null);
     setFieldError(null);
     try {
-      const res = await fetch('/api/tg/config', {
+      const res = await authFetch('/api/tg/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botToken: botToken.trim(), chatId: chatId.trim() }),
       });
       const json = await res.json();
@@ -89,7 +84,7 @@ export default function TelegramTab() {
       setBotToken('');
       setConfigured(true);
       setFieldError(null);
-      const r2 = await fetch('/api/tg/config', { headers: { Authorization: `Bearer ${getToken()}` } });
+      const r2 = await authFetch('/api/tg/config');
       if (r2.ok) {
         const j = await r2.json();
         setMasked(j.botTokenMasked || '');
@@ -110,9 +105,8 @@ export default function TelegramTab() {
     setTesting(true);
     setConfigMsg(null);
     try {
-      const res = await fetch('/api/tg/test', {
+      const res = await authFetch('/api/tg/test', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
       });
       const json = await res.json();
       if (res.ok && json.ok) {
@@ -131,9 +125,8 @@ export default function TelegramTab() {
   const handleDeleteConfig = useCallback(async () => {
     if (!window.confirm('Удалить настройки Telegram бота?')) return;
     try {
-      const res = await fetch('/api/tg/config', {
+      const res = await authFetch('/api/tg/config', {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
         setConfigured(false);
@@ -193,9 +186,9 @@ export default function TelegramTab() {
     setQuickSending(true);
     try {
       if (ids.length === 1) {
-        const res = await fetch('/api/tg/send', {
+        const res = await authFetch('/api/tg/send', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ productId: ids[0], template: 'basic' }),
         });
         const json = await res.json();
@@ -207,9 +200,9 @@ export default function TelegramTab() {
           notifyGlobal('error', json.error || 'Ошибка отправки');
         }
       } else {
-        const res = await fetch('/api/tg/send-batch', {
+        const res = await authFetch('/api/tg/send-batch', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ productIds: ids, template: 'basic' }),
         });
         if (res.ok) {
@@ -218,7 +211,7 @@ export default function TelegramTab() {
           notifyGlobal('success', `Отправка: 0 из ${ids.length}...`);
           const batchPoll = setInterval(async () => {
             try {
-              const sr = await fetch(`/api/tg/batch/${batchId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+              const sr = await authFetch(`/api/tg/batch/${batchId}`);
               if (!sr.ok) { clearInterval(batchPoll); reloadProducts(); return; }
               const st = await sr.json();
               if (st.done) {
