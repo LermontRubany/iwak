@@ -457,7 +457,7 @@ export default function ProductPage() {
           <div className="pp-sale">
             <div className="pp-sale-header">
               <span className="pp-sale-title">Сейчас по скидке</span>
-              <Link to="/catalog?sale=true" state={{ backgroundLocation: location }} className="pp-sale-link">
+              <Link to="/catalog?sale=true" className="pp-sale-link">
                 Все&nbsp;›
               </Link>
             </div>
@@ -467,7 +467,7 @@ export default function ProductPage() {
                   <ProductCard product={p} />
                 </div>
               ))}
-              <Link to="/catalog?sale=true" state={{ backgroundLocation: location }} className="pp-sale-more">
+              <Link to="/catalog?sale=true" className="pp-sale-more">
                 Смотреть ещё&nbsp;›
               </Link>
             </div>
