@@ -1643,6 +1643,7 @@ img {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  overflow-anchor: none;
   display: none;
 }
 
