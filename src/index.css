@@ -2425,6 +2425,8 @@ img {
   padding-top: 14px;
   border-top: 1px solid #e8e8e8;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .pp-sale-header {
