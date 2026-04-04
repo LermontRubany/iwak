@@ -38,7 +38,7 @@ export default function ProductPage() {
 
   // Track whether this is the initial mount (skip scroll on first open)
   const overlayRef = useRef(null);
-  const isFirstMount = useRef(true);
+  const prevSlugRef = useRef(slug);
 
   // Swipe-back refs
   const touchStartX = useRef(0);
@@ -81,9 +81,8 @@ export default function ProductPage() {
     setLightboxIdx(null);
     galleryRef.current?.scrollTo({ left: 0 });
 
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-    } else {
+    if (prevSlugRef.current !== slug) {
+      prevSlugRef.current = slug;
       overlayRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [slug]);
