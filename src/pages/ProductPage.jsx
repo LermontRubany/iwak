@@ -64,13 +64,13 @@ export default function ProductPage() {
     // Step 2: fallback — all sale items
     const picked = new Set(sameCat.map((p) => p.id));
     picked.add(product.id);
-    const rest = sameCat.length < 5
+    const rest = sameCat.length < 7
       ? products.filter((p) => !picked.has(p.id) && isSale(p))
       : [];
-    // Merge, sort by discount, take 5
+    // Merge, sort by discount, take 7
     return [...sameCat, ...rest]
       .sort((a, b) => discountPct(b) - discountPct(a))
-      .slice(0, 5);
+      .slice(0, 7);
   }, [products, product?.id, product?.category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset on product change
