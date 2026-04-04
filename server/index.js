@@ -1774,22 +1774,6 @@ app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
   res.json(batch);
 });
 
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
-}
-
-// ════════════════════════════════════════════
-// GLOBAL ERROR HANDLER
-// ════════════════════════════════════════════
-
-app.use((err, _req, res, _next) => {
-  logger.error({ err }, 'Unhandled error');
-  res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
-});
-
 // ── Health/diagnostics (auth protected) ──
 app.get('/api/diag', requireAuth, async (_req, res) => {
   const checks = {};
@@ -1880,6 +1864,22 @@ app.get('/api/diag', requireAuth, async (_req, res) => {
     logger.error({ err }, 'GET /api/diag fatal error');
     return res.status(500).json({ ok: false, error: err.message, checks });
   }
+});
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+// ════════════════════════════════════════════
+// GLOBAL ERROR HANDLER
+// ════════════════════════════════════════════
+
+app.use((err, _req, res, _next) => {
+  logger.error({ err }, 'Unhandled error');
+  res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
 });
 
 // ════════════════════════════════════════════
