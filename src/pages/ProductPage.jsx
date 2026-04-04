@@ -36,6 +36,10 @@ export default function ProductPage() {
   // Gallery scroll-snap ref
   const galleryRef = useRef(null);
 
+  // Track whether this is the initial mount (skip scroll on first open)
+  const overlayRef = useRef(null);
+  const isFirstMount = useRef(true);
+
   // Swipe-back refs
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -76,6 +80,12 @@ export default function ProductPage() {
     setAdded(false);
     setLightboxIdx(null);
     galleryRef.current?.scrollTo({ left: 0 });
+
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+    } else {
+      overlayRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, [slug]);
 
   // Analytics: track product view
@@ -232,7 +242,7 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="overlay overlay--open">
+    <div className="overlay overlay--open" ref={overlayRef}>
     <div className="product-page">
       <div
         className="product-page__gallery"
