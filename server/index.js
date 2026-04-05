@@ -1646,8 +1646,17 @@ async function composeBadgeImage(imagePath, badges) {
       const bw = Math.max(Math.round(1 * scale), 1);
 
       const text = b.text.toUpperCase();
-      const maxTextW = Math.round(width * 0.6);
-      const textW = Math.min(Math.ceil(text.length * fs * (0.62 + sz.ls)), maxTextW);
+
+      // Pass 1: measure actual text width by rendering text alone on transparent SVG, then trimming
+      const measureH = fs * 3;
+      const measureW = Math.round(text.length * fs * 1.2) + padX * 2; // generous estimate
+      const measureSvg = Buffer.from(`<svg width="${measureW}" height="${measureH}" xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="${fs * 2}" font-family="${FONT}" font-weight="700" font-size="${fs}" letter-spacing="${ls}" fill="#000">${escapeXml(text)}</text>
+</svg>`);
+      const trimmedBuf = await sharp(measureSvg).trim().png().toBuffer();
+      const trimmedMeta = await sharp(trimmedBuf).metadata();
+      const maxBadgeW = Math.round(width * 0.9);
+      const textW = Math.min(trimmedMeta.width + 2, maxBadgeW); // +2px safety margin
       const badgeW = textW + padX * 2 + bw * 2;
       const badgeH = fs + padY * 2 + bw * 2;
 
