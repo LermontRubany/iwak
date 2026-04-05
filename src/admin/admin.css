@@ -2500,6 +2500,17 @@
   gap: 6px;
 }
 
+.tg-drawer__badge-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+}
+.tg-drawer__badge-toggle input { margin: 0; }
+
 .tg-drawer__tabs {
   display: flex;
   gap: 4px;

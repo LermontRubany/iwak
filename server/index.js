@@ -1595,14 +1595,144 @@ async function tgApiCall(url, body, retriesLeft = 2) {
   return json;
 }
 
-async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId }) {
+// ── Badge overlay on image for Telegram ──
+function escapeXml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+async function composeBadgeImage(imagePath, badges) {
+  const enabled = badges.filter(b => b?.enabled && b?.text);
+  if (enabled.length === 0) return null;
+
+  const meta = await sharp(imagePath).metadata();
+  const { width, height } = meta;
+  const scale = width / 375;
+
+  const sizeMap = {
+    s: { fontSize: 6.5, padY: 1.5, padX: 4, ls: 0.04 },
+    m: { fontSize: 9, padY: 3, padX: 7, ls: 0.08 },
+    l: { fontSize: 11, padY: 4, padX: 10, ls: 0.1 },
+  };
+  const margin = Math.round(10 * scale);
+  const gap = Math.round(4 * scale);
+
+  const groups = {};
+  for (const b of enabled) {
+    const pos = b.position || 'top-left';
+    (groups[pos] ||= []).push(b);
+  }
+
+  const composites = [];
+
+  const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+
+  for (const [pos, items] of Object.entries(groups)) {
+    const isRight = pos.includes('right');
+    const isBottom = pos.includes('bottom');
+
+    // Render all badges for this position group first
+    const rendered = [];
+    for (const b of items) {
+      const sz = sizeMap[b.size || 'm'] || sizeMap.m;
+      const filled = b.type === 'filled';
+      const bc = b.borderColor || 'rgba(0,0,0,0.8)';
+      const textColor = filled ? '#fff' : (b.textColor || '#000');
+      const bgColor = filled ? bc : 'none';
+
+      const fs = Math.round(sz.fontSize * scale);
+      const padX = Math.round(sz.padX * scale);
+      const padY = Math.round(sz.padY * scale);
+      const ls = +(sz.ls * fs).toFixed(1);
+      const bw = Math.max(Math.round(1 * scale), 1);
+
+      const text = b.text.toUpperCase();
+      const maxTextW = Math.round(width * 0.6);
+      const textW = Math.min(Math.ceil(text.length * fs * (0.62 + sz.ls)), maxTextW);
+      const badgeW = textW + padX * 2 + bw * 2;
+      const badgeH = fs + padY * 2 + bw * 2;
+
+      let rx;
+      if (b.shape === 'pill' || b.shape === 'circle') rx = Math.round(badgeH / 2);
+      else if (b.shape === 'rounded') rx = Math.round(4 * scale);
+      else rx = Math.round(1 * scale);
+
+      const svg = Buffer.from(`<svg width="${badgeW}" height="${badgeH}" xmlns="http://www.w3.org/2000/svg">
+  <rect x="${bw / 2}" y="${bw / 2}" width="${badgeW - bw}" height="${badgeH - bw}" rx="${rx}" ry="${rx}" fill="${escapeXml(bgColor)}" stroke="${escapeXml(bc)}" stroke-width="${bw}"/>
+  <text x="${padX + bw}" y="${badgeH / 2}" font-family="${FONT}" font-weight="700" font-size="${fs}" fill="${escapeXml(textColor)}" letter-spacing="${ls}" dominant-baseline="central">${escapeXml(text)}</text>
+</svg>`);
+
+      const badgeBuf = await sharp(svg).png().toBuffer();
+      const badgeMeta = await sharp(badgeBuf).metadata();
+      rendered.push({ buf: badgeBuf, w: badgeMeta.width, h: badgeMeta.height });
+    }
+
+    // Layout: top-* → stack downward from margin; bottom-* → stack downward from computed top
+    const totalH = rendered.reduce((s, r) => s + r.h, 0) + gap * (rendered.length - 1);
+    let offsetY = isBottom ? height - margin - totalH : margin;
+
+    for (const r of rendered) {
+      const x = isRight ? width - margin - r.w : margin;
+      composites.push({ input: r.buf, left: Math.max(0, x), top: Math.max(0, offsetY) });
+      offsetY += r.h + gap;
+    }
+  }
+
+  if (composites.length === 0) return null;
+
+  return sharp(imagePath)
+    .composite(composites)
+    .jpeg({ quality: 85 })
+    .toBuffer();
+}
+
+async function tgApiCallMultipart(url, { chatId, photoBuffer, caption, parseMode, replyMarkup }, retriesLeft = 2) {
+  const form = new FormData();
+  form.append('chat_id', chatId);
+  form.append('photo', new Blob([photoBuffer], { type: 'image/jpeg' }), 'photo.jpg');
+  if (caption) form.append('caption', caption);
+  if (parseMode) form.append('parse_mode', parseMode);
+  if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let resp;
+  try {
+    resp = await fetch(url, { method: 'POST', body: form, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+  const json = await resp.json();
+  if (json.ok === false && json.error_code === 429 && retriesLeft > 0) {
+    const wait = (json.parameters?.retry_after || 2) * 1000;
+    logger.warn({ wait }, 'Telegram 429 — waiting');
+    await new Promise(r => setTimeout(r, wait));
+    return tgApiCallMultipart(url, { chatId, photoBuffer, caption, parseMode, replyMarkup }, retriesLeft - 1);
+  }
+  return json;
+}
+
+async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId, badges }) {
   const TG = `https://api.telegram.org/bot${botToken}`;
   let result;
 
   if (photos.length === 0) {
     result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', disable_web_page_preview: true, reply_markup: keyboard });
+  } else if (badges && badges.length > 0) {
+    try {
+      const imgPath = path.join(__dirname, '..', photos[0]);
+      const buffer = await composeBadgeImage(imgPath, badges);
+      if (buffer) {
+        result = await tgApiCallMultipart(`${TG}/sendPhoto`, {
+          chatId, photoBuffer: buffer, caption: text, parseMode: 'Markdown', replyMarkup: keyboard,
+        });
+      } else {
+        result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+      }
+    } catch (err) {
+      logger.warn({ err, productId }, 'Badge compose failed — sending original');
+      result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+    }
   } else {
-    // Always single photo — keeps button attached to post
     result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
   }
 
@@ -1649,7 +1779,7 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid product id' });
   const template = req.query.template || 'basic';
   try {
-    const r = await pool.query('SELECT id, name, brand, price, original_price, sizes, images, category, gender FROM products WHERE id = $1', [id]);
+    const r = await pool.query('SELECT id, name, brand, price, original_price, sizes, images, category, gender, badge, badge2 FROM products WHERE id = $1', [id]);
     if (r.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
     const p = rowToCamel(r.rows[0]);
 
@@ -1658,8 +1788,9 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
     const url = productUrl(p);
     const hasSale = p.originalPrice && p.originalPrice > p.price;
     const saleFallback = template === 'sale' && !hasSale;
+    const hasBadge = [p.badge, p.badge2].some(b => b?.enabled && b?.text);
 
-    res.json({ text, photos, url, saleFallback, product: { id: p.id, name: p.name, brand: p.brand, price: p.price, originalPrice: p.originalPrice } });
+    res.json({ text, photos, url, saleFallback, hasBadge, product: { id: p.id, name: p.name, brand: p.brand, price: p.price, originalPrice: p.originalPrice } });
   } catch (err) {
     logger.error({ err }, 'GET /api/tg/preview error');
     res.status(500).json({ error: 'Preview error' });
@@ -1668,7 +1799,7 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
 
 // ── Send post to Telegram (via queue) ──
 app.post('/api/tg/send', requireAuth, async (req, res) => {
-  const { productId, text: customText, template, imageIndex } = req.body;
+  const { productId, text: customText, template, imageIndex, withBadge } = req.body;
   if (!productId) return res.status(400).json({ error: 'productId required' });
 
   try {
@@ -1678,7 +1809,7 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
     }
     const { bot_token, chat_id } = cfg.rows[0];
 
-    const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images FROM products WHERE id = $1', [parseInt(productId)]);
+    const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images, badge, badge2 FROM products WHERE id = $1', [parseInt(productId)]);
     if (pr.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
     const p = rowToCamel(pr.rows[0]);
 
@@ -1687,8 +1818,9 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
     const idx = Number.isInteger(imageIndex) && imageIndex >= 0 && imageIndex < allImages.length ? imageIndex : 0;
     const photos = allImages.length > 0 ? [allImages[idx]] : [];
     const keyboard = productKeyboard(p);
+    const badges = withBadge ? [p.badge, p.badge2] : null;
 
-    const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id });
+    const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id, badges });
 
     if (tgResult.ok === false) {
       logger.warn({ tgResult, productId: p.id }, 'Telegram API rejected the request');
@@ -1708,7 +1840,7 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
 const tgBatches = new Map();
 
 app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
-  const { productIds, template } = req.body;
+  const { productIds, template, withBadge } = req.body;
   if (!Array.isArray(productIds) || productIds.length === 0) {
     return res.status(400).json({ error: 'productIds required (array)' });
   }
@@ -1724,7 +1856,7 @@ app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
     const batch = { total: productIds.length, sent: 0, failed: 0, errors: [], done: false };
     tgBatches.set(batchId, batch);
     // Process in background
-    processTgBatch(batchId, productIds, template || 'basic', cfg.rows[0]);
+    processTgBatch(batchId, productIds, template || 'basic', cfg.rows[0], !!withBadge);
     res.json({ batchId, total: productIds.length });
   } catch (err) {
     logger.error({ err }, 'POST /api/tg/send-batch error');
@@ -1732,7 +1864,7 @@ app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
   }
 });
 
-async function processTgBatch(batchId, productIds, template, cfg) {
+async function processTgBatch(batchId, productIds, template, cfg, withBadge) {
   const batch = tgBatches.get(batchId);
   const { bot_token, chat_id } = cfg;
   let consecutiveFails = 0;
@@ -1745,14 +1877,15 @@ async function processTgBatch(batchId, productIds, template, cfg) {
       break;
     }
     try {
-      const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images FROM products WHERE id = $1', [parseInt(productId)]);
+      const pr = await pool.query('SELECT id, name, brand, price, original_price, sizes, images, badge, badge2 FROM products WHERE id = $1', [parseInt(productId)]);
       if (pr.rows.length === 0) { batch.failed++; consecutiveFails++; continue; }
       const p = rowToCamel(pr.rows[0]);
       const text = buildPostText(p, template);
       const allImages = p.images || [];
       const photos = allImages.length > 0 ? [allImages[0]] : [];
       const keyboard = productKeyboard(p);
-      const result = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id });
+      const badges = withBadge ? [p.badge, p.badge2] : null;
+      const result = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id, badges });
       if (result.ok === false) {
         batch.failed++;
         consecutiveFails++;

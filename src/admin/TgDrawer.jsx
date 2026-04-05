@@ -36,6 +36,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(null); // "2/5"
   const [result, setResult] = useState(null); // {type, text}
+  const [withBadge, setWithBadge] = useState(false);
   const pollRef = useRef(null);
 
   // Cleanup polling on unmount
@@ -61,6 +62,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       setActiveIdx(0);
       setSelectedPhoto(0);
       if (valid.length > 0) setEditText(valid[0].text);
+      setWithBadge(false);
       setLoading(false);
     }).catch(() => {
       if (!cancelled) setLoading(false);
@@ -91,6 +93,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       try {
         const body = { productId: p.product.id, template, imageIndex: selectedPhoto };
         if (editText !== p.text) body.text = editText;
+        if (withBadge) body.withBadge = true;
         const res = await authFetch('/api/tg/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -118,7 +121,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       const res = await authFetch('/api/tg/send-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productIds: previews.map(p => p.product.id), template }),
+        body: JSON.stringify({ productIds: previews.map(p => p.product.id), template, ...(withBadge ? { withBadge: true } : {}) }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -158,7 +161,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       setSending(false);
       setResult({ type: 'error', text: 'Ошибка запуска отправки' });
     }
-  }, [previews, sending, editText, template, selectedPhoto, onSent]);
+  }, [previews, sending, editText, template, selectedPhoto, withBadge, onSent]);
 
   const current = previews[activeIdx];
   const isSingle = previews.length === 1;
@@ -197,6 +200,14 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
                 </button>
               ))}
             </div>
+
+            {/* Badge toggle */}
+            {previews.some(p => p.hasBadge) && (
+              <label className="tg-drawer__badge-toggle">
+                <input type="checkbox" checked={withBadge} onChange={e => setWithBadge(e.target.checked)} />
+                <span>С бейджом на фото</span>
+              </label>
+            )}
 
             {/* Multi-product tabs */}
             {!isSingle && (
