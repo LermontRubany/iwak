@@ -26,8 +26,10 @@ function AppRoutes() {
 
   return (
     <>
-      <Header />
-      <PromoBanner position="top" />
+      <div className="header-group">
+        <PromoBanner position="top" />
+        <Header />
+      </div>
 
       <main className="main-content">
         <Routes location={baseLocation}>

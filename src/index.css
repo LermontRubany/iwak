@@ -85,14 +85,19 @@ img {
 }
 
 /* =============================================
+   HEADER GROUP (sticky wrapper for header + top banner)
+   ============================================= */
+.header-group {
+  position: sticky;
+  top: 0;
+  z-index: 600;
+}
+
+/* =============================================
    HEADER
    ============================================= */
 .site-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 600;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1008,13 +1013,6 @@ img {
   min-height: calc(100vh - 56px - 60px);
   min-height: calc(100dvh - 56px - 60px);
   animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  padding-top: calc(64px + env(safe-area-inset-top, 0px));
-}
-
-@media (max-width: 767px) {
-  .main-content {
-    padding-top: calc(70px + env(safe-area-inset-top, 0px));
-  }
 }
 
 /* =============================================
