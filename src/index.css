@@ -3064,7 +3064,7 @@ img {
   z-index: 550;
   display: flex;
   justify-content: center;
-  padding: 12px 16px;
+  padding: 4px 12px;
   pointer-events: none;
 }
 
