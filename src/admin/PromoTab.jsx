@@ -15,6 +15,7 @@ const DEFAULTS = {
   maxWidth: 480,
   link: '',
   pages: [],
+  position: 'bottom',
 };
 
 const PAGE_OPTIONS = [
@@ -116,6 +117,16 @@ export default function PromoTab() {
           <input type="checkbox" checked={cfg.enabled} onChange={e => upd('enabled', e.target.checked)} />
           <span>Включён</span>
         </label>
+
+        {/* Position */}
+        <div className="promo-tab__field">
+          <label className="promo-tab__label">Позиция баннера</label>
+          <select className="adm-input promo-tab__input promo-tab__input--sm"
+            value={cfg.position || 'bottom'} onChange={e => upd('position', e.target.value)}>
+            <option value="bottom">Внизу экрана</option>
+            <option value="top">Под шапкой</option>
+          </select>
+        </div>
 
         {/* Text + Emoji */}
         <div className="promo-tab__field">

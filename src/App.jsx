@@ -27,7 +27,7 @@ function AppRoutes() {
   return (
     <>
       <Header />
-      <PromoBanner />
+      <PromoBanner position="top" />
 
       <main className="main-content">
         <Routes location={baseLocation}>
@@ -45,6 +45,8 @@ function AppRoutes() {
 
       {/* CartPage: manages its own .overlay wrapper */}
       {isCart && <CartPage />}
+
+      <PromoBanner position="bottom" />
 
       <footer className="site-footer">
         <p>© 2026 IWAK. Все права защищены.</p>

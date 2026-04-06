@@ -17,7 +17,7 @@ function setCache(data) {
   try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
 
-export default function PromoBanner() {
+export default function PromoBanner({ position = 'bottom' }) {
   const [cfg, setCfg] = useState(getCached);
   const fetchedRef = useRef(false);
   const location = useLocation();
@@ -34,6 +34,10 @@ export default function PromoBanner() {
   }, []);
 
   if (!cfg || !cfg.enabled || !cfg.text) return null;
+
+  // Only render for the matching position
+  const cfgPosition = cfg.position || 'bottom';
+  if (cfgPosition !== position) return null;
 
   // Page filtering: if pages array is non-empty, check current path
   if (Array.isArray(cfg.pages) && cfg.pages.length > 0) {
@@ -76,7 +80,7 @@ export default function PromoBanner() {
   );
 
   return (
-    <div className="promo-banner">
+    <div className={`promo-banner promo-banner--${position}`}>
       {inner}
     </div>
   );

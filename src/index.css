@@ -3039,10 +3039,11 @@ img {
 /* product-overlay and page-slide-up removed — overlays now use .overlay system */
 
 /* =============================================
-   PROMO BANNER (fixed bottom)
-   z-index: 500  — below header(600), below overlay(1000)
+   PROMO BANNER (top / bottom position)
+   bottom: z-index 500 — below header(600), below overlay(1000)
+   top: relative, in document flow
    ============================================= */
-.promo-banner {
+.promo-banner--bottom {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -3055,8 +3056,15 @@ img {
   pointer-events: none;
 }
 
+.promo-banner--top {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px;
+}
+
 .promo-banner__inner {
-  pointer-events: auto;
   width: 100%;
   box-sizing: border-box;
   text-align: center;
