@@ -85,19 +85,14 @@ img {
 }
 
 /* =============================================
-   HEADER GROUP (sticky wrapper for header + top banner)
-   ============================================= */
-.header-group {
-  position: sticky;
-  top: 0;
-  z-index: 600;
-}
-
-/* =============================================
    HEADER
    ============================================= */
 .site-header {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 600;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1013,6 +1008,13 @@ img {
   min-height: calc(100vh - 56px - 60px);
   min-height: calc(100dvh - 56px - 60px);
   animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+}
+
+@media (max-width: 767px) {
+  .main-content {
+    padding-top: calc(70px + env(safe-area-inset-top, 0px));
+  }
 }
 
 /* =============================================
@@ -3055,11 +3057,26 @@ img {
 }
 
 .promo-banner--top {
-  position: relative;
-  width: 100%;
+  position: fixed;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  left: 0;
+  right: 0;
+  z-index: 550;
   display: flex;
   justify-content: center;
   padding: 12px 16px;
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .promo-banner--top {
+    top: calc(70px + env(safe-area-inset-top, 0px));
+  }
+}
+
+.promo-banner--bottom .promo-banner__inner,
+.promo-banner--top .promo-banner__inner {
+  pointer-events: auto;
 }
 
 .promo-banner__inner {
