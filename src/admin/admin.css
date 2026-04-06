@@ -2671,3 +2671,136 @@
   color: rgba(255,255,255,0.4);
   text-align: center;
 }
+
+/* =============================================
+   PROMO TAB
+   ============================================= */
+.promo-tab {
+  padding: 16px;
+  max-width: 560px;
+}
+
+.promo-tab__section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.promo-tab__title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adm-text);
+  margin: 0 0 4px;
+}
+
+.promo-tab__preview {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  padding: 16px;
+}
+
+.promo-tab__preview-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+  margin-bottom: 10px;
+}
+
+.promo-tab__preview-area {
+  display: flex;
+  justify-content: center;
+}
+
+.promo-tab__preview-empty {
+  font-size: 12px;
+  color: var(--adm-text-muted);
+}
+
+.promo-tab__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--adm-text);
+  cursor: pointer;
+}
+
+.promo-tab__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.promo-tab__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adm-text-muted);
+}
+
+.promo-tab__input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.promo-tab__input--sm {
+  max-width: 180px;
+}
+
+.promo-tab__row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.promo-tab__row > .promo-tab__field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.promo-tab__color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.promo-tab__color-wrap input[type="color"] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--adm-border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+
+.promo-tab__hint {
+  font-size: 11px;
+  color: var(--adm-text-muted);
+}
+
+.promo-tab__pages {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.promo-tab__page-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--adm-text);
+  cursor: pointer;
+}
+
+.promo-tab__save {
+  align-self: flex-start;
+  margin-top: 8px;
+}

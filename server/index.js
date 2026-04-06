@@ -1341,6 +1341,41 @@ app.get('/product/:slug', async (req, res, next) => {
 });
 
 // ════════════════════════════════════════════
+// PROMO BANNER CONFIG
+// ════════════════════════════════════════════
+
+// ── Get promo config (public — storefront needs it) ──
+app.get('/api/promo/config', async (_req, res) => {
+  try {
+    const r = await pool.query('SELECT config, updated_at FROM promo_config WHERE id = 1');
+    if (r.rows.length === 0) return res.json({ config: {} });
+    res.json({ config: r.rows[0].config, updatedAt: r.rows[0].updated_at });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/promo/config error');
+    res.status(500).json({ error: 'Config error' });
+  }
+});
+
+// ── Save promo config (admin-only) ──
+app.put('/api/promo/config', requireAuth, async (req, res) => {
+  const { config } = req.body;
+  if (!config || typeof config !== 'object') {
+    return res.status(400).json({ error: 'config object required' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO promo_config (id, config, updated_at) VALUES (1, $1, now())
+       ON CONFLICT (id) DO UPDATE SET config = $1, updated_at = now()`,
+      [JSON.stringify(config)]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'PUT /api/promo/config error');
+    res.status(500).json({ error: 'Save error' });
+  }
+});
+
+// ════════════════════════════════════════════
 // TELEGRAM AUTOMATION (admin-only)
 // ════════════════════════════════════════════
 

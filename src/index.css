@@ -3037,3 +3037,37 @@ img {
    ============================================= */
 
 /* product-overlay and page-slide-up removed — overlays now use .overlay system */
+
+/* =============================================
+   PROMO BANNER (fixed bottom)
+   z-index: 500  — below header(600), below overlay(1000)
+   ============================================= */
+.promo-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 500;
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+
+.promo-banner__inner {
+  pointer-events: auto;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+  text-decoration: none;
+  display: block;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+}
+
+a.promo-banner__inner:hover {
+  opacity: 0.92;
+}

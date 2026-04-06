@@ -7,6 +7,7 @@ import AdminApp from './admin/AdminApp';
 import AdminLogin from './admin/AdminLogin';
 import { isTokenValid, tokenMinutesLeft, resetAuthGuard } from './admin/authFetch';
 import Header from './components/Header';
+import PromoBanner from './components/PromoBanner';
 import CatalogPage from './pages/CatalogPage';
 import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
@@ -26,6 +27,7 @@ function AppRoutes() {
   return (
     <>
       <Header />
+      <PromoBanner />
 
       <main className="main-content">
         <Routes location={baseLocation}>
