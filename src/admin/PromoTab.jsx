@@ -50,6 +50,7 @@ export default function PromoTab() {
         notifyGlobal('success', 'Баннер сохранён');
         // Clear storefront cache so changes appear immediately
         try { sessionStorage.removeItem('iwak_promo_cfg'); } catch {}
+        window.dispatchEvent(new Event('promo-updated'));
       } else {
         notifyGlobal('error', d.error || 'Ошибка сохранения');
       }

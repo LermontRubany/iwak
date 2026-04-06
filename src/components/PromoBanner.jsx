@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const CACHE_KEY = 'iwak_promo_cfg';
@@ -22,16 +22,31 @@ export default function PromoBanner({ position = 'bottom' }) {
   const fetchedRef = useRef(false);
   const location = useLocation();
 
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    const cached = getCached();
-    if (cached) { setCfg(cached); return; }
+  const refetch = useCallback(() => {
     fetch('/api/promo/config')
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.config) { setCache(d.config); setCfg(d.config); } })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    const cached = getCached();
+    if (cached) { setCfg(cached); return; }
+    refetch();
+  }, [refetch]);
+
+  useEffect(() => {
+    const onUpdate = () => refetch();
+    const onFocus = () => { if (!getCached()) refetch(); };
+    window.addEventListener('promo-updated', onUpdate);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('promo-updated', onUpdate);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [refetch]);
 
   if (!cfg || !cfg.enabled || !cfg.text) return null;
 
