@@ -3057,20 +3057,14 @@ img {
 }
 
 .promo-banner--top {
-  position: fixed;
-  top: calc(64px + env(safe-area-inset-top, 0px));
-  left: 0;
-  right: 0;
-  z-index: 550;
+  position: relative;
   display: flex;
   justify-content: center;
   padding: 4px 12px;
-  pointer-events: none;
 }
 
 @media (max-width: 767px) {
   .promo-banner--top {
-    top: calc(70px + env(safe-area-inset-top, 0px));
   }
 }
 

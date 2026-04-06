@@ -27,9 +27,9 @@ function AppRoutes() {
   return (
     <>
       <Header />
-      <PromoBanner position="top" />
 
       <main className="main-content">
+        <PromoBanner position="top" />
         <Routes location={baseLocation}>
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/" element={<Navigate to="/catalog" replace />} />
