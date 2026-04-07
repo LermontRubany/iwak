@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import { notifyGlobal } from '../context/NotificationsContext';
 import TgDrawer from './TgDrawer';
+import AutoPlanSection from './AutoPlanSection';
 import authFetch from './authFetch';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
@@ -302,6 +303,9 @@ export default function TelegramTab() {
           )}
         </div>
       </div>
+
+      {/* ── Autoplan ── */}
+      {configured && <AutoPlanSection products={products} />}
 
       {/* ── Posting ── */}
       <div className="tg-section">

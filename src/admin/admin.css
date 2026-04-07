@@ -2804,3 +2804,365 @@
   align-self: flex-start;
   margin-top: 8px;
 }
+
+/* ════════════════════════════════════════════
+   AUTOPLAN
+   ════════════════════════════════════════════ */
+
+.autoplan-empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+.autoplan-empty__icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+.autoplan-empty__text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--adm-text);
+  margin-bottom: 4px;
+}
+.autoplan-empty__hint {
+  font-size: 13px;
+  color: var(--adm-muted);
+  margin-bottom: 16px;
+}
+
+/* ── Plan cards ── */
+.autoplan-plans {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.autoplan-card {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.autoplan-card--active {
+  border-left: 3px solid #4caf50;
+}
+.autoplan-card--paused {
+  border-left: 3px solid #ff9800;
+}
+.autoplan-card--completed {
+  opacity: 0.7;
+}
+.autoplan-card--cancelled {
+  opacity: 0.5;
+}
+.autoplan-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.autoplan-card__name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--adm-text);
+}
+.autoplan-card__menu {
+  display: flex;
+  gap: 6px;
+}
+.autoplan-card__action {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: opacity .15s;
+}
+.autoplan-card__action:hover {
+  opacity: 1;
+  background: var(--adm-hover);
+}
+.autoplan-card__status {
+  margin-bottom: 8px;
+}
+.autoplan-status {
+  font-size: 13px;
+  font-weight: 500;
+}
+.autoplan-status--active { color: #4caf50; }
+.autoplan-status--paused { color: #ff9800; }
+.autoplan-status--completed { color: var(--adm-muted); }
+.autoplan-status--cancelled { color: var(--adm-muted); }
+
+.autoplan-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.autoplan-progress {
+  flex: 1;
+  height: 6px;
+  background: var(--adm-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.autoplan-progress__bar {
+  height: 100%;
+  background: #4caf50;
+  border-radius: 3px;
+  transition: width .3s;
+}
+.autoplan-card__counts {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--adm-text);
+  white-space: nowrap;
+}
+.autoplan-card__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--adm-muted);
+  margin-bottom: 4px;
+}
+.autoplan-card__errors {
+  color: #e53935;
+}
+.autoplan-card__next {
+  font-size: 12px;
+  color: var(--adm-muted);
+  margin-bottom: 6px;
+}
+.autoplan-card__toggle {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--adm-accent);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* ── Tasks list ── */
+.autoplan-tasks {
+  margin-top: 10px;
+  border-top: 1px solid var(--adm-border);
+  padding-top: 10px;
+}
+.autoplan-tasks__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.autoplan-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.autoplan-task--done { opacity: 0.5; }
+.autoplan-task--failed { background: rgba(229, 57, 53, 0.07); }
+.autoplan-task__time {
+  min-width: 80px;
+  color: var(--adm-muted);
+  font-size: 12px;
+}
+.autoplan-task__product {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.autoplan-task__status {
+  font-size: 14px;
+}
+.autoplan-task__delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.4;
+  padding: 2px 4px;
+}
+.autoplan-task__delete:hover { opacity: 1; color: #e53935; }
+
+.autoplan-new-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* ── Form ── */
+.autoplan-form {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-accent);
+  border-left: 3px solid var(--adm-accent);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.autoplan-form__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.autoplan-form__header h4 {
+  margin: 0;
+  font-size: 15px;
+}
+.autoplan-form__close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 2px 6px;
+}
+.autoplan-form__close:hover { opacity: 1; }
+.autoplan-form__group {
+  margin-top: 16px;
+}
+.autoplan-form__group-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--adm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+.autoplan-form__row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.autoplan-form__field {
+  flex: 1;
+  min-width: 120px;
+}
+.autoplan-form__field .adm-input {
+  width: 100%;
+}
+.autoplan-form__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.autoplan-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.autoplan-radio {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.autoplan-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+/* ── Slots ── */
+.autoplan-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.autoplan-slot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.autoplan-slot__input {
+  width: 110px !important;
+}
+.autoplan-slot__remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.4;
+  padding: 2px;
+}
+.autoplan-slot__remove:hover { opacity: 1; color: #e53935; }
+
+/* ── Preview ── */
+.autoplan-preview {
+  margin-top: 16px;
+  border-top: 1px solid var(--adm-border);
+  padding-top: 12px;
+}
+.autoplan-preview__summary {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.autoplan-preview__warn {
+  color: #ff9800;
+}
+.autoplan-preview__table {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.autoplan-preview__day {
+  margin-bottom: 10px;
+}
+.autoplan-preview__date {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--adm-muted);
+  border-bottom: 1px solid var(--adm-border);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+.autoplan-preview__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+.autoplan-preview__row--repeat {
+  opacity: 0.6;
+}
+.autoplan-preview__time {
+  min-width: 44px;
+  color: var(--adm-muted);
+  font-size: 12px;
+}
+.autoplan-preview__img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.autoplan-preview__name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.autoplan-preview__price {
+  font-size: 12px;
+  color: var(--adm-muted);
+  white-space: nowrap;
+}
+.autoplan-preview__repeat {
+  font-size: 12px;
+}

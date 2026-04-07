@@ -1956,6 +1956,485 @@ app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
   res.json(batch);
 });
 
+// ════════════════════════════════════════════
+// AUTOPLAN — scheduled Telegram posting
+// ════════════════════════════════════════════
+
+// ── Autoplan: generate preview (no DB write) ──
+app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
+  try {
+    const { productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge } = req.body;
+
+    if (!postsPerDay || !timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0) {
+      return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
+    }
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate и endDate обязательны' });
+    }
+
+    // Resolve product list
+    let ids;
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      ids = productIds.map(Number).filter(Number.isFinite);
+    } else {
+      // Build WHERE from filters
+      const conditions = [];
+      const params = [];
+      let idx = 0;
+      if (filters?.category) { idx++; conditions.push(`category = $${idx}`); params.push(filters.category); }
+      if (filters?.gender) { idx++; conditions.push(`gender = $${idx}`); params.push(filters.gender); }
+      if (filters?.brand) { idx++; conditions.push(`LOWER(brand) = LOWER($${idx})`); params.push(filters.brand); }
+      if (filters?.onlyUnsent) { conditions.push('tg_sent_at IS NULL'); }
+
+      const orderMap = {
+        newest: 'created_at DESC',
+        priority: 'priority DESC, created_at DESC',
+        price_desc: 'price DESC',
+      };
+      const order = orderMap[strategy] || orderMap.newest;
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const r = await pool.query(`SELECT id, name, brand, image, price FROM products ${where} ORDER BY ${order}`, params);
+      ids = r.rows.map(row => row.id);
+    }
+
+    if (ids.length === 0) {
+      return res.status(400).json({ error: 'Нет товаров для плана' });
+    }
+
+    // If productIds given, load product info + sort
+    let productMap = {};
+    if (ids.length > 0) {
+      const orderMap = { newest: 'created_at DESC', priority: 'priority DESC, created_at DESC', price_desc: 'price DESC' };
+      const order = orderMap[strategy] || orderMap.newest;
+      const r = await pool.query(`SELECT id, name, brand, image, price FROM products WHERE id = ANY($1) ORDER BY ${order}`, [ids]);
+      ids = r.rows.map(row => row.id);
+      for (const row of r.rows) productMap[row.id] = row;
+    }
+
+    // Generate slots
+    const slots = generateAutoplanSlots(ids, timeSlots, startDate, endDate);
+
+    // Enrich with product info
+    const seenProducts = new Set();
+    const enriched = slots.map(s => {
+      const p = productMap[s.productId];
+      const isRepeat = seenProducts.has(s.productId);
+      seenProducts.add(s.productId);
+      return {
+        date: s.date,
+        time: s.time,
+        scheduledAt: s.scheduledAt,
+        productId: s.productId,
+        productName: p ? p.name : `#${s.productId}`,
+        productBrand: p ? p.brand : '',
+        productImage: p ? p.image : '',
+        productPrice: p ? parseFloat(p.price) : 0,
+        isRepeat,
+      };
+    });
+
+    const uniqueProducts = new Set(slots.map(s => s.productId)).size;
+    res.json({
+      slots: enriched,
+      totalPosts: enriched.length,
+      uniqueProducts,
+      repeats: enriched.length - uniqueProducts > 0 ? enriched.length - uniqueProducts : 0,
+      days: new Set(enriched.map(s => s.date)).size,
+    });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/tg/autoplan/preview error');
+    res.status(500).json({ error: 'Ошибка генерации превью' });
+  }
+});
+
+// ── Autoplan: create plan ──
+app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
+  try {
+    const { name, productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge } = req.body;
+
+    if (!name?.trim()) return res.status(400).json({ error: 'Название плана обязательно' });
+    if (!postsPerDay || !timeSlots || timeSlots.length === 0) return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
+    if (!startDate || !endDate) return res.status(400).json({ error: 'startDate и endDate обязательны' });
+
+    // Resolve product IDs (same logic as preview)
+    let ids;
+    if (Array.isArray(productIds) && productIds.length > 0) {
+      ids = productIds.map(Number).filter(Number.isFinite);
+    } else {
+      const conditions = [];
+      const params = [];
+      let idx = 0;
+      if (filters?.category) { idx++; conditions.push(`category = $${idx}`); params.push(filters.category); }
+      if (filters?.gender) { idx++; conditions.push(`gender = $${idx}`); params.push(filters.gender); }
+      if (filters?.brand) { idx++; conditions.push(`LOWER(brand) = LOWER($${idx})`); params.push(filters.brand); }
+      if (filters?.onlyUnsent) { conditions.push('tg_sent_at IS NULL'); }
+      const orderMap = { newest: 'created_at DESC', priority: 'priority DESC, created_at DESC', price_desc: 'price DESC' };
+      const order = orderMap[strategy] || orderMap.newest;
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const r = await pool.query(`SELECT id FROM products ${where} ORDER BY ${order}`, params);
+      ids = r.rows.map(row => row.id);
+    }
+
+    if (ids.length === 0) return res.status(400).json({ error: 'Нет товаров для плана' });
+
+    // Sort by strategy
+    const orderMap = { newest: 'created_at DESC', priority: 'priority DESC, created_at DESC', price_desc: 'price DESC' };
+    const order = orderMap[strategy] || orderMap.newest;
+    const sorted = await pool.query(`SELECT id FROM products WHERE id = ANY($1) ORDER BY ${order}`, [ids]);
+    ids = sorted.rows.map(r => r.id);
+
+    // Generate slots
+    const slots = generateAutoplanSlots(ids, timeSlots, startDate, endDate);
+    if (slots.length === 0) return res.status(400).json({ error: 'План пуст — проверьте даты и время' });
+
+    // Insert plan
+    const tpl = template || 'basic';
+    const badge = !!withBadge;
+    const planParams = { strategy, postsPerDay, timeSlots, startDate, endDate, template: tpl, withBadge: badge, filters: filters || null, productCount: ids.length };
+    const planResult = await pool.query(
+      `INSERT INTO tg_plans (name, params, total_posts, starts_at, ends_at)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [name.trim(), JSON.stringify(planParams), slots.length, slots[0].scheduledAt, slots[slots.length - 1].scheduledAt]
+    );
+    const planId = planResult.rows[0].id;
+
+    // Bulk insert scheduled tasks
+    const values = [];
+    const taskParams = [];
+    let pi = 0;
+    for (const s of slots) {
+      const base = pi * 5;
+      values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+      taskParams.push(planId, s.productId, tpl, badge, s.scheduledAt);
+      pi++;
+    }
+    await pool.query(
+      `INSERT INTO tg_scheduled (plan_id, product_id, template, with_badge, scheduled_at)
+       VALUES ${values.join(', ')}`,
+      taskParams
+    );
+
+    logger.info({ planId, name: name.trim(), totalPosts: slots.length }, 'Autoplan created');
+    res.json({ ok: true, planId, totalPosts: slots.length });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/tg/autoplan error');
+    res.status(500).json({ error: 'Ошибка создания плана' });
+  }
+});
+
+// ── Autoplan: list plans ──
+app.get('/api/tg/plans', requireAuth, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT p.*,
+              (SELECT scheduled_at FROM tg_scheduled
+               WHERE plan_id = p.id AND status = 'pending'
+               ORDER BY scheduled_at LIMIT 1) AS next_post_at,
+              (SELECT product_id FROM tg_scheduled
+               WHERE plan_id = p.id AND status = 'pending'
+               ORDER BY scheduled_at LIMIT 1) AS next_product_id
+       FROM tg_plans p
+       ORDER BY
+         CASE WHEN p.status = 'active' THEN 0 WHEN p.status = 'paused' THEN 1 ELSE 2 END,
+         p.created_at DESC`
+    );
+    // Fetch next product names
+    const nextIds = r.rows.map(p => p.next_product_id).filter(Boolean);
+    let productNames = {};
+    if (nextIds.length > 0) {
+      const pr = await pool.query('SELECT id, name, brand FROM products WHERE id = ANY($1)', [nextIds]);
+      for (const row of pr.rows) productNames[row.id] = { name: row.name, brand: row.brand };
+    }
+
+    const plans = r.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      params: row.params,
+      status: row.status,
+      totalPosts: row.total_posts,
+      sentCount: row.sent_count,
+      failedCount: row.failed_count,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      createdAt: row.created_at,
+      nextPostAt: row.next_post_at || null,
+      nextProductName: row.next_product_id && productNames[row.next_product_id]
+        ? `${productNames[row.next_product_id].brand} ${productNames[row.next_product_id].name}`.trim()
+        : null,
+    }));
+    res.json(plans);
+  } catch (err) {
+    logger.error({ err }, 'GET /api/tg/plans error');
+    res.status(500).json({ error: 'Ошибка загрузки планов' });
+  }
+});
+
+// ── Autoplan: plan tasks ──
+app.get('/api/tg/plans/:id/tasks', requireAuth, async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const r = await pool.query(
+      `SELECT s.id, s.product_id, s.template, s.with_badge, s.scheduled_at, s.status, s.result,
+              p.name AS product_name, p.brand AS product_brand, p.image AS product_image, p.price AS product_price
+       FROM tg_scheduled s
+       LEFT JOIN products p ON p.id = s.product_id
+       WHERE s.plan_id = $1
+       ORDER BY s.scheduled_at`,
+      [planId]
+    );
+    const tasks = r.rows.map(row => ({
+      id: row.id,
+      productId: row.product_id,
+      productName: row.product_name,
+      productBrand: row.product_brand,
+      productImage: row.product_image,
+      productPrice: row.product_price ? parseFloat(row.product_price) : null,
+      template: row.template,
+      withBadge: row.with_badge,
+      scheduledAt: row.scheduled_at,
+      status: row.status,
+      result: row.result,
+    }));
+    res.json(tasks);
+  } catch (err) {
+    logger.error({ err }, 'GET /api/tg/plans/:id/tasks error');
+    res.status(500).json({ error: 'Ошибка загрузки задач' });
+  }
+});
+
+// ── Autoplan: pause / resume / cancel ──
+app.patch('/api/tg/plans/:id', requireAuth, async (req, res) => {
+  try {
+    const planId = req.params.id;
+    const { action } = req.body; // 'pause' | 'resume' | 'cancel'
+    if (!['pause', 'resume', 'cancel'].includes(action)) {
+      return res.status(400).json({ error: 'action должен быть pause, resume или cancel' });
+    }
+
+    const plan = await pool.query('SELECT status FROM tg_plans WHERE id = $1', [planId]);
+    if (plan.rows.length === 0) return res.status(404).json({ error: 'План не найден' });
+
+    const current = plan.rows[0].status;
+
+    if (action === 'pause' && current !== 'active') return res.status(400).json({ error: 'Можно приостановить только активный план' });
+    if (action === 'resume' && current !== 'paused') return res.status(400).json({ error: 'Можно возобновить только приостановленный план' });
+    if (action === 'cancel' && !['active', 'paused'].includes(current)) return res.status(400).json({ error: 'Можно отменить только активный или приостановленный план' });
+
+    const newStatus = action === 'pause' ? 'paused' : action === 'resume' ? 'active' : 'cancelled';
+    await pool.query('UPDATE tg_plans SET status = $1 WHERE id = $2', [newStatus, planId]);
+
+    // If cancelling, also cancel all pending tasks
+    if (action === 'cancel') {
+      await pool.query("UPDATE tg_scheduled SET status = 'failed', result = '{\"error\":\"plan_cancelled\"}'::jsonb WHERE plan_id = $1 AND status = 'pending'", [planId]);
+    }
+
+    logger.info({ planId, action, newStatus }, 'Autoplan status changed');
+    res.json({ ok: true, status: newStatus });
+  } catch (err) {
+    logger.error({ err }, 'PATCH /api/tg/plans/:id error');
+    res.status(500).json({ error: 'Ошибка обновления плана' });
+  }
+});
+
+// ── Autoplan: delete plan (CASCADE deletes tasks) ──
+app.delete('/api/tg/plans/:id', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('DELETE FROM tg_plans WHERE id = $1 RETURNING id', [req.params.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'План не найден' });
+    logger.info({ planId: req.params.id }, 'Autoplan deleted');
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'DELETE /api/tg/plans/:id error');
+    res.status(500).json({ error: 'Ошибка удаления' });
+  }
+});
+
+// ── Autoplan: delete single scheduled task ──
+app.delete('/api/tg/schedule/:id', requireAuth, async (req, res) => {
+  try {
+    const taskId = parseInt(req.params.id);
+    if (isNaN(taskId)) return res.status(400).json({ error: 'Invalid task id' });
+    const r = await pool.query(
+      "DELETE FROM tg_scheduled WHERE id = $1 AND status = 'pending' RETURNING plan_id",
+      [taskId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Задача не найдена или уже выполнена' });
+
+    // Decrement plan total_posts
+    await pool.query('UPDATE tg_plans SET total_posts = total_posts - 1 WHERE id = $1', [r.rows[0].plan_id]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'DELETE /api/tg/schedule/:id error');
+    res.status(500).json({ error: 'Ошибка удаления задачи' });
+  }
+});
+
+// ── Autoplan: scheduled products (for badge on product cards) ──
+app.get('/api/tg/scheduled-products', requireAuth, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT product_id, MIN(scheduled_at) AS next_at
+       FROM tg_scheduled
+       WHERE status = 'pending'
+       GROUP BY product_id`
+    );
+    const map = {};
+    for (const row of r.rows) map[row.product_id] = row.next_at;
+    res.json(map);
+  } catch (err) {
+    logger.error({ err }, 'GET /api/tg/scheduled-products error');
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+// ── Autoplan: slot generation helper ──
+function generateAutoplanSlots(productIds, timeSlots, startDate, endDate) {
+  const slots = [];
+  const sortedTimes = [...timeSlots].sort();
+  const start = new Date(startDate + 'T00:00:00+03:00'); // Moscow timezone
+  const end = new Date(endDate + 'T23:59:59+03:00');
+  let pointer = 0;
+
+  const d = new Date(start);
+  while (d <= end) {
+    const dateStr = d.toISOString().slice(0, 10); // YYYY-MM-DD
+    for (const time of sortedTimes) {
+      const scheduledAt = new Date(`${dateStr}T${time}:00+03:00`);
+      if (scheduledAt > end) break;
+      slots.push({
+        date: dateStr,
+        time,
+        scheduledAt: scheduledAt.toISOString(),
+        productId: productIds[pointer % productIds.length],
+      });
+      pointer++;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return slots;
+}
+
+// ── Autoplan: scheduler (runs every 30s) ──
+async function processScheduledTask() {
+  try {
+    // Atomic capture: grab one pending task that's due
+    const r = await pool.query(
+      `UPDATE tg_scheduled
+       SET    status = 'processing'
+       WHERE  id = (
+         SELECT s.id FROM tg_scheduled s
+         INNER JOIN tg_plans p ON p.id = s.plan_id
+         WHERE  s.status = 'pending'
+           AND  s.scheduled_at <= now()
+           AND  p.status = 'active'
+         ORDER BY s.scheduled_at
+         LIMIT 1
+         FOR UPDATE OF s SKIP LOCKED
+       )
+       RETURNING *`
+    );
+
+    if (r.rows.length === 0) return; // Nothing due
+
+    const task = r.rows[0];
+    logger.info({ taskId: task.id, productId: task.product_id, planId: task.plan_id }, 'Scheduler: processing task');
+
+    // Load TG config
+    const cfgR = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
+    if (cfgR.rows.length === 0 || !cfgR.rows[0].bot_token || !cfgR.rows[0].chat_id) {
+      await pool.query(
+        "UPDATE tg_scheduled SET status = 'failed', result = $1 WHERE id = $2",
+        [JSON.stringify({ error: 'Telegram не настроен' }), task.id]
+      );
+      await pool.query('UPDATE tg_plans SET failed_count = failed_count + 1 WHERE id = $1', [task.plan_id]);
+      return;
+    }
+    const { bot_token, chat_id } = cfgR.rows[0];
+
+    // Load product
+    const pr = await pool.query(
+      'SELECT id, name, brand, price, original_price, sizes, images, badge, badge2 FROM products WHERE id = $1',
+      [task.product_id]
+    );
+    if (pr.rows.length === 0) {
+      await pool.query(
+        "UPDATE tg_scheduled SET status = 'failed', result = $1 WHERE id = $2",
+        [JSON.stringify({ error: 'Товар не найден' }), task.id]
+      );
+      await pool.query('UPDATE tg_plans SET failed_count = failed_count + 1 WHERE id = $1', [task.plan_id]);
+      return;
+    }
+
+    const p = rowToCamel(pr.rows[0]);
+    const text = buildPostText(p, task.template);
+    const allImages = p.images || [];
+    const photos = allImages.length > 0 ? [allImages[0]] : [];
+    const keyboard = productKeyboard(p);
+    const badges = task.with_badge ? [p.badge, p.badge2] : null;
+
+    // Send via existing pipeline
+    const tgResult = await tgEnqueue({
+      botToken: bot_token,
+      chatId: chat_id,
+      text,
+      photos,
+      keyboard,
+      productId: p.id,
+      badges,
+    });
+
+    if (tgResult.ok === false) {
+      await pool.query(
+        "UPDATE tg_scheduled SET status = 'failed', result = $1 WHERE id = $2",
+        [JSON.stringify({ error: tgResult.description || 'TG error' }), task.id]
+      );
+      await pool.query('UPDATE tg_plans SET failed_count = failed_count + 1 WHERE id = $1', [task.plan_id]);
+      logger.warn({ taskId: task.id, tgResult }, 'Scheduler: task failed');
+    } else {
+      await pool.query(
+        "UPDATE tg_scheduled SET status = 'done', result = $1 WHERE id = $2",
+        [JSON.stringify({ messageId: tgResult.result?.message_id }), task.id]
+      );
+      await pool.query('UPDATE tg_plans SET sent_count = sent_count + 1 WHERE id = $1', [task.plan_id]);
+      await pool.query('UPDATE products SET tg_sent_at = now() WHERE id = $1', [task.product_id]);
+      cacheInvalidate();
+      logger.info({ taskId: task.id, productId: task.product_id }, 'Scheduler: task done');
+    }
+
+    // Auto-complete plan if all tasks done/failed
+    await pool.query(
+      `UPDATE tg_plans SET status = 'completed'
+       WHERE id = $1 AND status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM tg_scheduled WHERE plan_id = $1 AND status IN ('pending', 'processing')
+         )`,
+      [task.plan_id]
+    );
+  } catch (err) {
+    logger.error({ err }, 'Scheduler: processScheduledTask error');
+  }
+}
+
+// Recovery: mark stuck 'processing' tasks as failed on startup
+(async () => {
+  try {
+    const r = await pool.query(
+      "UPDATE tg_scheduled SET status = 'failed', result = '{\"error\":\"server_restart\"}'::jsonb WHERE status = 'processing' RETURNING id"
+    );
+    if (r.rowCount > 0) {
+      logger.info({ count: r.rowCount }, 'Scheduler recovery: marked stuck tasks as failed');
+    }
+  } catch (err) {
+    logger.error({ err }, 'Scheduler recovery error');
+  }
+})();
+
+// Start scheduler
+const SCHEDULER_INTERVAL = 30 * 1000;
+setInterval(processScheduledTask, SCHEDULER_INTERVAL);
+logger.info({ intervalMs: SCHEDULER_INTERVAL }, 'Autoplan scheduler started');
+
 // ── Health/diagnostics (auth protected) ──
 // ── Health check (no auth) ──────────────────
 app.get('/api/health', (_req, res) => {
