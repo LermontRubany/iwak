@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { track } from '../utils/tracker';
 
 const CACHE_KEY = 'iwak_promo_cfg';
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
@@ -85,7 +86,8 @@ export default function PromoBanner({ position = 'bottom' }) {
 
   const inner = cfg.link ? (
     <a href={cfg.link} className="promo-banner__inner" style={bannerStyle}
-       target="_blank" rel="noopener noreferrer">
+       target="_blank" rel="noopener noreferrer"
+       onClick={() => track('promo_click', { position, text: cfg.text, link: cfg.link })}>
       {content}
     </a>
   ) : (

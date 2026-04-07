@@ -190,6 +190,132 @@ export default function AnalyticsTab() {
           </div>
 
           {/* Activity — compact */}
+          {data.funnel && (
+            <>
+              {/* ── Funnel KPI cards ── */}
+              <div className="anl-section">
+                <h3 className="anl-section__title">🛒 Воронка</h3>
+                <div className="anl-cards" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                  <div className="anl-card">
+                    <span className="anl-card__value">{data.funnel.cartAdds}</span>
+                    <span className="anl-card__label">В корзину</span>
+                  </div>
+                  <div className="anl-card">
+                    <span className="anl-card__value">{data.funnel.buyNows}</span>
+                    <span className="anl-card__label">Купить сейчас</span>
+                  </div>
+                  <div className="anl-card">
+                    <span className="anl-card__value">{data.funnel.checkoutClicks}</span>
+                    <span className="anl-card__label">Оформить</span>
+                  </div>
+                  <div className="anl-card">
+                    <span className="anl-card__value">{data.funnel.totalConversion}%</span>
+                    <span className="anl-card__label">Конверсия</span>
+                  </div>
+                </div>
+
+                {/* Funnel bar */}
+                <div className="anl-funnel">
+                  <div className="anl-funnel__row">
+                    <span className="anl-funnel__label">👁 Просмотры</span>
+                    <div className="anl-funnel__bar" style={{ width: '100%' }} />
+                    <span className="anl-funnel__val">{data.productViews}</span>
+                  </div>
+                  <div className="anl-funnel__row">
+                    <span className="anl-funnel__label">🛒 В корзину</span>
+                    <div className="anl-funnel__bar anl-funnel__bar--cart" style={{ width: `${Math.min(data.funnel.viewToCart * 3, 100)}%` }} />
+                    <span className="anl-funnel__val">{data.funnel.cartAdds} ({data.funnel.viewToCart}%)</span>
+                  </div>
+                  <div className="anl-funnel__row">
+                    <span className="anl-funnel__label">⚡ Купить</span>
+                    <div className="anl-funnel__bar anl-funnel__bar--buy" style={{ width: `${Math.min(data.funnel.viewToBuyNow * 3, 100)}%` }} />
+                    <span className="anl-funnel__val">{data.funnel.buyNows} ({data.funnel.viewToBuyNow}%)</span>
+                  </div>
+                  <div className="anl-funnel__row">
+                    <span className="anl-funnel__label">💳 Оформить</span>
+                    <div className="anl-funnel__bar anl-funnel__bar--checkout" style={{ width: `${Math.min(data.funnel.cartToCheckout * 3, 100)}%` }} />
+                    <span className="anl-funnel__val">{data.funnel.checkoutClicks} ({data.funnel.cartToCheckout}%)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Losses ── */}
+              {data.funnel.cartValue > 0 && (
+                <div className="anl-section">
+                  <h3 className="anl-section__title">💔 Потери</h3>
+                  <div className="anl-cards" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                    <div className="anl-card">
+                      <span className="anl-card__value">₽{Math.round(data.funnel.cartValue).toLocaleString('ru-RU')}</span>
+                      <span className="anl-card__label">Положили в корзину</span>
+                    </div>
+                    <div className="anl-card">
+                      <span className="anl-card__value">₽{Math.round(data.funnel.checkoutValue).toLocaleString('ru-RU')}</span>
+                      <span className="anl-card__label">Оформили</span>
+                    </div>
+                    <div className="anl-card" style={{ background: data.funnel.lostValue > 0 ? '#fff5f5' : undefined }}>
+                      <span className="anl-card__value" style={{ color: data.funnel.lostValue > 0 ? '#e53935' : undefined }}>₽{Math.round(data.funnel.lostValue).toLocaleString('ru-RU')}</span>
+                      <span className="anl-card__label">Упущено</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Top cart products (demand + abandon) ── */}
+              {data.funnel.topCartProducts.length > 0 && (
+                <div className="anl-section">
+                  <h3 className="anl-section__title">🔥 Спрос и потери по товарам</h3>
+                  <div className="anl-table-wrap">
+                    <table className="anl-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Товар</th>
+                          <th>🛒</th>
+                          <th>⚡</th>
+                          <th>💳</th>
+                          <th>Abandon</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.funnel.topCartProducts.map((p, i) => (
+                          <tr key={p.productId}>
+                            <td className="anl-table__rank">{i + 1}</td>
+                            <td>
+                              <span className="anl-table__brand">{p.brand}</span>{' '}
+                              <span>{p.name || `#${p.productId}`}</span>
+                              {p.price && <span style={{ color: '#888', fontSize: '0.85em' }}> ₽{p.price.toLocaleString('ru-RU')}</span>}
+                            </td>
+                            <td className="anl-table__num">{p.adds}</td>
+                            <td className="anl-table__num">{p.buyNows}</td>
+                            <td className="anl-table__num">{p.checkouts}</td>
+                            <td className="anl-table__num" style={{ color: p.abandonRate > 80 ? '#e53935' : p.abandonRate > 50 ? '#ff9800' : '#4caf50' }}>
+                              {p.abandonRate}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Top sizes ── */}
+              {data.funnel.topSizes.length > 0 && (
+                <div className="anl-section">
+                  <h3 className="anl-section__title">📏 Популярные размеры</h3>
+                  <div className="anl-peak-list" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {data.funnel.topSizes.map(s => (
+                      <span key={s.size} className="anl-peak-item">
+                        <strong>{s.size}</strong> — {s.count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Activity — compact */}
           <div className="anl-section">
             <h3 className="anl-section__title">Активность</h3>
             {!peakHour ? (

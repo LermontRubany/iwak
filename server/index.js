@@ -726,7 +726,11 @@ app.post('/api/logs', requireAuth, (req, res) => {
 // ANALYTICS — EVENT COLLECTION (public)
 // ════════════════════════════════════════════
 
-const ALLOWED_EVENT_TYPES = new Set(['page_view', 'product_view', 'share']);
+const ALLOWED_EVENT_TYPES = new Set([
+  'page_view', 'product_view', 'share',
+  'cart_add', 'cart_remove', 'buy_now', 'checkout_click',
+  'size_select', 'filter_apply', 'promo_click',
+]);
 
 app.post('/api/events', async (req, res) => {
   const events = req.body;
@@ -988,6 +992,117 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       response.sharesPercent = calcPercent(curShares, prevShares);
       response.sharesIsNew = prevShares === 0;
     }
+
+    // ── Funnel analytics (cart/buy/checkout) ──
+    const funnelQueries = await Promise.all([
+      pool.query(`SELECT COUNT(*) AS c FROM events WHERE type = 'cart_add' AND created_at >= ${sinceExpr}`),
+      pool.query(`SELECT COUNT(*) AS c FROM events WHERE type = 'cart_remove' AND created_at >= ${sinceExpr}`),
+      pool.query(`SELECT COUNT(*) AS c FROM events WHERE type = 'buy_now' AND created_at >= ${sinceExpr}`),
+      pool.query(`SELECT COUNT(*) AS c FROM events WHERE type = 'checkout_click' AND created_at >= ${sinceExpr}`),
+      pool.query(`SELECT COUNT(DISTINCT session_id) AS c FROM events WHERE type = 'cart_add' AND created_at >= ${sinceExpr}`),
+      // Top products by cart_add
+      pool.query(
+        `SELECT (data->>'productId')::int AS product_id, COUNT(*) AS adds
+         FROM events
+         WHERE type = 'cart_add' AND created_at >= ${sinceExpr}
+           AND (data->>'productId') ~ '^[0-9]+$'
+         GROUP BY (data->>'productId')::int
+         ORDER BY adds DESC LIMIT 15`
+      ),
+      // Checkout product IDs (from jsonb array) — count appearances
+      pool.query(
+        `SELECT pid::int AS product_id, COUNT(*) AS checkouts
+         FROM events, jsonb_array_elements_text(data->'productIds') AS pid
+         WHERE type = 'checkout_click' AND created_at >= ${sinceExpr}
+           AND data ? 'productIds'
+         GROUP BY pid::int`
+      ),
+      // Buy now by product
+      pool.query(
+        `SELECT (data->>'productId')::int AS product_id, COUNT(*) AS buys
+         FROM events
+         WHERE type = 'buy_now' AND created_at >= ${sinceExpr}
+           AND (data->>'productId') ~ '^[0-9]+$'
+         GROUP BY (data->>'productId')::int`
+      ),
+      // Cart value (sum of prices from cart_add)
+      pool.query(
+        `SELECT COALESCE(SUM((data->>'price')::numeric), 0) AS total
+         FROM events
+         WHERE type = 'cart_add' AND created_at >= ${sinceExpr}
+           AND (data->>'price') ~ '^[0-9]+(\\.[0-9]+)?$'`
+      ),
+      // Checkout value
+      pool.query(
+        `SELECT COALESCE(SUM((data->>'totalPrice')::numeric), 0) AS total
+         FROM events
+         WHERE type = 'checkout_click' AND created_at >= ${sinceExpr}
+           AND (data->>'totalPrice') ~ '^[0-9]+(\\.[0-9]+)?$'`
+      ),
+      // Top sizes
+      pool.query(
+        `SELECT data->>'size' AS size, COUNT(*) AS cnt
+         FROM events
+         WHERE type = 'size_select' AND created_at >= ${sinceExpr}
+           AND data->>'size' IS NOT NULL
+         GROUP BY data->>'size'
+         ORDER BY cnt DESC LIMIT 10`
+      ),
+    ]);
+
+    const cartAdds = parseInt(funnelQueries[0].rows[0].c);
+    const cartRemoves = parseInt(funnelQueries[1].rows[0].c);
+    const buyNows = parseInt(funnelQueries[2].rows[0].c);
+    const checkoutClicks = parseInt(funnelQueries[3].rows[0].c);
+    const cartSessions = parseInt(funnelQueries[4].rows[0].c);
+
+    // Build checkout map: productId -> checkout count
+    const checkoutMap = {};
+    for (const r of funnelQueries[6].rows) checkoutMap[r.product_id] = parseInt(r.checkouts);
+    // Build buy_now map
+    const buyNowMap = {};
+    for (const r of funnelQueries[7].rows) buyNowMap[r.product_id] = parseInt(r.buys);
+
+    // Enrich cart top products
+    const cartProductIds = funnelQueries[5].rows.map(r => r.product_id).filter(id => typeof id === 'number');
+    let cartProductNames = {};
+    if (cartProductIds.length > 0) {
+      const pRes = await pool.query('SELECT id, name, brand, price FROM products WHERE id = ANY($1)', [cartProductIds]);
+      for (const p of pRes.rows) cartProductNames[p.id] = { name: p.name, brand: p.brand, price: parseFloat(p.price) };
+    }
+
+    response.funnel = {
+      cartAdds,
+      cartRemoves,
+      buyNows,
+      checkoutClicks,
+      cartSessions,
+      viewToCart: curViews > 0 ? +(cartAdds / curViews * 100).toFixed(1) : 0,
+      cartToCheckout: cartAdds > 0 ? +(checkoutClicks / cartAdds * 100).toFixed(1) : 0,
+      viewToBuyNow: curViews > 0 ? +(buyNows / curViews * 100).toFixed(1) : 0,
+      totalConversion: curViews > 0 ? +((checkoutClicks + buyNows) / curViews * 100).toFixed(1) : 0,
+      cartValue: parseFloat(funnelQueries[8].rows[0].total),
+      checkoutValue: parseFloat(funnelQueries[9].rows[0].total),
+      lostValue: parseFloat(funnelQueries[8].rows[0].total) - parseFloat(funnelQueries[9].rows[0].total),
+      topCartProducts: funnelQueries[5].rows.map(r => {
+        const pid = r.product_id;
+        const adds = parseInt(r.adds);
+        const ch = checkoutMap[pid] || 0;
+        const bn = buyNowMap[pid] || 0;
+        return {
+          productId: pid,
+          name: cartProductNames[pid]?.name || null,
+          brand: cartProductNames[pid]?.brand || null,
+          price: cartProductNames[pid]?.price || null,
+          adds,
+          buyNows: bn,
+          checkouts: ch,
+          abandonRate: adds > 0 ? +(((adds - ch) / adds) * 100).toFixed(1) : 0,
+          intentScore: adds + bn * 2 + ch * 5,
+        };
+      }),
+      topSizes: funnelQueries[10].rows.map(r => ({ size: r.size, count: parseInt(r.cnt) })),
+    };
 
     res.json(response);
   } catch (err) {

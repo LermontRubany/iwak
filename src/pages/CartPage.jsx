@@ -3,6 +3,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
 import { makeProductSlug } from '../utils/slug';
+import { track } from '../utils/tracker';
 
 function useHandleClose() {
   const navigate = useNavigate();
@@ -213,6 +214,7 @@ export default function CartPage() {
         <button
           className="btn-telegram btn-telegram--cart"
           onClick={() => {
+            track('checkout_click', { itemCount: enrichedItems.length, totalPrice, productIds: enrichedItems.map(i => i.id) });
             const param = enrichedItems.map((i) => `${i.id}:${i.size}`).join(',');
             const cartUrl = `${window.location.origin}/cart?items=${param}`;
             const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.brand} ${item.name} — ${item.size}`);

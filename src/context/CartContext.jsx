@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import { track } from '../utils/tracker';
 
 const CartContext = createContext(null);
 
@@ -95,10 +96,14 @@ export function CartProvider({ children }) {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const addItem = useCallback((product, size) =>
-    dispatch({ type: 'ADD_ITEM', payload: { ...product, size } }), []);
-  const removeItem = useCallback((id, size) =>
-    dispatch({ type: 'REMOVE_ITEM', payload: { id, size } }), []);
+  const addItem = useCallback((product, size) => {
+    dispatch({ type: 'ADD_ITEM', payload: { ...product, size } });
+    track('cart_add', { productId: product.id, size, price: product.price, brand: product.brand, category: product.category });
+  }, []);
+  const removeItem = useCallback((id, size) => {
+    dispatch({ type: 'REMOVE_ITEM', payload: { id, size } });
+    track('cart_remove', { productId: id, size });
+  }, []);
   const updateQty = useCallback((id, size, qty) =>
     dispatch({ type: 'UPDATE_QTY', payload: { id, size, qty } }), []);
   const clearCart = useCallback(() => dispatch({ type: 'CLEAR_CART' }), []);

@@ -402,7 +402,7 @@ export default function ProductPage() {
               <button
                 key={size}
                 className={`pp-size-btn ${selectedSize === size ? 'pp-size-btn--active' : ''}`}
-                onClick={() => setSelectedSize(size)}
+                onClick={() => { setSelectedSize(size); track('size_select', { productId: product.id, size }); }}
               >
                 {size}
               </button>
@@ -425,6 +425,7 @@ export default function ProductPage() {
               setTimeout(() => setSizeShake(false), 600);
               return;
             }
+            track('buy_now', { productId: product.id, size: selectedSize, price: product.price, brand: product.brand });
             const productUrl = `${window.location.origin}/product/${makeProductSlug(product)}`;
             const text = [
               'Здравствуйте!',

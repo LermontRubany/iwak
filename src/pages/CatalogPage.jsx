@@ -152,14 +152,17 @@ export default function CatalogPage() {
   const toggleFilter = (key, value, bulk) => {
     if (bulk) {
       setFilters(bulk);
+      track('filter_apply', bulk);
       return;
     }
     setFilters((prev) => {
       const arr = prev[key];
-      return {
+      const next = {
         ...prev,
         [key]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value],
       };
+      track('filter_apply', { [key]: next[key] });
+      return next;
     });
   };
 

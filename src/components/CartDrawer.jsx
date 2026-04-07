@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
+import { track } from '../utils/tracker';
 import { makeProductSlug } from '../utils/slug';
 
 export default function CartDrawer({ isOpen, onClose }) {
@@ -89,6 +90,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     const cartUrl = `${window.location.origin}/cart?items=${param}`;
     const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.brand} ${item.name} — ${item.size}`);
     const total = enrichedItems.reduce((acc, i) => acc + i.price * i.qty, 0);
+    track('checkout_click', { itemCount: enrichedItems.length, totalPrice: total, productIds: enrichedItems.map(i => i.id) });
     const text = [
       'Здравствуйте!',
       '',
