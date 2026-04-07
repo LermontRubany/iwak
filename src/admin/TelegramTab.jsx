@@ -19,6 +19,17 @@ function formatDate(dateStr) {
   return `${dd}.${mm}`;
 }
 
+function isToday(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+}
+
+function fmtTimeShort(dateStr) {
+  const d = new Date(dateStr);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export default function TelegramTab() {
   const { products, reloadProducts } = useProducts();
 
@@ -457,8 +468,13 @@ export default function TelegramTab() {
                         <span className="adm-card__date">{formatDate(product.createdAt)}</span>
                         <span className="adm-card__meta-badge">⭐{product.priority ?? 50}</span>
                         {product.badge && product.badge.enabled && <span className="adm-card__meta-badge">🏷</span>}
-                        {product.tgSentAt && <span className="adm-card__meta-badge" style={{color:'#4caf50'}}>✓ TG</span>}
-                        {scheduledMap[product.id] && <span className="adm-card__meta-badge" style={{color:'#1976d2'}}>📅 {new Date(scheduledMap[product.id]).toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit'})}</span>}
+                        {product.tgSentAt && !scheduledMap[product.id] && <span className="adm-card__meta-badge" style={{color:'#4caf50'}}>✓ TG</span>}
+                        {scheduledMap[product.id] && scheduledMap[product.id].status === 'done_today' && (
+                          <span className="adm-card__meta-badge" style={{color:'#4caf50'}}>✅ {fmtTimeShort(scheduledMap[product.id].nextAt)}</span>
+                        )}
+                        {scheduledMap[product.id] && scheduledMap[product.id].status === 'pending' && (
+                          <span className="adm-card__meta-badge" style={{color:'#1976d2'}}>📅 {isToday(scheduledMap[product.id].nextAt) ? fmtTimeShort(scheduledMap[product.id].nextAt) : formatDate(scheduledMap[product.id].nextAt)}</span>
+                        )}
                       </div>
                     )}
                   </div>

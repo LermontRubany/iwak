@@ -37,6 +37,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
   const [expandedPlan, setExpandedPlan] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [todaySent, setTodaySent] = useState([]);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -76,6 +77,15 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
   }, []);
 
   useEffect(() => { loadPlans(); }, [loadPlans]);
+
+  // ── Load today's sent posts ──
+  const loadTodaySent = useCallback(async () => {
+    try {
+      const r = await authFetch('/api/tg/autoplan/today');
+      if (r.ok) setTodaySent(await r.json());
+    } catch { /* */ }
+  }, []);
+  useEffect(() => { loadTodaySent(); }, [loadTodaySent]);
 
   // ── Load tasks for a plan ──
   const loadTasks = useCallback(async (planId) => {
@@ -237,6 +247,24 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
 
       {loading ? <div className="tg-empty">Загрузка...</div> : (
         <>
+          {/* ── Today sent ── */}
+          <div className="autoplan-today">
+            {todaySent.length > 0 ? (
+              <>
+                <span className="autoplan-today__title">📤 Сегодня отправлено: {todaySent.length}</span>
+                {todaySent.slice(0, 5).map((item, i) => (
+                  <div key={i} className="autoplan-today__item">
+                    <span className="autoplan-today__time">{fmtTime(item.time)}</span>
+                    <span className="autoplan-today__name">{item.name}</span>
+                    {item.price && <span className="autoplan-today__price">₽{item.price.toLocaleString('ru-RU')}</span>}
+                  </div>
+                ))}
+              </>
+            ) : (
+              <span className="autoplan-today__empty">📤 Сегодня постов ещё не было</span>
+            )}
+          </div>
+
           {/* ── Plans list ── */}
           {plans.length === 0 && !showForm && (
             <div className="autoplan-empty">
@@ -275,7 +303,21 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                     <span>📅 {fmtDate(plan.startsAt)} – {fmtDate(plan.endsAt)}</span>
                     {plan.failedCount > 0 && <span className="autoplan-card__errors">❌ {plan.failedCount} ошиб.</span>}
                   </div>
-                  {plan.nextPostAt && (
+                  {plan.todaySlots && plan.todaySlots.length > 0 && (
+                    <div className="autoplan-card__today">
+                      <span className="autoplan-card__today-label">Сегодня:</span>
+                      {plan.todaySlots.map((s, i) => (
+                        <div key={i} className="autoplan-card__slot">
+                          <span className="autoplan-card__slot-icon">
+                            {s.status === 'done' ? '✅' : s.status === 'failed' ? '❌' : plan.todaySlots.findIndex(x => x.status === 'pending') === i ? '●' : '○'}
+                          </span>
+                          <span className="autoplan-card__slot-time">{fmtTime(s.time)}</span>
+                          <span className="autoplan-card__slot-name">{s.productName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(!plan.todaySlots || plan.todaySlots.length === 0) && plan.nextPostAt && (
                     <div className="autoplan-card__next">
                       ⏭ Следующий: {fmtDateTime(plan.nextPostAt)}{plan.nextProductName ? ` — ${plan.nextProductName}` : ''}
                     </div>

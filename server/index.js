@@ -2126,42 +2126,76 @@ app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
 app.get('/api/tg/plans', requireAuth, async (_req, res) => {
   try {
     const r = await pool.query(
-      `SELECT p.*,
-              (SELECT scheduled_at FROM tg_scheduled
-               WHERE plan_id = p.id AND status = 'pending'
-               ORDER BY scheduled_at LIMIT 1) AS next_post_at,
-              (SELECT product_id FROM tg_scheduled
-               WHERE plan_id = p.id AND status = 'pending'
-               ORDER BY scheduled_at LIMIT 1) AS next_product_id
+      `SELECT p.*
        FROM tg_plans p
        ORDER BY
          CASE WHEN p.status = 'active' THEN 0 WHEN p.status = 'paused' THEN 1 ELSE 2 END,
          p.created_at DESC`
     );
-    // Fetch next product names
-    const nextIds = r.rows.map(p => p.next_product_id).filter(Boolean);
-    let productNames = {};
-    if (nextIds.length > 0) {
-      const pr = await pool.query('SELECT id, name, brand FROM products WHERE id = ANY($1)', [nextIds]);
-      for (const row of pr.rows) productNames[row.id] = { name: row.name, brand: row.brand };
+
+    // Fetch today's slots for each active/paused plan (done + pending for today, up to 10 per plan)
+    const activePlanIds = r.rows.filter(p => p.status === 'active' || p.status === 'paused').map(p => p.id);
+    let slotsMap = {}; // planId -> [{scheduledAt, status, productName, productBrand}]
+    if (activePlanIds.length > 0) {
+      const sr = await pool.query(
+        `SELECT s.plan_id, s.scheduled_at, s.status, s.product_id,
+                p.name AS product_name, p.brand AS product_brand
+         FROM tg_scheduled s
+         LEFT JOIN products p ON p.id = s.product_id
+         WHERE s.plan_id = ANY($1)
+           AND s.scheduled_at::date = CURRENT_DATE
+         ORDER BY s.scheduled_at`,
+        [activePlanIds]
+      );
+      for (const row of sr.rows) {
+        (slotsMap[row.plan_id] ||= []).push({
+          time: row.scheduled_at,
+          status: row.status,
+          productName: [row.product_brand, row.product_name].filter(Boolean).join(' '),
+        });
+      }
     }
 
-    const plans = r.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      params: row.params,
-      status: row.status,
-      totalPosts: row.total_posts,
-      sentCount: row.sent_count,
-      failedCount: row.failed_count,
-      startsAt: row.starts_at,
-      endsAt: row.ends_at,
-      createdAt: row.created_at,
-      nextPostAt: row.next_post_at || null,
-      nextProductName: row.next_product_id && productNames[row.next_product_id]
-        ? `${productNames[row.next_product_id].brand} ${productNames[row.next_product_id].name}`.trim()
-        : null,
-    }));
+    // For plans with no today pending slots, find next future pending task
+    const needNextIds = activePlanIds.filter(id => !(slotsMap[id] || []).some(s => s.status === 'pending'));
+    let nextFutureMap = {};
+    if (needNextIds.length > 0) {
+      const nr = await pool.query(
+        `SELECT DISTINCT ON (s.plan_id) s.plan_id, s.scheduled_at, p.name, p.brand
+         FROM tg_scheduled s
+         LEFT JOIN products p ON p.id = s.product_id
+         WHERE s.plan_id = ANY($1) AND s.status = 'pending'
+         ORDER BY s.plan_id, s.scheduled_at`,
+        [needNextIds]
+      );
+      for (const row of nr.rows) {
+        nextFutureMap[row.plan_id] = {
+          nextPostAt: row.scheduled_at,
+          nextProductName: [row.brand, row.name].filter(Boolean).join(' '),
+        };
+      }
+    }
+
+    const plans = r.rows.map(row => {
+      const todaySlots = slotsMap[row.id] || [];
+      const nextPending = todaySlots.find(s => s.status === 'pending');
+      const future = nextFutureMap[row.id];
+      return {
+        id: row.id,
+        name: row.name,
+        params: row.params,
+        status: row.status,
+        totalPosts: row.total_posts,
+        sentCount: row.sent_count,
+        failedCount: row.failed_count,
+        startsAt: row.starts_at,
+        endsAt: row.ends_at,
+        createdAt: row.created_at,
+        nextPostAt: nextPending ? nextPending.time : (future ? future.nextPostAt : null),
+        nextProductName: nextPending ? nextPending.productName : (future ? future.nextProductName : null),
+        todaySlots,
+      };
+    });
     res.json(plans);
   } catch (err) {
     logger.error({ err }, 'GET /api/tg/plans error');
@@ -2270,17 +2304,51 @@ app.delete('/api/tg/schedule/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ── Autoplan: today's completed posts ──
+app.get('/api/tg/autoplan/today', requireAuth, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT s.scheduled_at, p.name, p.brand, p.price, p.image
+       FROM tg_scheduled s
+       JOIN products p ON p.id = s.product_id
+       WHERE s.status = 'done'
+         AND s.scheduled_at::date = CURRENT_DATE
+       ORDER BY s.scheduled_at DESC`
+    );
+    res.json(r.rows.map(row => ({
+      time: row.scheduled_at,
+      name: [row.brand, row.name].filter(Boolean).join(' '),
+      price: row.price ? parseFloat(row.price) : null,
+      image: row.image,
+    })));
+  } catch (err) {
+    logger.error({ err }, 'GET /api/tg/autoplan/today error');
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
 // ── Autoplan: scheduled products (for badge on product cards) ──
 app.get('/api/tg/scheduled-products', requireAuth, async (_req, res) => {
   try {
-    const r = await pool.query(
+    // Pending tasks: min scheduled_at per product
+    const pending = await pool.query(
       `SELECT product_id, MIN(scheduled_at) AS next_at
        FROM tg_scheduled
        WHERE status = 'pending'
        GROUP BY product_id`
     );
+    // Done today: latest scheduled_at per product
+    const doneToday = await pool.query(
+      `SELECT product_id, MAX(scheduled_at) AS sent_at
+       FROM tg_scheduled
+       WHERE status = 'done'
+         AND scheduled_at::date = CURRENT_DATE
+       GROUP BY product_id`
+    );
     const map = {};
-    for (const row of r.rows) map[row.product_id] = row.next_at;
+    for (const row of pending.rows) map[row.product_id] = { nextAt: row.next_at, status: 'pending' };
+    // done_today overrides pending for display priority
+    for (const row of doneToday.rows) map[row.product_id] = { nextAt: row.sent_at, status: 'done_today' };
     res.json(map);
   } catch (err) {
     logger.error({ err }, 'GET /api/tg/scheduled-products error');

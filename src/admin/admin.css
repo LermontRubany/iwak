@@ -2934,6 +2934,82 @@
   color: var(--adm-muted);
   margin-bottom: 6px;
 }
+.autoplan-card__today {
+  margin-bottom: 8px;
+}
+.autoplan-card__today-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adm-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.autoplan-card__slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+.autoplan-card__slot-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.autoplan-card__slot-time {
+  font-weight: 600;
+  min-width: 40px;
+  color: var(--adm-text);
+}
+.autoplan-card__slot-name {
+  color: var(--adm-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ── Today sent block ── */
+.autoplan-today {
+  background: var(--adm-card-bg, #fff);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--adm-border, #eee);
+}
+.autoplan-today__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.autoplan-today__empty {
+  font-size: 13px;
+  color: var(--adm-muted);
+}
+.autoplan-today__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+.autoplan-today__time {
+  font-weight: 600;
+  min-width: 40px;
+  color: #4caf50;
+}
+.autoplan-today__name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.autoplan-today__price {
+  color: var(--adm-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
 .autoplan-card__toggle {
   background: none;
   border: none;
