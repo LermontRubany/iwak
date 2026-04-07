@@ -30,7 +30,7 @@ function fmtTime(d) {
 }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-export default function AutoPlanSection({ products }) {
+export default function AutoPlanSection({ products, onPlansChanged }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -157,6 +157,7 @@ export default function AutoPlanSection({ products }) {
         setPreview(null);
         setFormName('');
         loadPlans();
+        if (onPlansChanged) onPlansChanged();
       } else {
         notifyGlobal('error', json.error || 'Ошибка');
       }
@@ -170,7 +171,7 @@ export default function AutoPlanSection({ products }) {
       if (!window.confirm('Удалить план и все его задачи?')) return;
       try {
         const r = await authFetch(`/api/tg/plans/${planId}`, { method: 'DELETE' });
-        if (r.ok) { notifyGlobal('success', 'План удалён'); loadPlans(); if (expandedPlan === planId) setExpandedPlan(null); }
+        if (r.ok) { notifyGlobal('success', 'План удалён'); loadPlans(); if (onPlansChanged) onPlansChanged(); if (expandedPlan === planId) setExpandedPlan(null); }
         else notifyGlobal('error', 'Ошибка удаления');
       } catch { notifyGlobal('error', 'Ошибка соединения'); }
       return;
@@ -181,7 +182,7 @@ export default function AutoPlanSection({ products }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      if (r.ok) { notifyGlobal('success', action === 'pause' ? 'Плата приостановлен' : action === 'resume' ? 'План возобновлён' : 'План отменён'); loadPlans(); }
+      if (r.ok) { notifyGlobal('success', action === 'pause' ? 'Плата приостановлен' : action === 'resume' ? 'План возобновлён' : 'План отменён'); loadPlans(); if (onPlansChanged) onPlansChanged(); }
       else { const j = await r.json(); notifyGlobal('error', j.error || 'Ошибка'); }
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
   }, [loadPlans, expandedPlan]);
@@ -193,6 +194,7 @@ export default function AutoPlanSection({ products }) {
       if (r.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskId));
         loadPlans();
+        if (onPlansChanged) onPlansChanged();
       } else notifyGlobal('error', 'Ошибка удаления');
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
   }, [loadPlans]);

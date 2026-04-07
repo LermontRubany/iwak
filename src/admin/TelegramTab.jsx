@@ -39,6 +39,16 @@ export default function TelegramTab() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sentFilter, setSentFilter] = useState('');
   const [quickSending, setQuickSending] = useState(false);
+  const [scheduledMap, setScheduledMap] = useState({});
+
+  // ── Load scheduled products map ──
+  const loadScheduled = useCallback(async () => {
+    try {
+      const r = await authFetch('/api/tg/scheduled-products');
+      if (r.ok) setScheduledMap(await r.json());
+    } catch { /* */ }
+  }, []);
+  useEffect(() => { if (configured) loadScheduled(); }, [configured, loadScheduled]);
 
   // ── Load config on mount ──
   useEffect(() => {
@@ -168,8 +178,9 @@ export default function TelegramTab() {
     if (brandFilter) list = list.filter(p => normalizeBrand(p?.brand) === brandFilter);
     if (sentFilter === 'unsent') list = list.filter(p => !p.tgSentAt);
     if (sentFilter === 'sent') list = list.filter(p => !!p.tgSentAt);
+    if (sentFilter === 'scheduled') list = list.filter(p => !!scheduledMap[p.id]);
     return list;
-  }, [products, search, catFilter, genderFilter, brandFilter, sentFilter]);
+  }, [products, search, catFilter, genderFilter, brandFilter, sentFilter, scheduledMap]);
 
   const toggleSelect = useCallback((id, e) => {
     if (e) e.stopPropagation();
@@ -305,7 +316,7 @@ export default function TelegramTab() {
       </div>
 
       {/* ── Autoplan ── */}
-      {configured && <AutoPlanSection products={products} />}
+      {configured && <AutoPlanSection products={products} onPlansChanged={loadScheduled} />}
 
       {/* ── Posting ── */}
       <div className="tg-section">
@@ -366,7 +377,7 @@ export default function TelegramTab() {
 
             {/* TG status filter */}
             <div className="adm-filter-row">
-              {[{ id: '', label: 'Все' }, { id: 'unsent', label: '📤 Не отправлены' }, { id: 'sent', label: '✅ Отправлены' }].map((s) => (
+              {[{ id: '', label: 'Все' }, { id: 'unsent', label: '📤 Не отправлены' }, { id: 'sent', label: '✅ Отправлены' }, { id: 'scheduled', label: '📅 Запланированы' }].map((s) => (
                 <button
                   key={s.id}
                   className={`adm-filter-chip${sentFilter === s.id ? ' adm-filter-chip--active' : ''}`}
@@ -436,6 +447,7 @@ export default function TelegramTab() {
                         <span className="adm-card__meta-badge">⭐{product.priority ?? 50}</span>
                         {product.badge && product.badge.enabled && <span className="adm-card__meta-badge">🏷</span>}
                         {product.tgSentAt && <span className="adm-card__meta-badge" style={{color:'#4caf50'}}>✓ TG</span>}
+                        {scheduledMap[product.id] && <span className="adm-card__meta-badge" style={{color:'#1976d2'}}>📅 {new Date(scheduledMap[product.id]).toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit'})}</span>}
                       </div>
                     )}
                   </div>
