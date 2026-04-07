@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { notifyGlobal } from '../context/NotificationsContext';
 import authFetch from './authFetch';
 
@@ -30,7 +30,7 @@ function fmtTime(d) {
 }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-export default function AutoPlanSection({ products, onPlansChanged }) {
+export default function AutoPlanSection({ products, onPlansChanged, preselectedIds, onPreselectedClear }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -51,6 +51,16 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
   const [formGender, setFormGender] = useState('');
   const [formBrand, setFormBrand] = useState('');
   const [formOnlyUnsent, setFormOnlyUnsent] = useState(true);
+
+  // ── Auto-open form when preselectedIds arrive ──
+  const prevPreselectedRef = useRef(null);
+  useEffect(() => {
+    if (preselectedIds && preselectedIds.length > 0 && prevPreselectedRef.current !== preselectedIds) {
+      setShowForm(true);
+      setPreview(null);
+    }
+    prevPreselectedRef.current = preselectedIds;
+  }, [preselectedIds]);
 
   // Preview
   const [preview, setPreview] = useState(null);
@@ -95,13 +105,16 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
     setPreviewLoading(true);
     setPreview(null);
     try {
+      const useIds = preselectedIds && preselectedIds.length > 0;
       const body = {
-        filters: {
-          ...(formCategory ? { category: formCategory } : {}),
-          ...(formGender ? { gender: formGender } : {}),
-          ...(formBrand ? { brand: formBrand } : {}),
-          onlyUnsent: formOnlyUnsent,
-        },
+        ...(useIds
+          ? { productIds: [...preselectedIds] }
+          : { filters: {
+              ...(formCategory ? { category: formCategory } : {}),
+              ...(formGender ? { gender: formGender } : {}),
+              ...(formBrand ? { brand: formBrand } : {}),
+              onlyUnsent: formOnlyUnsent,
+            } }),
         strategy: formStrategy,
         postsPerDay: formTimeSlots.length,
         timeSlots: formTimeSlots.filter(Boolean),
@@ -120,7 +133,7 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
       else notifyGlobal('error', json.error || 'Ошибка превью');
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setPreviewLoading(false);
-  }, [formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formTimeSlots, formStartDate, formEndDate, formTemplate, formWithBadge]);
+  }, [preselectedIds, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formTimeSlots, formStartDate, formEndDate, formTemplate, formWithBadge]);
 
   // ── Create plan ──
   const handleCreate = useCallback(async () => {
@@ -129,14 +142,17 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
     if (formTimeSlots.filter(Boolean).length === 0) { notifyGlobal('error', 'Добавьте хотя бы один слот времени'); return; }
     setCreating(true);
     try {
+      const useIds = preselectedIds && preselectedIds.length > 0;
       const body = {
         name: formName.trim(),
-        filters: {
-          ...(formCategory ? { category: formCategory } : {}),
-          ...(formGender ? { gender: formGender } : {}),
-          ...(formBrand ? { brand: formBrand } : {}),
-          onlyUnsent: formOnlyUnsent,
-        },
+        ...(useIds
+          ? { productIds: [...preselectedIds] }
+          : { filters: {
+              ...(formCategory ? { category: formCategory } : {}),
+              ...(formGender ? { gender: formGender } : {}),
+              ...(formBrand ? { brand: formBrand } : {}),
+              onlyUnsent: formOnlyUnsent,
+            } }),
         strategy: formStrategy,
         postsPerDay: formTimeSlots.length,
         timeSlots: formTimeSlots.filter(Boolean),
@@ -156,6 +172,7 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
         setShowForm(false);
         setPreview(null);
         setFormName('');
+        if (onPreselectedClear) onPreselectedClear();
         loadPlans();
         if (onPlansChanged) onPlansChanged();
       } else {
@@ -163,7 +180,7 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
       }
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setCreating(false);
-  }, [formName, formEndDate, formTimeSlots, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, loadPlans]);
+  }, [formName, formEndDate, formTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, loadPlans]);
 
   // ── Plan actions ──
   const handlePlanAction = useCallback(async (planId, action) => {
@@ -304,7 +321,7 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
             <div className="autoplan-form">
               <div className="autoplan-form__header">
                 <h4>Новый план</h4>
-                <button className="autoplan-form__close" onClick={() => { setShowForm(false); setPreview(null); }}>✕</button>
+                <button className="autoplan-form__close" onClick={() => { setShowForm(false); setPreview(null); if (onPreselectedClear) onPreselectedClear(); }}>✕</button>
               </div>
 
               <label className="tg-label">Название</label>
@@ -313,35 +330,44 @@ export default function AutoPlanSection({ products, onPlansChanged }) {
               <div className="autoplan-form__group">
                 <span className="autoplan-form__group-title">Что публикуем</span>
 
-                <div className="autoplan-form__row">
-                  <div className="autoplan-form__field">
-                    <label className="tg-label">Категория</label>
-                    <select className="adm-input" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
-                      {categoryOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
-                    </select>
+                {preselectedIds && preselectedIds.length > 0 ? (
+                  <div className="autoplan-preselected">
+                    ✅ Выбрано {preselectedIds.length} товаров
+                    <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => { if (onPreselectedClear) onPreselectedClear(); }}>Сброс</button>
                   </div>
-                  <div className="autoplan-form__field">
-                    <label className="tg-label">Пол</label>
-                    <select className="adm-input" value={formGender} onChange={e => setFormGender(e.target.value)}>
-                      <option value="">Все</option>
-                      <option value="mens">Мужское</option>
-                      <option value="womens">Женское</option>
-                      <option value="kids">Детское</option>
-                      <option value="unisex">Унисекс</option>
-                    </select>
-                  </div>
-                  <div className="autoplan-form__field">
-                    <label className="tg-label">Бренд</label>
-                    <select className="adm-input" value={formBrand} onChange={e => setFormBrand(e.target.value)}>
-                      {brandOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
-                    </select>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="autoplan-form__row">
+                      <div className="autoplan-form__field">
+                        <label className="tg-label">Категория</label>
+                        <select className="adm-input" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+                          {categoryOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="autoplan-form__field">
+                        <label className="tg-label">Пол</label>
+                        <select className="adm-input" value={formGender} onChange={e => setFormGender(e.target.value)}>
+                          <option value="">Все</option>
+                          <option value="mens">Мужское</option>
+                          <option value="womens">Женское</option>
+                          <option value="kids">Детское</option>
+                          <option value="unisex">Унисекс</option>
+                        </select>
+                      </div>
+                      <div className="autoplan-form__field">
+                        <label className="tg-label">Бренд</label>
+                        <select className="adm-input" value={formBrand} onChange={e => setFormBrand(e.target.value)}>
+                          {brandOptions.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
 
-                <label className="autoplan-checkbox">
-                  <input type="checkbox" checked={formOnlyUnsent} onChange={e => setFormOnlyUnsent(e.target.checked)} />
-                  Только не отправленные в TG
-                </label>
+                    <label className="autoplan-checkbox">
+                      <input type="checkbox" checked={formOnlyUnsent} onChange={e => setFormOnlyUnsent(e.target.checked)} />
+                      Только не отправленные в TG
+                    </label>
+                  </>
+                )}
 
                 <label className="tg-label">Стратегия</label>
                 <div className="autoplan-radio-group">

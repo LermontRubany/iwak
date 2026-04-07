@@ -3066,6 +3066,17 @@
   font-size: 13px;
   cursor: pointer;
 }
+.autoplan-preselected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--clr-accent-bg, #e6f7ee);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
 .autoplan-checkbox {
   display: flex;
   align-items: center;

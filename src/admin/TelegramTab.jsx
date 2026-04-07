@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import { notifyGlobal } from '../context/NotificationsContext';
 import TgDrawer from './TgDrawer';
@@ -40,6 +40,8 @@ export default function TelegramTab() {
   const [sentFilter, setSentFilter] = useState('');
   const [quickSending, setQuickSending] = useState(false);
   const [scheduledMap, setScheduledMap] = useState({});
+  const [autoplanIds, setAutoplanIds] = useState(null);
+  const autoplanRef = useRef(null);
 
   // ── Load scheduled products map ──
   const loadScheduled = useCallback(async () => {
@@ -316,7 +318,16 @@ export default function TelegramTab() {
       </div>
 
       {/* ── Autoplan ── */}
-      {configured && <AutoPlanSection products={products} onPlansChanged={loadScheduled} />}
+      {configured && (
+        <div ref={autoplanRef}>
+          <AutoPlanSection
+            products={products}
+            onPlansChanged={loadScheduled}
+            preselectedIds={autoplanIds}
+            onPreselectedClear={() => setAutoplanIds(null)}
+          />
+        </div>
+      )}
 
       {/* ── Posting ── */}
       <div className="tg-section">
@@ -465,7 +476,13 @@ export default function TelegramTab() {
                 <div className="adm-selection-bar__actions">
                   <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>� Открыть</button>                  <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleQuickSend} disabled={quickSending}>
                     {quickSending ? '⏳ Отправка...' : '⚡ Быстрая отправка'}
-                  </button>                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSelected(new Set())}>❌ Снять выбор</button>
+                  </button>                  {configured && (
+                    <button className="adm-btn adm-btn--sm" onClick={() => {
+                      setAutoplanIds([...selected]);
+                      autoplanRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}>📅 В автоплан</button>
+                  )}
+                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => setSelected(new Set())}>❌ Снять выбор</button>
                 </div>
               </div>
             )}
