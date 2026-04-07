@@ -2292,16 +2292,26 @@ app.get('/api/tg/scheduled-products', requireAuth, async (_req, res) => {
 function generateAutoplanSlots(productIds, timeSlots, startDate, endDate) {
   const slots = [];
   const sortedTimes = [...timeSlots].sort();
-  const start = new Date(startDate + 'T00:00:00+03:00'); // Moscow timezone
-  const end = new Date(endDate + 'T23:59:59+03:00');
+
+  // Work with plain date strings to avoid timezone shift
+  // startDate/endDate are "YYYY-MM-DD", timeSlots are "HH:MM"
+  const startParts = startDate.split('-').map(Number);
+  const endParts = endDate.split('-').map(Number);
+  const endDt = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2], 20, 59, 59)); // 23:59 MSK = 20:59 UTC
   let pointer = 0;
 
-  const d = new Date(start);
-  while (d <= end) {
-    const dateStr = d.toISOString().slice(0, 10); // YYYY-MM-DD
+  const cur = new Date(Date.UTC(startParts[0], startParts[1] - 1, startParts[2]));
+  const endDay = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2]));
+
+  while (cur <= endDay) {
+    const y = cur.getUTCFullYear();
+    const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(cur.getUTCDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${dd}`;
+
     for (const time of sortedTimes) {
       const scheduledAt = new Date(`${dateStr}T${time}:00+03:00`);
-      if (scheduledAt > end) break;
+      if (scheduledAt > endDt) break;
       slots.push({
         date: dateStr,
         time,
@@ -2310,7 +2320,7 @@ function generateAutoplanSlots(productIds, timeSlots, startDate, endDate) {
       });
       pointer++;
     }
-    d.setDate(d.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return slots;
 }
@@ -2341,6 +2351,16 @@ async function processScheduledTask() {
     logger.info({ taskId: task.id, productId: task.product_id, planId: task.plan_id }, 'Scheduler: processing task');
 
     // Load TG config
+    // Helper: auto-complete plan when no pending/processing tasks remain
+    const autoCompletePlan = () => pool.query(
+      `UPDATE tg_plans SET status = 'completed'
+       WHERE id = $1 AND status = 'active'
+         AND NOT EXISTS (
+           SELECT 1 FROM tg_scheduled WHERE plan_id = $1 AND status IN ('pending', 'processing')
+         )`,
+      [task.plan_id]
+    );
+
     const cfgR = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
     if (cfgR.rows.length === 0 || !cfgR.rows[0].bot_token || !cfgR.rows[0].chat_id) {
       await pool.query(
@@ -2348,6 +2368,7 @@ async function processScheduledTask() {
         [JSON.stringify({ error: 'Telegram не настроен' }), task.id]
       );
       await pool.query('UPDATE tg_plans SET failed_count = failed_count + 1 WHERE id = $1', [task.plan_id]);
+      await autoCompletePlan();
       return;
     }
     const { bot_token, chat_id } = cfgR.rows[0];
@@ -2363,6 +2384,7 @@ async function processScheduledTask() {
         [JSON.stringify({ error: 'Товар не найден' }), task.id]
       );
       await pool.query('UPDATE tg_plans SET failed_count = failed_count + 1 WHERE id = $1', [task.plan_id]);
+      await autoCompletePlan();
       return;
     }
 
@@ -2402,15 +2424,7 @@ async function processScheduledTask() {
       logger.info({ taskId: task.id, productId: task.product_id }, 'Scheduler: task done');
     }
 
-    // Auto-complete plan if all tasks done/failed
-    await pool.query(
-      `UPDATE tg_plans SET status = 'completed'
-       WHERE id = $1 AND status = 'active'
-         AND NOT EXISTS (
-           SELECT 1 FROM tg_scheduled WHERE plan_id = $1 AND status IN ('pending', 'processing')
-         )`,
-      [task.plan_id]
-    );
+    await autoCompletePlan();
   } catch (err) {
     logger.error({ err }, 'Scheduler: processScheduledTask error');
   }
