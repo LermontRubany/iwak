@@ -284,10 +284,16 @@ export default function CatalogPage() {
       <div className="catalog-toolbar">
         {activeCount > 0 && (
           <button
-            className={`toolbar-copy-btn${copied ? ' toolbar-copy-btn--copied' : ''}`}
+            className={`toolbar-share${copied ? ' toolbar-share--done' : ''}`}
             onClick={handleCopyLink}
+            aria-label="Скопировать подборку"
+            title="Скопировать ссылку"
           >
-            {copied ? 'ССЫЛКА СКОПИРОВАНА ✓' : 'СКОПИРОВАТЬ ПОДБОРКУ'}
+            {copied ? (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 9.5 7.5 13 14 5"/></svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2v9"/><polyline points="5 5 9 1.5 13 5"/><path d="M3 11v4a1 1 0 001 1h10a1 1 0 001-1v-4"/></svg>
+            )}
           </button>
         )}
         <button className={`toolbar-btn${activeCount > 0 ? ' toolbar-btn--active' : ''}`} onClick={() => setFilterOpen(true)}>
