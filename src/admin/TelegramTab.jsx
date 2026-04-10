@@ -508,6 +508,11 @@ export default function TelegramTab() {
                 productIds={[...selected]}
                 onClose={() => setDrawerOpen(false)}
                 onSent={() => { setDrawerOpen(false); setSelected(new Set()); reloadProducts(); }}
+                filterOptions={{
+                  categories: categoryOptions.filter(c => c.id).map(c => c.id),
+                  genders: genderOptions.filter(g => g.id).map(g => ({ id: g.id, label: g.label })),
+                  brands: brandOptions.filter(b => b.id).map(b => ({ id: b.id, label: b.label })),
+                }}
               />
             )}
           </>

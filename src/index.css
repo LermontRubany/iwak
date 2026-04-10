@@ -1421,6 +1421,30 @@ img {
   opacity: 0.85;
 }
 
+.toolbar-copy-btn {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  transition: color 0.2s, transform 0.15s ease;
+}
+
+.toolbar-copy-btn:hover {
+  color: #111;
+}
+
+.toolbar-copy-btn:active {
+  transform: scale(0.96);
+}
+
+.toolbar-copy-btn--copied {
+  color: #111;
+  text-decoration: none;
+}
+
 /* ─── FILTER CHIPS ─── */
 .filter-chips {
   display: flex;

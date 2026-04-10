@@ -376,15 +376,16 @@ app.get('/api/products', async (req, res) => {
     }
 
     if (req.query.brand) {
-      const brands = req.query.brand.split(',').filter(Boolean);
+      const brands = req.query.brand.split(',').map(b => b.trim().toLowerCase()).filter(Boolean);
       if (brands.length > 0) {
         const placeholders = brands.map(b => addParam(b));
-        conditions.push(`brand IN (${placeholders.join(',')})`);
+        conditions.push(`LOWER(brand) IN (${placeholders.join(',')})`);
       }
     }
 
-    if (req.query.sizes) {
-      const sizes = req.query.sizes.split(',').filter(Boolean);
+    const sizesParam = req.query.size || req.query.sizes;
+    if (sizesParam) {
+      const sizes = sizesParam.split(',').filter(Boolean);
       if (sizes.length > 0) {
         conditions.push(`sizes && ${addParam(sizes)}`);
       }
@@ -1696,6 +1697,62 @@ function productKeyboard(p) {
   return { inline_keyboard: [[{ text: 'Смотреть товар', url: productUrl(p) }]] };
 }
 
+// ── Resolve custom buttons → Telegram inline_keyboard ──
+// buttons = [[{text, type, url?, filter?}], ...] or null/undefined → fallback to productKeyboard
+function resolveKeyboard(buttons, product) {
+  if (!buttons || !Array.isArray(buttons) || buttons.length === 0) {
+    return productKeyboard(product);
+  }
+
+  const rows = [];
+  for (const row of buttons) {
+    if (!Array.isArray(row) || row.length === 0) continue;
+    const tgRow = [];
+    for (const btn of row) {
+      if (!btn || !btn.text) continue;
+      const resolved = resolveButton(btn, product);
+      if (resolved) tgRow.push(resolved);
+    }
+    if (tgRow.length > 0) rows.push(tgRow);
+  }
+
+  return rows.length > 0
+    ? { inline_keyboard: rows }
+    : productKeyboard(product);
+}
+
+function resolveButton(btn, product) {
+  switch (btn.type) {
+    case 'product':
+      return { text: btn.text, url: productUrl(product) };
+
+    case 'url':
+      if (!btn.url) return null;
+      return { text: btn.text, url: btn.url };
+
+    case 'filter': {
+      if (!btn.filter || typeof btn.filter !== 'object') return null;
+      const params = new URLSearchParams();
+      const f = btn.filter;
+      if (f.category) params.set('category', f.category);
+      if (f.gender && f.gender.length) params.set('gender', [].concat(f.gender).sort().join(','));
+      if (f.brand && f.brand.length) params.set('brand', [].concat(f.brand).sort().join(','));
+      if (f.size && f.size.length) params.set('size', [].concat(f.size).sort().join(','));
+      if (f.sale) params.set('sale', 'true');
+      const qs = params.toString();
+      return { text: btn.text, url: `${SITE_ORIGIN}/catalog${qs ? '?' + qs : ''}` };
+    }
+
+    case 'webapp':
+      if (!btn.url) return null;
+      return { text: btn.text, web_app: { url: btn.url } };
+
+    default:
+      if (btn.url) return { text: btn.text, url: btn.url };
+      return null;
+  }
+}
+
 // ── In-memory TG send queue ──
 const tgQueue = [];
 let tgProcessing = false;
@@ -1958,7 +2015,7 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
 
 // ── Send post to Telegram (via queue) ──
 app.post('/api/tg/send', requireAuth, async (req, res) => {
-  const { productId, text: customText, template, imageIndex, withBadge } = req.body;
+  const { productId, text: customText, template, imageIndex, withBadge, buttons } = req.body;
   if (!productId) return res.status(400).json({ error: 'productId required' });
 
   try {
@@ -1976,7 +2033,7 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
     const allImages = p.images || [];
     const idx = Number.isInteger(imageIndex) && imageIndex >= 0 && imageIndex < allImages.length ? imageIndex : 0;
     const photos = allImages.length > 0 ? [allImages[idx]] : [];
-    const keyboard = productKeyboard(p);
+    const keyboard = resolveKeyboard(buttons, p);
     const badges = withBadge ? [p.badge, p.badge2] : null;
 
     const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id, badges });
@@ -1999,7 +2056,7 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
 const tgBatches = new Map();
 
 app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
-  const { productIds, template, withBadge } = req.body;
+  const { productIds, template, withBadge, buttons } = req.body;
   if (!Array.isArray(productIds) || productIds.length === 0) {
     return res.status(400).json({ error: 'productIds required (array)' });
   }
@@ -2015,7 +2072,7 @@ app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
     const batch = { total: productIds.length, sent: 0, failed: 0, errors: [], done: false };
     tgBatches.set(batchId, batch);
     // Process in background
-    processTgBatch(batchId, productIds, template || 'basic', cfg.rows[0], !!withBadge);
+    processTgBatch(batchId, productIds, template || 'basic', cfg.rows[0], !!withBadge, buttons || null);
     res.json({ batchId, total: productIds.length });
   } catch (err) {
     logger.error({ err }, 'POST /api/tg/send-batch error');
@@ -2023,7 +2080,7 @@ app.post('/api/tg/send-batch', requireAuth, async (req, res) => {
   }
 });
 
-async function processTgBatch(batchId, productIds, template, cfg, withBadge) {
+async function processTgBatch(batchId, productIds, template, cfg, withBadge, batchButtons) {
   const batch = tgBatches.get(batchId);
   const { bot_token, chat_id } = cfg;
   let consecutiveFails = 0;
@@ -2042,7 +2099,7 @@ async function processTgBatch(batchId, productIds, template, cfg, withBadge) {
       const text = buildPostText(p, template);
       const allImages = p.images || [];
       const photos = allImages.length > 0 ? [allImages[0]] : [];
-      const keyboard = productKeyboard(p);
+      const keyboard = resolveKeyboard(batchButtons, p);
       const badges = withBadge ? [p.badge, p.badge2] : null;
       const result = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id, badges });
       if (result.ok === false) {
@@ -2165,7 +2222,7 @@ app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
 // ── Autoplan: create plan ──
 app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
   try {
-    const { name, productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge } = req.body;
+    const { name, productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge, buttons } = req.body;
 
     if (!name?.trim()) return res.status(400).json({ error: 'Название плана обязательно' });
     if (!postsPerDay || !timeSlots || timeSlots.length === 0) return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
@@ -2205,7 +2262,7 @@ app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
     // Insert plan
     const tpl = template || 'basic';
     const badge = !!withBadge;
-    const planParams = { strategy, postsPerDay, timeSlots, startDate, endDate, template: tpl, withBadge: badge, filters: filters || null, productCount: ids.length };
+    const planParams = { strategy, postsPerDay, timeSlots, startDate, endDate, template: tpl, withBadge: badge, filters: filters || null, productCount: ids.length, buttons: buttons || null };
     const planResult = await pool.query(
       `INSERT INTO tg_plans (name, params, total_posts, starts_at, ends_at)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
@@ -2214,17 +2271,18 @@ app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
     const planId = planResult.rows[0].id;
 
     // Bulk insert scheduled tasks
+    const btns = buttons && Array.isArray(buttons) && buttons.length > 0 ? JSON.stringify(buttons) : null;
     const values = [];
     const taskParams = [];
     let pi = 0;
     for (const s of slots) {
-      const base = pi * 5;
-      values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
-      taskParams.push(planId, s.productId, tpl, badge, s.scheduledAt);
+      const base = pi * 6;
+      values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
+      taskParams.push(planId, s.productId, tpl, badge, s.scheduledAt, btns);
       pi++;
     }
     await pool.query(
-      `INSERT INTO tg_scheduled (plan_id, product_id, template, with_badge, scheduled_at)
+      `INSERT INTO tg_scheduled (plan_id, product_id, template, with_badge, scheduled_at, buttons)
        VALUES ${values.join(', ')}`,
       taskParams
     );
@@ -2575,7 +2633,7 @@ async function processScheduledTask() {
     const text = buildPostText(p, task.template);
     const allImages = p.images || [];
     const photos = allImages.length > 0 ? [allImages[0]] : [];
-    const keyboard = productKeyboard(p);
+    const keyboard = resolveKeyboard(task.buttons, p);
     const badges = task.with_badge ? [p.badge, p.badge2] : null;
 
     // Send via existing pipeline

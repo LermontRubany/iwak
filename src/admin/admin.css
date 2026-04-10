@@ -2613,7 +2613,17 @@
 
 .tg-drawer__button-preview {
   margin-top: 10px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.tg-drawer__btn-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  width: 100%;
 }
 
 .tg-drawer__inline-btn {
@@ -2625,6 +2635,12 @@
   font-size: 13px;
   font-weight: 500;
   border: 1px solid rgba(0, 136, 204, 0.3);
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
 }
 
 .tg-drawer__editor {
@@ -2670,6 +2686,197 @@
   font-size: 11px;
   color: rgba(255,255,255,0.4);
   text-align: center;
+}
+
+/* =============================================
+   BUTTON CONSTRUCTOR
+   ============================================= */
+
+.btn-ctor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-ctor__preview {
+  background: #1b2836;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.btn-ctor__preview-row {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-ctor__preview-btn {
+  flex: 1;
+  max-width: 200px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  background: rgba(0, 136, 204, 0.15);
+  color: #29b6f6;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(0, 136, 204, 0.3);
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-ctor__preview-btn:hover {
+  background: rgba(0, 136, 204, 0.25);
+}
+
+.btn-ctor__preview-btn--active {
+  background: rgba(0, 136, 204, 0.3);
+  border-color: #29b6f6;
+  box-shadow: 0 0 0 1px #29b6f6;
+}
+
+.btn-ctor__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn-ctor__row-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--adm-surface);
+  border-radius: 6px;
+  border: 1px solid var(--adm-border);
+}
+
+.btn-ctor__row-label {
+  font-size: 12px;
+  color: var(--adm-text-secondary, rgba(255,255,255,0.5));
+}
+
+.btn-ctor__row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-ctor__icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid var(--adm-border);
+  background: transparent;
+  color: var(--adm-text);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.btn-ctor__icon-btn:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.btn-ctor__icon-btn--danger {
+  color: #f44;
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.btn-ctor__icon-btn--danger:hover {
+  background: rgba(255, 68, 68, 0.12);
+}
+
+.btn-ctor__add-row {
+  align-self: flex-start;
+}
+
+.btn-ctor__editor {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-ctor__editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--adm-text-secondary, rgba(255,255,255,0.5));
+}
+
+.btn-ctor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn-ctor__field-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--adm-text-secondary, rgba(255,255,255,0.5));
+}
+
+.btn-ctor__type-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.btn-ctor__chips {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-ctor__chips--wrap {
+  flex-wrap: wrap;
+}
+
+.btn-ctor__hint {
+  font-size: 12px;
+  color: var(--adm-text-secondary, rgba(255,255,255,0.4));
+  font-style: italic;
+}
+
+.btn-ctor__filter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-ctor__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--adm-text);
+  cursor: pointer;
+}
+
+.btn-ctor__checkbox input[type="checkbox"] {
+  accent-color: #29b6f6;
+}
+
+.btn-ctor__warn {
+  font-size: 12px;
+  color: #ffa726;
+  padding: 4px 0;
 }
 
 /* =============================================

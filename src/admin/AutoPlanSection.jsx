@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { notifyGlobal } from '../context/NotificationsContext';
 import authFetch from './authFetch';
+import ButtonConstructor from './ButtonConstructor';
 
 const STRATEGY_LABELS = { newest: 'Сначала новые', priority: 'По приоритету', price_desc: 'Дорогие первыми' };
 const TEMPLATE_LABELS = { basic: 'Базовый', new: 'Новинка', sale: 'Скидка', premium: 'Премиум' };
@@ -52,6 +53,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
   const [formGender, setFormGender] = useState('');
   const [formBrand, setFormBrand] = useState('');
   const [formOnlyUnsent, setFormOnlyUnsent] = useState(true);
+  const [formButtons, setFormButtons] = useState([[{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]]);
 
   // ── Auto-open form when preselectedIds arrive ──
   const prevPreselectedRef = useRef(null);
@@ -170,6 +172,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
         endDate: formEndDate,
         template: formTemplate,
         withBadge: formWithBadge,
+        buttons: formButtons,
       };
       const r = await authFetch('/api/tg/autoplan', {
         method: 'POST',
@@ -190,7 +193,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
       }
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setCreating(false);
-  }, [formName, formEndDate, formTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, loadPlans]);
+  }, [formName, formEndDate, formTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, formButtons, loadPlans]);
 
   // ── Plan actions ──
   const handlePlanAction = useCallback(async (planId, action) => {
@@ -435,6 +438,21 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                   <input type="checkbox" checked={formWithBadge} onChange={e => setFormWithBadge(e.target.checked)} />
                   С бейджем на фото
                 </label>
+
+                <ButtonConstructor
+                  value={formButtons}
+                  onChange={setFormButtons}
+                  filterOptions={{
+                    categories: categoryOptions.filter(c => c.val).map(c => c.val),
+                    genders: [
+                      { id: 'mens', label: 'Мужское' },
+                      { id: 'womens', label: 'Женское' },
+                      { id: 'kids', label: 'Детское' },
+                      { id: 'unisex', label: 'Унисекс' },
+                    ],
+                    brands: brandOptions.filter(b => b.val).map(b => ({ id: b.val, label: b.label })),
+                  }}
+                />
               </div>
 
               <div className="autoplan-form__group">

@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import authFetch from './authFetch';
+import ButtonConstructor from './ButtonConstructor';
+
+const DEFAULT_BUTTONS = [[{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]];
 
 function renderTgMarkdown(text) {
   return text.split('\n').map((line, i) => {
@@ -26,7 +29,7 @@ const TEMPLATES = [
   { id: 'premium', label: '✨ Премиум' },
 ];
 
-export default function TgDrawer({ productIds, onClose, onSent }) {
+export default function TgDrawer({ productIds, onClose, onSent, filterOptions }) {
   const [template, setTemplate] = useState('basic');
   const [previews, setPreviews] = useState([]); // [{text, photos, url, product}]
   const [activeIdx, setActiveIdx] = useState(0);
@@ -37,6 +40,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
   const [sendProgress, setSendProgress] = useState(null); // "2/5"
   const [result, setResult] = useState(null); // {type, text}
   const [withBadge, setWithBadge] = useState(false);
+  const [buttons, setButtons] = useState(DEFAULT_BUTTONS);
   const pollRef = useRef(null);
 
   // Cleanup polling on unmount
@@ -91,7 +95,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       const p = previews[0];
       setSendProgress({ current: 1, total: 1 });
       try {
-        const body = { productId: p.product.id, template, imageIndex: selectedPhoto };
+        const body = { productId: p.product.id, template, imageIndex: selectedPhoto, buttons };
         if (editText !== p.text) body.text = editText;
         if (withBadge) body.withBadge = true;
         const res = await authFetch('/api/tg/send', {
@@ -121,7 +125,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       const res = await authFetch('/api/tg/send-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productIds: previews.map(p => p.product.id), template, ...(withBadge ? { withBadge: true } : {}) }),
+        body: JSON.stringify({ productIds: previews.map(p => p.product.id), template, buttons, ...(withBadge ? { withBadge: true } : {}) }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -161,7 +165,7 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
       setSending(false);
       setResult({ type: 'error', text: 'Ошибка запуска отправки' });
     }
-  }, [previews, sending, editText, template, selectedPhoto, withBadge, onSent]);
+  }, [previews, sending, editText, template, selectedPhoto, withBadge, buttons, onSent]);
 
   const current = previews[activeIdx];
   const isSingle = previews.length === 1;
@@ -252,9 +256,22 @@ export default function TgDrawer({ productIds, onClose, onSent }) {
                 {renderTgMarkdown(isSingle ? editText : current.text)}
               </div>
               <div className="tg-drawer__button-preview">
-                <span className="tg-drawer__inline-btn">Смотреть товар</span>
+                {(buttons || DEFAULT_BUTTONS).map((row, ri) => (
+                  <div key={ri} className="tg-drawer__btn-row">
+                    {row.map((btn, ci) => (
+                      <span key={ci} className="tg-drawer__inline-btn">{btn.text || '—'}</span>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
+
+            {/* Button constructor */}
+            <ButtonConstructor
+              value={buttons}
+              onChange={setButtons}
+              filterOptions={filterOptions}
+            />
 
             {/* Editor (single product only) */}
             {isSingle && (
