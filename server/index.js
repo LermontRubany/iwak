@@ -1601,20 +1601,12 @@ function productUrl(p) {
   return `${SITE_ORIGIN}/product/${slug}-${p.id}`;
 }
 
-// ── Escape Markdown special chars (legacy parse_mode: Markdown) ──
-function escapeMarkdown(text) {
-  return String(text).replace(/([*_`\[])/g, '\\$1');
+// ── Escape HTML entities for parse_mode: HTML ──
+function escapeHtml(text) {
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ── Build Telegram post text from product ──
-const TG_FOOTER = [
-  '',
-  '📲 *IWAK*',
-  '[Канал](https://t.me/IWAK3) • [Отзывы](https://t.me/iwakotzivi) • [Менеджер](https://t.me/IWAKm) • [Max](https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo)',
-  '',
-  '*IWAK.RU*',
-].join('\n');
-
+// ── Format sizes ──
 function formatSizes(sizes) {
   if (!sizes || sizes.length === 0) return '';
   const sorted = [...sizes].sort((a, b) => {
@@ -1624,73 +1616,149 @@ function formatSizes(sizes) {
   });
   if (sorted.length > 6) {
     const allNum = sorted.every(s => !isNaN(Number(s)));
-    if (allNum) return `📏 ${sorted[0]}–${sorted[sorted.length - 1]}`;
+    if (allNum) return `${sorted[0]}–${sorted[sorted.length - 1]}`;
   }
-  return `📏 ${sorted.join(' • ')}`;
+  return sorted.join(' · ');
 }
+
+// ════════════════════════════════════════════
+// TG_TEMPLATES — единый конфиг шаблонов
+// ════════════════════════════════════════════
+const TG_PRODUCT_BUTTONS = [
+  [{ text: 'Смотреть товар', type: 'product' }],
+  [{ text: 'Заказать', type: 'url', url: 'https://t.me/IWAKm' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
+  [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
+  [{ text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
+];
+
+const TG_CUSTOM_BUTTONS = [
+  [{ text: 'Каталог', type: 'url', url: `${SITE_ORIGIN}/catalog` }],
+  [{ text: 'Скидки', type: 'filter', filter: { sale: true } }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
+  [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
+];
+
+const TG_TEMPLATES = {
+  basic: {
+    type: 'product',
+    label: 'Базовый',
+    defaultButtons: TG_PRODUCT_BUTTONS,
+    buildText(p) {
+      const brand = p.brand ? escapeHtml(p.brand) : '';
+      const name = escapeHtml(p.name || '');
+      const sizeLine = formatSizes(p.sizes);
+      const lines = [];
+      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
+      else lines.push('IWAK.RU');
+      lines.push('');
+      lines.push(name);
+      if (sizeLine) { lines.push(''); lines.push(sizeLine); }
+      lines.push(`${Math.round(p.price)} ₽`);
+      lines.push('');
+      lines.push('В наличии');
+      lines.push('Россия / Беларусь');
+      return lines.join('\n');
+    },
+  },
+  new: {
+    type: 'product',
+    label: 'Новинка',
+    defaultButtons: TG_PRODUCT_BUTTONS,
+    buildText(p) {
+      const brand = p.brand ? escapeHtml(p.brand) : '';
+      const name = escapeHtml(p.name || '');
+      const sizeLine = formatSizes(p.sizes);
+      const lines = [];
+      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
+      else lines.push('IWAK.RU');
+      lines.push('');
+      lines.push(`<b>НОВИНКА</b>`);
+      lines.push(name);
+      if (sizeLine) { lines.push(''); lines.push(sizeLine); }
+      lines.push(`${Math.round(p.price)} ₽`);
+      lines.push('');
+      lines.push('Только поступили');
+      lines.push('В наличии');
+      lines.push('Россия / Беларусь');
+      return lines.join('\n');
+    },
+  },
+  sale: {
+    type: 'product',
+    label: 'Скидка',
+    defaultButtons: TG_PRODUCT_BUTTONS,
+    buildText(p) {
+      const brand = p.brand ? escapeHtml(p.brand) : '';
+      const name = escapeHtml(p.name || '');
+      const sizeLine = formatSizes(p.sizes);
+      const hasSale = p.originalPrice && p.originalPrice > p.price;
+      // fallback to basic structure if no sale
+      if (!hasSale) return TG_TEMPLATES.basic.buildText(p);
+      const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+      const lines = [];
+      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
+      else lines.push('IWAK.RU');
+      lines.push('');
+      lines.push(`<b>СКИДКА −${discount}%</b>`);
+      lines.push(name);
+      if (sizeLine) { lines.push(''); lines.push(sizeLine); }
+      lines.push(`<s>${Math.round(p.originalPrice)} ₽</s>  ${Math.round(p.price)} ₽`);
+      lines.push('');
+      lines.push('В наличии');
+      lines.push('Россия / Беларусь');
+      return lines.join('\n');
+    },
+  },
+  premium: {
+    type: 'product',
+    label: 'Премиум',
+    defaultButtons: TG_PRODUCT_BUTTONS,
+    buildText(p) {
+      const brand = p.brand ? escapeHtml(p.brand) : '';
+      const name = escapeHtml(p.name || '');
+      const sizeLine = formatSizes(p.sizes);
+      const lines = [];
+      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
+      else lines.push('IWAK.RU');
+      lines.push('');
+      lines.push(name);
+      if (sizeLine) { lines.push(''); lines.push(sizeLine); }
+      lines.push(`${Math.round(p.price)} ₽`);
+      lines.push('');
+      lines.push('Премиум качество');
+      lines.push('В наличии');
+      lines.push('Россия / Беларусь');
+      return lines.join('\n');
+    },
+  },
+  custom: {
+    type: 'custom',
+    label: 'Свой пост',
+    defaultButtons: TG_CUSTOM_BUTTONS,
+    buildText: null,
+  },
+};
 
 function buildPostText(p, template = 'basic') {
-  const brand = p.brand ? escapeMarkdown(p.brand) : '';
-  const name = escapeMarkdown(p.name || '');
-  const hasSale = p.originalPrice && p.originalPrice > p.price;
-  const sizeLine = formatSizes(p.sizes);
-  const delivery = '🌍 Доставка: 🇷🇺 Россия • 🇧🇾 Беларусь';
-
-  // If sale template requested but no discount — fallback to basic
-  const tpl = (template === 'sale' && !hasSale) ? 'basic' : template;
-
-  const lines = [];
-
-  if (tpl === 'new') {
-    lines.push('🆕 *НОВИНКА*');
-    lines.push('');
-    if (brand) lines.push(`*${brand}*`);
-    lines.push(name);
-    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
-    lines.push('');
-    lines.push(`💰 *${Math.round(p.price)} ₽*`);
-    lines.push('');
-    lines.push('🔥 Только поступили');
-    lines.push('📦 В наличии');
-    lines.push(delivery);
-  } else if (tpl === 'sale') {
-    const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
-    lines.push(`🔥 *СКИДКА -${discount}%*`);
-    lines.push('');
-    if (brand) lines.push(`*${brand}*`);
-    lines.push(name);
-    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
-    lines.push('');
-    lines.push(`💸 Было: ${Math.round(p.originalPrice)} ₽`);
-    lines.push(`💰 *Сейчас: ${Math.round(p.price)} ₽*`);
-    lines.push('');
-    lines.push('📦 В наличии');
-    lines.push(delivery);
-  } else if (tpl === 'premium') {
-    lines.push(`✨ *${brand || name}*`);
-    lines.push('');
-    lines.push(name);
-    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
-    lines.push('');
-    lines.push('💎 Премиум качество');
-    lines.push(`💰 *${Math.round(p.price)} ₽*`);
-    lines.push('');
-    lines.push('📦 В наличии');
-    lines.push(delivery);
-  } else {
-    // basic
-    if (brand) lines.push(`*${brand}*`);
-    lines.push(name);
-    if (sizeLine) { lines.push(''); lines.push(sizeLine); }
-    lines.push('');
-    lines.push(`💰 *${Math.round(p.price)} ₽*`);
-    lines.push('');
-    lines.push('📦 В наличии');
-    lines.push(delivery);
-  }
-
-  return lines.join('\n') + '\n' + TG_FOOTER;
+  const tpl = TG_TEMPLATES[template] || TG_TEMPLATES.basic;
+  if (!tpl.buildText) return '';
+  return tpl.buildText(p);
 }
+
+function getDefaultButtons(template) {
+  const tpl = TG_TEMPLATES[template];
+  return tpl ? tpl.defaultButtons : TG_PRODUCT_BUTTONS;
+}
+
+// ── API: get template config for frontend ──
+app.get('/api/tg/templates', requireAuth, (_req, res) => {
+  const list = Object.entries(TG_TEMPLATES).map(([id, t]) => ({
+    id,
+    type: t.type,
+    label: t.label,
+    defaultButtons: t.defaultButtons,
+  }));
+  res.json(list);
+});
 
 // ── Inline keyboard for product ──
 function productKeyboard(p) {
@@ -1933,24 +2001,24 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId, 
   let result;
 
   if (photos.length === 0) {
-    result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'Markdown', disable_web_page_preview: true, reply_markup: keyboard });
+    result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: keyboard });
   } else if (badges && badges.length > 0) {
     try {
       const imgPath = path.join(__dirname, '..', photos[0]);
       const buffer = await composeBadgeImage(imgPath, badges);
       if (buffer) {
         result = await tgApiCallMultipart(`${TG}/sendPhoto`, {
-          chatId, photoBuffer: buffer, caption: text, parseMode: 'Markdown', replyMarkup: keyboard,
+          chatId, photoBuffer: buffer, caption: text, parseMode: 'HTML', replyMarkup: keyboard,
         });
       } else {
-        result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+        result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'HTML', reply_markup: keyboard });
       }
     } catch (err) {
       logger.warn({ err, productId }, 'Badge compose failed — sending original');
-      result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+      result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'HTML', reply_markup: keyboard });
     }
   } else {
-    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'Markdown', reply_markup: keyboard });
+    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'HTML', reply_markup: keyboard });
   }
 
   const status = result.ok === false ? 'error' : 'success';
@@ -2027,8 +2095,10 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Telegram не настроен' });
       }
       const { bot_token, chat_id } = cfg.rows[0];
-      const keyboard = resolveKeyboard(buttons, null);
-      const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text: customText, photos: [], keyboard, productId: null, badges: null });
+      const safeText = escapeHtml(customText);
+      const effectiveButtons = (buttons && Array.isArray(buttons) && buttons.length > 0) ? buttons : getDefaultButtons('custom');
+      const keyboard = resolveKeyboard(effectiveButtons, null);
+      const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text: safeText, photos: [], keyboard, productId: null, badges: null });
       if (tgResult.ok === false) {
         logger.warn({ tgResult }, 'Telegram API rejected custom post');
         return res.status(502).json({ error: 'Telegram отклонил запрос', details: tgResult.description });
@@ -2059,7 +2129,8 @@ app.post('/api/tg/send', requireAuth, async (req, res) => {
     const allImages = p.images || [];
     const idx = Number.isInteger(imageIndex) && imageIndex >= 0 && imageIndex < allImages.length ? imageIndex : 0;
     const photos = allImages.length > 0 ? [allImages[idx]] : [];
-    const keyboard = resolveKeyboard(buttons, p);
+    const effectiveButtons = (buttons && Array.isArray(buttons) && buttons.length > 0) ? buttons : getDefaultButtons(template || 'basic');
+    const keyboard = resolveKeyboard(effectiveButtons, p);
     const badges = withBadge ? [p.badge, p.badge2] : null;
 
     const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id, badges });
@@ -2110,6 +2181,7 @@ async function processTgBatch(batchId, productIds, template, cfg, withBadge, bat
   const batch = tgBatches.get(batchId);
   const { bot_token, chat_id } = cfg;
   let consecutiveFails = 0;
+  const effectiveButtons = (batchButtons && Array.isArray(batchButtons) && batchButtons.length > 0) ? batchButtons : getDefaultButtons(template);
 
   for (const productId of productIds) {
     if (consecutiveFails >= 3) {
@@ -2125,7 +2197,7 @@ async function processTgBatch(batchId, productIds, template, cfg, withBadge, bat
       const text = buildPostText(p, template);
       const allImages = p.images || [];
       const photos = allImages.length > 0 ? [allImages[0]] : [];
-      const keyboard = resolveKeyboard(batchButtons, p);
+      const keyboard = resolveKeyboard(effectiveButtons, p);
       const badges = withBadge ? [p.badge, p.badge2] : null;
       const result = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos, keyboard, productId: p.id, badges });
       if (result.ok === false) {
@@ -2707,8 +2779,9 @@ async function processScheduledTask() {
 
     // Custom mode: product_id is null, use custom_text
     if (!task.product_id) {
-      const text = task.custom_text || '';
-      const keyboard = resolveKeyboard(task.buttons, null);
+      const text = escapeHtml(task.custom_text || '');
+      const effectiveButtons = (task.buttons && Array.isArray(task.buttons) && task.buttons.length > 0) ? task.buttons : getDefaultButtons('custom');
+      const keyboard = resolveKeyboard(effectiveButtons, null);
       const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos: [], keyboard, productId: null, badges: null });
 
       if (tgResult.ok === false) {
@@ -2743,7 +2816,8 @@ async function processScheduledTask() {
     const text = buildPostText(p, task.template);
     const allImages = p.images || [];
     const photos = allImages.length > 0 ? [allImages[0]] : [];
-    const keyboard = resolveKeyboard(task.buttons, p);
+    const effectiveButtons = (task.buttons && Array.isArray(task.buttons) && task.buttons.length > 0) ? task.buttons : getDefaultButtons(task.template);
+    const keyboard = resolveKeyboard(effectiveButtons, p);
     const badges = task.with_badge ? [p.badge, p.badge2] : null;
 
     // Send via existing pipeline

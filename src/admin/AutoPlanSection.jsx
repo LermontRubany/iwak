@@ -8,6 +8,18 @@ const TEMPLATE_LABELS = { basic: 'Базовый', new: 'Новинка', sale: 
 const STATUS_LABELS = { active: 'Активен', paused: 'Пауза', completed: 'Завершён', cancelled: 'Отменён' };
 const STATUS_ICONS = { active: '●', paused: '⏸', completed: '✅', cancelled: '✕' };
 
+const FALLBACK_PRODUCT_BUTTONS = [
+  [{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }],
+  [{ text: 'Заказать', type: 'url', url: 'https://t.me/IWAKm' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
+  [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
+  [{ text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
+];
+const FALLBACK_CUSTOM_BUTTONS = [
+  [{ text: 'Каталог', type: 'url', url: 'https://iwak.ru/catalog' }],
+  [{ text: 'Скидки', type: 'filter', filter: { sale: true } }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
+  [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
+];
+
 function fmtDate(d) {
   if (!d) return '';
   const dt = new Date(d);
@@ -53,9 +65,26 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
   const [formGender, setFormGender] = useState('');
   const [formBrand, setFormBrand] = useState('');
   const [formOnlyUnsent, setFormOnlyUnsent] = useState(true);
-  const [formButtons, setFormButtons] = useState([[{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]]);
+  const [formButtons, setFormButtons] = useState(FALLBACK_PRODUCT_BUTTONS);
   const [formMode, setFormMode] = useState('product');
   const [formCustomText, setFormCustomText] = useState('');
+  const [tplMap, setTplMap] = useState(null);
+
+  // Load template defaults from server
+  useEffect(() => {
+    authFetch('/api/tg/templates').then(r => r.ok ? r.json() : null).then(list => {
+      if (!list) return;
+      const map = {};
+      for (const t of list) map[t.id] = t;
+      setTplMap(map);
+      if (map.basic?.defaultButtons) setFormButtons(map.basic.defaultButtons);
+    }).catch(() => {});
+  }, []);
+
+  const getDefaultButtonsFor = useCallback((tplId) => {
+    if (tplMap && tplMap[tplId]?.defaultButtons) return tplMap[tplId].defaultButtons;
+    return tplId === 'custom' ? FALLBACK_CUSTOM_BUTTONS : FALLBACK_PRODUCT_BUTTONS;
+  }, [tplMap]);
 
   // ── Auto-open form when preselectedIds arrive ──
   const prevPreselectedRef = useRef(null);
@@ -409,8 +438,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
 
               {/* Mode toggle */}
               <div className="autoplan-form__mode-toggle">
-                <button className={`adm-filter-chip${formMode === 'product' ? ' adm-filter-chip--active' : ''}`} onClick={() => setFormMode('product')}>🛍 Товары</button>
-                <button className={`adm-filter-chip${formMode === 'custom' ? ' adm-filter-chip--active' : ''}`} onClick={() => setFormMode('custom')}>📝 Свой пост</button>
+                <button className={`adm-filter-chip${formMode === 'product' ? ' adm-filter-chip--active' : ''}`} onClick={() => { setFormMode('product'); setFormButtons(getDefaultButtonsFor(formTemplate)); }}>🛍 Товары</button>
+                <button className={`adm-filter-chip${formMode === 'custom' ? ' adm-filter-chip--active' : ''}`} onClick={() => { setFormMode('custom'); setFormButtons(getDefaultButtonsFor('custom')); }}>📝 Свой пост</button>
               </div>
 
               <div className="autoplan-form__group">

@@ -2,20 +2,31 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import authFetch from './authFetch';
 import ButtonConstructor from './ButtonConstructor';
 
-const DEFAULT_BUTTONS = [[{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]];
-const EMPTY_BUTTONS = [[{ text: '', type: 'url', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]];
+// Fallback buttons used before templates load from server
+const FALLBACK_PRODUCT_BUTTONS = [
+  [{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }],
+  [{ text: 'Заказать', type: 'url', url: 'https://t.me/IWAKm' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
+  [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
+  [{ text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
+];
+const FALLBACK_CUSTOM_BUTTONS = [
+  [{ text: 'Каталог', type: 'url', url: 'https://iwak.ru/catalog' }],
+  [{ text: 'Скидки', type: 'filter', filter: { sale: true } }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
+  [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
+];
 
-function renderTgMarkdown(text) {
+function renderTgHtml(text) {
   return text.split('\n').map((line, i) => {
+    // parse <b>...</b>, <s>...</s>, <a href="...">...</a>, plain text
     const parts = [];
     let last = 0;
-    const re = /\[([^\]]+)\]\(([^)]+)\)|\*(.*?)\*|~(.*?)~/g;
+    const re = /<b>(.*?)<\/b>|<s>(.*?)<\/s>|<a\s+href="([^"]*)"[^>]*>(.*?)<\/a>/g;
     let m;
     while ((m = re.exec(line)) !== null) {
       if (m.index > last) parts.push(line.slice(last, m.index));
-      if (m[1] != null) parts.push(<a key={`${i}-${m.index}`} href={m[2]} target="_blank" rel="noreferrer" className="tg-link">{m[1]}</a>);
-      else if (m[3] != null) parts.push(<strong key={`${i}-${m.index}`}>{m[3]}</strong>);
-      else if (m[4] != null) parts.push(<s key={`${i}-${m.index}`}>{m[4]}</s>);
+      if (m[1] != null) parts.push(<strong key={`${i}-${m.index}`}>{m[1]}</strong>);
+      else if (m[2] != null) parts.push(<s key={`${i}-${m.index}`}>{m[2]}</s>);
+      else if (m[3] != null) parts.push(<a key={`${i}-${m.index}`} href={m[3]} target="_blank" rel="noreferrer" className="tg-link">{m[4]}</a>);
       last = re.lastIndex;
     }
     if (last < line.length) parts.push(line.slice(last));
@@ -42,8 +53,27 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
   const [sendProgress, setSendProgress] = useState(null); // "2/5"
   const [result, setResult] = useState(null); // {type, text}
   const [withBadge, setWithBadge] = useState(false);
-  const [buttons, setButtons] = useState(DEFAULT_BUTTONS);
+  const [buttons, setButtons] = useState(FALLBACK_PRODUCT_BUTTONS);
+  const [tplMap, setTplMap] = useState(null); // { basic: {defaultButtons}, ... }
   const pollRef = useRef(null);
+
+  // Load templates config from server
+  useEffect(() => {
+    authFetch('/api/tg/templates').then(r => r.ok ? r.json() : null).then(list => {
+      if (!list) return;
+      const map = {};
+      for (const t of list) map[t.id] = t;
+      setTplMap(map);
+      // Set initial buttons from template
+      const initTpl = (initialMode === 'custom') ? 'custom' : 'basic';
+      if (map[initTpl]?.defaultButtons) setButtons(map[initTpl].defaultButtons);
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getDefaultButtonsFor = useCallback((tplId) => {
+    if (tplMap && tplMap[tplId]?.defaultButtons) return tplMap[tplId].defaultButtons;
+    return tplId === 'custom' ? FALLBACK_CUSTOM_BUTTONS : FALLBACK_PRODUCT_BUTTONS;
+  }, [tplMap]);
 
   // Cleanup polling on unmount
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -215,9 +245,9 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
     setResult(null);
     if (m === 'custom') {
       setEditText('');
-      setButtons(EMPTY_BUTTONS);
+      setButtons(getDefaultButtonsFor('custom'));
     } else {
-      setButtons(DEFAULT_BUTTONS);
+      setButtons(getDefaultButtonsFor(template));
       if (current) setEditText(current.text);
     }
   };
@@ -243,7 +273,7 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
         {mode === 'custom' && (
           <div className="tg-drawer__body">
             <div className="tg-drawer__text-preview">
-              {editText.trim() ? renderTgMarkdown(editText) : <span className="tg-drawer__placeholder">Введите текст поста...</span>}
+              {editText.trim() ? renderTgHtml(editText) : <span className="tg-drawer__placeholder">Введите текст поста...</span>}
             </div>
             <div className="tg-drawer__button-preview">
               {(buttons || EMPTY_BUTTONS).map((row, ri) => (
@@ -305,7 +335,7 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
                 <button
                   key={t.id}
                   className={`adm-filter-chip${template === t.id ? ' adm-filter-chip--active' : ''}`}
-                  onClick={() => setTemplate(t.id)}
+                  onClick={() => { setTemplate(t.id); setButtons(getDefaultButtonsFor(t.id)); }}
                 >
                   {t.label}
                 </button>
@@ -360,7 +390,7 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
                 </div>
               )}
               <div className="tg-drawer__text-preview">
-                {renderTgMarkdown(isSingle ? editText : current.text)}
+                {renderTgHtml(isSingle ? editText : current.text)}
               </div>
               <div className="tg-drawer__button-preview">
                 {(buttons || DEFAULT_BUTTONS).map((row, ri) => (
