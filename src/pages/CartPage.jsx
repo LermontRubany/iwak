@@ -215,20 +215,18 @@ export default function CartPage() {
           className="btn-telegram btn-telegram--cart"
           onClick={() => {
             track('checkout_click', { itemCount: enrichedItems.length, totalPrice, productIds: enrichedItems.map(i => i.id) });
-            const param = enrichedItems.map((i) => `${i.id}:${i.size}`).join(',');
-            const cartUrl = `${window.location.origin}/cart?items=${param}`;
-            const lines = enrichedItems.map((item, i) => `${i + 1}. ${item.brand} ${item.name} — ${item.size}`);
+            const lines = enrichedItems.map((item, i) => {
+              const itemUrl = `${window.location.origin}/product/${makeProductSlug(item)}`;
+              return `${i + 1}. ${item.brand} ${item.name} — ${item.size}\n${itemUrl}`;
+            });
             const text = [
               'Здравствуйте!',
               '',
               'Хочу заказать:',
               '',
-              ...lines,
+              lines.join('\n\n'),
               '',
               `Итого: ₽${totalPrice.toLocaleString('ru-RU')}`,
-              '',
-              'Корзина:',
-              cartUrl,
             ].join('\n');
             window.open(`https://t.me/IWAKm?text=${encodeURIComponent(text)}`, '_blank');
           }}

@@ -434,8 +434,9 @@ export default function ProductPage() {
               '',
               `${product.brand} ${product.name} — ${selectedSize}`,
               '',
-              `Итого: ₽${product.price.toLocaleString('ru-RU')}`,
+              `Цена: ₽${product.price.toLocaleString('ru-RU')}`,
               '',
+              'Товар:',
               productUrl,
             ].join('\n');
             window.open(`https://t.me/IWAKm?text=${encodeURIComponent(text)}`, '_blank');
