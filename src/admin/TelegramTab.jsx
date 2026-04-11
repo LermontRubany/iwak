@@ -48,6 +48,7 @@ export default function TelegramTab() {
   const [brandFilter, setBrandFilter] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState('product');
   const [sentFilter, setSentFilter] = useState('');
   const [quickSending, setQuickSending] = useState(false);
   const [scheduledMap, setScheduledMap] = useState({});
@@ -342,7 +343,12 @@ export default function TelegramTab() {
 
       {/* ── Posting ── */}
       <div className="tg-section">
-        <h3 className="tg-section__title">📤 Постинг в Telegram</h3>
+        <div className="tg-section__header">
+          <h3 className="tg-section__title">📤 Постинг в Telegram</h3>
+          {configured && (
+            <button className="adm-btn adm-btn--sm adm-btn--accent" onClick={() => { setDrawerMode('custom'); setDrawerOpen(true); }}>📝 Свой пост</button>
+          )}
+        </div>
         {!configured && (
           <div className="tg-empty">Сначала настройте Telegram</div>
         )}
@@ -490,7 +496,7 @@ export default function TelegramTab() {
                   <button className="adm-selection-bar__close" onClick={() => setSelected(new Set())}>✕</button>
                 </div>
                 <div className="adm-selection-bar__actions">
-                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => setDrawerOpen(true)}>� Открыть</button>                  <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleQuickSend} disabled={quickSending}>
+                  <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={() => { setDrawerMode('product'); setDrawerOpen(true); }}>📤 Открыть</button>                  <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleQuickSend} disabled={quickSending}>
                     {quickSending ? '⏳ Отправка...' : '⚡ Быстрая отправка'}
                   </button>                  {configured && (
                     <button className="adm-btn adm-btn--sm" onClick={() => {
@@ -503,11 +509,12 @@ export default function TelegramTab() {
               </div>
             )}
 
-            {drawerOpen && selected.size > 0 && (
+            {drawerOpen && (drawerMode === 'custom' || selected.size > 0) && (
               <TgDrawer
-                productIds={[...selected]}
+                productIds={drawerMode === 'custom' ? [] : [...selected]}
                 onClose={() => setDrawerOpen(false)}
-                onSent={() => { setDrawerOpen(false); setSelected(new Set()); reloadProducts(); }}
+                onSent={() => { setDrawerOpen(false); if (drawerMode === 'product') { setSelected(new Set()); reloadProducts(); } }}
+                initialMode={drawerMode}
                 filterOptions={{
                   categories: categoryOptions.filter(c => c.id).map(c => c.id),
                   genders: genderOptions.filter(g => g.id).map(g => ({ id: g.id, label: g.label })),

@@ -1701,7 +1701,7 @@ function productKeyboard(p) {
 // buttons = [[{text, type, url?, filter?}], ...] or null/undefined → fallback to productKeyboard
 function resolveKeyboard(buttons, product) {
   if (!buttons || !Array.isArray(buttons) || buttons.length === 0) {
-    return productKeyboard(product);
+    return product ? productKeyboard(product) : { inline_keyboard: [] };
   }
 
   const rows = [];
@@ -1718,12 +1718,13 @@ function resolveKeyboard(buttons, product) {
 
   return rows.length > 0
     ? { inline_keyboard: rows }
-    : productKeyboard(product);
+    : product ? productKeyboard(product) : { inline_keyboard: [] };
 }
 
 function resolveButton(btn, product) {
   switch (btn.type) {
     case 'product':
+      if (!product) return null;
       return { text: btn.text, url: productUrl(product) };
 
     case 'url':
@@ -2015,7 +2016,32 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
 
 // ── Send post to Telegram (via queue) ──
 app.post('/api/tg/send', requireAuth, async (req, res) => {
-  const { productId, text: customText, template, imageIndex, withBadge, buttons } = req.body;
+  const { productId, text: customText, template, imageIndex, withBadge, buttons, mode } = req.body;
+
+  // Custom mode: text-only post without product
+  if (mode === 'custom') {
+    if (!customText?.trim()) return res.status(400).json({ error: 'Текст обязателен для custom-поста' });
+    try {
+      const cfg = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
+      if (cfg.rows.length === 0 || !cfg.rows[0].bot_token || !cfg.rows[0].chat_id) {
+        return res.status(400).json({ error: 'Telegram не настроен' });
+      }
+      const { bot_token, chat_id } = cfg.rows[0];
+      const keyboard = resolveKeyboard(buttons, null);
+      const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text: customText, photos: [], keyboard, productId: null, badges: null });
+      if (tgResult.ok === false) {
+        logger.warn({ tgResult }, 'Telegram API rejected custom post');
+        return res.status(502).json({ error: 'Telegram отклонил запрос', details: tgResult.description });
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, 'POST /api/tg/send (custom) error');
+      res.status(500).json({ error: 'Ошибка отправки' });
+    }
+    return;
+  }
+
+  // Product mode (default)
   if (!productId) return res.status(400).json({ error: 'productId required' });
 
   try {
@@ -2135,7 +2161,7 @@ app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
 // ── Autoplan: generate preview (no DB write) ──
 app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
   try {
-    const { productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge } = req.body;
+    const { productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge, mode, text: customText } = req.body;
 
     if (!postsPerDay || !timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0) {
       return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
@@ -2144,6 +2170,32 @@ app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'startDate и endDate обязательны' });
     }
 
+    // Custom mode: generate slots without products
+    if (mode === 'custom') {
+      if (!customText?.trim()) return res.status(400).json({ error: 'Текст обязателен для custom-плана' });
+      const dummyIds = [0]; // single dummy ID for slot generation
+      const slots = generateAutoplanSlots(dummyIds, timeSlots, startDate, endDate);
+      const enriched = slots.map(s => ({
+        date: s.date,
+        time: s.time,
+        scheduledAt: s.scheduledAt,
+        productId: null,
+        productName: '📝 Свой пост',
+        productBrand: '',
+        productImage: '',
+        productPrice: 0,
+        isRepeat: false,
+      }));
+      return res.json({
+        slots: enriched,
+        totalPosts: enriched.length,
+        uniqueProducts: 0,
+        repeats: 0,
+        days: new Set(enriched.map(s => s.date)).size,
+      });
+    }
+
+    // Product mode (existing logic)
     // Resolve product list
     let ids;
     if (Array.isArray(productIds) && productIds.length > 0) {
@@ -2222,12 +2274,51 @@ app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
 // ── Autoplan: create plan ──
 app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
   try {
-    const { name, productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge, buttons } = req.body;
+    const { name, productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge, buttons, mode, text: customText } = req.body;
 
     if (!name?.trim()) return res.status(400).json({ error: 'Название плана обязательно' });
     if (!postsPerDay || !timeSlots || timeSlots.length === 0) return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate и endDate обязательны' });
 
+    // Custom mode: text-only posts without products
+    if (mode === 'custom') {
+      if (!customText?.trim()) return res.status(400).json({ error: 'Текст обязателен для custom-плана' });
+
+      const dummyIds = [0];
+      const slots = generateAutoplanSlots(dummyIds, timeSlots, startDate, endDate);
+      if (slots.length === 0) return res.status(400).json({ error: 'План пуст — проверьте даты и время' });
+
+      const tpl = template || 'basic';
+      const badge = !!withBadge;
+      const planParams = { mode: 'custom', strategy, postsPerDay, timeSlots, startDate, endDate, template: tpl, withBadge: badge, text: customText, buttons: buttons || null };
+      const planResult = await pool.query(
+        `INSERT INTO tg_plans (name, params, total_posts, starts_at, ends_at)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [name.trim(), JSON.stringify(planParams), slots.length, slots[0].scheduledAt, slots[slots.length - 1].scheduledAt]
+      );
+      const planId = planResult.rows[0].id;
+
+      const btns = buttons && Array.isArray(buttons) && buttons.length > 0 ? JSON.stringify(buttons) : null;
+      const values = [];
+      const taskParams = [];
+      let pi = 0;
+      for (const s of slots) {
+        const base = pi * 7;
+        values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`);
+        taskParams.push(planId, null, tpl, badge, s.scheduledAt, btns, customText);
+        pi++;
+      }
+      await pool.query(
+        `INSERT INTO tg_scheduled (plan_id, product_id, template, with_badge, scheduled_at, buttons, custom_text)
+         VALUES ${values.join(', ')}`,
+        taskParams
+      );
+
+      logger.info({ planId, name: name.trim(), totalPosts: slots.length, mode: 'custom' }, 'Autoplan created (custom)');
+      return res.json({ ok: true, planId, totalPosts: slots.length });
+    }
+
+    // Product mode (existing logic)
     // Resolve product IDs (same logic as preview)
     let ids;
     if (Array.isArray(productIds) && productIds.length > 0) {
@@ -2481,16 +2572,16 @@ app.delete('/api/tg/schedule/:id', requireAuth, async (req, res) => {
 app.get('/api/tg/autoplan/today', requireAuth, async (_req, res) => {
   try {
     const r = await pool.query(
-      `SELECT s.scheduled_at, p.name, p.brand, p.price, p.image
+      `SELECT s.scheduled_at, s.custom_text, p.name, p.brand, p.price, p.image
        FROM tg_scheduled s
-       JOIN products p ON p.id = s.product_id
+       LEFT JOIN products p ON p.id = s.product_id
        WHERE s.status = 'done'
          AND s.scheduled_at::date = CURRENT_DATE
        ORDER BY s.scheduled_at DESC`
     );
     res.json(r.rows.map(row => ({
       time: row.scheduled_at,
-      name: [row.brand, row.name].filter(Boolean).join(' '),
+      name: row.product_id ? [row.brand, row.name].filter(Boolean).join(' ') : '📝 Свой пост',
       price: row.price ? parseFloat(row.price) : null,
       image: row.image,
     })));
@@ -2614,7 +2705,26 @@ async function processScheduledTask() {
     }
     const { bot_token, chat_id } = cfgR.rows[0];
 
-    // Load product
+    // Custom mode: product_id is null, use custom_text
+    if (!task.product_id) {
+      const text = task.custom_text || '';
+      const keyboard = resolveKeyboard(task.buttons, null);
+      const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text, photos: [], keyboard, productId: null, badges: null });
+
+      if (tgResult.ok === false) {
+        await pool.query("UPDATE tg_scheduled SET status = 'failed', result = $1 WHERE id = $2", [JSON.stringify({ error: tgResult.description || 'TG error' }), task.id]);
+        await pool.query('UPDATE tg_plans SET failed_count = failed_count + 1 WHERE id = $1', [task.plan_id]);
+        logger.warn({ taskId: task.id, tgResult }, 'Scheduler: custom task failed');
+      } else {
+        await pool.query("UPDATE tg_scheduled SET status = 'done', result = $1 WHERE id = $2", [JSON.stringify({ messageId: tgResult.result?.message_id }), task.id]);
+        await pool.query('UPDATE tg_plans SET sent_count = sent_count + 1 WHERE id = $1', [task.plan_id]);
+        logger.info({ taskId: task.id }, 'Scheduler: custom task done');
+      }
+      await autoCompletePlan();
+      return;
+    }
+
+    // Product mode: load product
     const pr = await pool.query(
       'SELECT id, name, brand, price, original_price, sizes, images, badge, badge2 FROM products WHERE id = $1',
       [task.product_id]

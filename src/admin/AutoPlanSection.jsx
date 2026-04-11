@@ -54,6 +54,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
   const [formBrand, setFormBrand] = useState('');
   const [formOnlyUnsent, setFormOnlyUnsent] = useState(true);
   const [formButtons, setFormButtons] = useState([[{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]]);
+  const [formMode, setFormMode] = useState('product');
+  const [formCustomText, setFormCustomText] = useState('');
 
   // ── Auto-open form when preselectedIds arrive ──
   const prevPreselectedRef = useRef(null);
@@ -117,24 +119,36 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
     setPreviewLoading(true);
     setPreview(null);
     try {
-      const useIds = preselectedIds && preselectedIds.length > 0;
-      const body = {
-        ...(useIds
-          ? { productIds: [...preselectedIds] }
-          : { filters: {
-              ...(formCategory ? { category: formCategory } : {}),
-              ...(formGender ? { gender: formGender } : {}),
-              ...(formBrand ? { brand: formBrand } : {}),
-              onlyUnsent: formOnlyUnsent,
-            } }),
-        strategy: formStrategy,
-        postsPerDay: formTimeSlots.length,
-        timeSlots: formTimeSlots.filter(Boolean),
-        startDate: formStartDate,
-        endDate: formEndDate,
-        template: formTemplate,
-        withBadge: formWithBadge,
-      };
+      let body;
+      if (formMode === 'custom') {
+        body = {
+          mode: 'custom',
+          text: formCustomText,
+          postsPerDay: formTimeSlots.length,
+          timeSlots: formTimeSlots.filter(Boolean),
+          startDate: formStartDate,
+          endDate: formEndDate,
+        };
+      } else {
+        const useIds = preselectedIds && preselectedIds.length > 0;
+        body = {
+          ...(useIds
+            ? { productIds: [...preselectedIds] }
+            : { filters: {
+                ...(formCategory ? { category: formCategory } : {}),
+                ...(formGender ? { gender: formGender } : {}),
+                ...(formBrand ? { brand: formBrand } : {}),
+                onlyUnsent: formOnlyUnsent,
+              } }),
+          strategy: formStrategy,
+          postsPerDay: formTimeSlots.length,
+          timeSlots: formTimeSlots.filter(Boolean),
+          startDate: formStartDate,
+          endDate: formEndDate,
+          template: formTemplate,
+          withBadge: formWithBadge,
+        };
+      }
       const r = await authFetch('/api/tg/autoplan/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,35 +159,52 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
       else notifyGlobal('error', json.error || 'Ошибка превью');
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setPreviewLoading(false);
-  }, [preselectedIds, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formTimeSlots, formStartDate, formEndDate, formTemplate, formWithBadge]);
+  }, [preselectedIds, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formTimeSlots, formStartDate, formEndDate, formTemplate, formWithBadge, formMode, formCustomText]);
 
   // ── Create plan ──
   const handleCreate = useCallback(async () => {
     if (!formName.trim()) { notifyGlobal('error', 'Введите название плана'); return; }
     if (!formEndDate) { notifyGlobal('error', 'Укажите дату окончания'); return; }
     if (formTimeSlots.filter(Boolean).length === 0) { notifyGlobal('error', 'Добавьте хотя бы один слот времени'); return; }
+    if (formMode === 'custom' && !formCustomText.trim()) { notifyGlobal('error', 'Введите текст для custom-поста'); return; }
     setCreating(true);
     try {
-      const useIds = preselectedIds && preselectedIds.length > 0;
-      const body = {
-        name: formName.trim(),
-        ...(useIds
-          ? { productIds: [...preselectedIds] }
-          : { filters: {
-              ...(formCategory ? { category: formCategory } : {}),
-              ...(formGender ? { gender: formGender } : {}),
-              ...(formBrand ? { brand: formBrand } : {}),
-              onlyUnsent: formOnlyUnsent,
-            } }),
-        strategy: formStrategy,
-        postsPerDay: formTimeSlots.length,
-        timeSlots: formTimeSlots.filter(Boolean),
-        startDate: formStartDate,
-        endDate: formEndDate,
-        template: formTemplate,
-        withBadge: formWithBadge,
-        buttons: formButtons,
-      };
+      let body;
+      if (formMode === 'custom') {
+        body = {
+          name: formName.trim(),
+          mode: 'custom',
+          text: formCustomText,
+          buttons: formButtons,
+          postsPerDay: formTimeSlots.length,
+          timeSlots: formTimeSlots.filter(Boolean),
+          startDate: formStartDate,
+          endDate: formEndDate,
+          template: formTemplate,
+          withBadge: formWithBadge,
+        };
+      } else {
+        const useIds = preselectedIds && preselectedIds.length > 0;
+        body = {
+          name: formName.trim(),
+          ...(useIds
+            ? { productIds: [...preselectedIds] }
+            : { filters: {
+                ...(formCategory ? { category: formCategory } : {}),
+                ...(formGender ? { gender: formGender } : {}),
+                ...(formBrand ? { brand: formBrand } : {}),
+                onlyUnsent: formOnlyUnsent,
+              } }),
+          strategy: formStrategy,
+          postsPerDay: formTimeSlots.length,
+          timeSlots: formTimeSlots.filter(Boolean),
+          startDate: formStartDate,
+          endDate: formEndDate,
+          template: formTemplate,
+          withBadge: formWithBadge,
+          buttons: formButtons,
+        };
+      }
       const r = await authFetch('/api/tg/autoplan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -193,7 +224,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
       }
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setCreating(false);
-  }, [formName, formEndDate, formTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, formButtons, loadPlans]);
+  }, [formName, formEndDate, formTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, formButtons, formMode, formCustomText, loadPlans]);
 
   // ── Plan actions ──
   const handlePlanAction = useCallback(async (planId, action) => {
@@ -338,7 +369,11 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                               <div key={t.id} className={`autoplan-task autoplan-task--${t.status}`}>
                                 <span className="autoplan-task__time">{fmtDateTime(t.scheduledAt)}</span>
                                 <span className="autoplan-task__product">
-                                  {t.productBrand && <strong>{t.productBrand}</strong>} {t.productName || `#${t.productId}`}
+                                  {t.productId ? (
+                                    <>{t.productBrand && <strong>{t.productBrand}</strong>} {t.productName || `#${t.productId}`}</>
+                                  ) : (
+                                    <em>📝 Свой пост</em>
+                                  )}
                                 </span>
                                 <span className={`autoplan-task__status autoplan-task__status--${t.status}`}>
                                   {t.status === 'done' ? '✅' : t.status === 'failed' ? '❌' : t.status === 'processing' ? '⏳' : '🔄'}
@@ -372,9 +407,42 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
               <label className="tg-label">Название</label>
               <input className="adm-input" type="text" placeholder="Весенняя коллекция" value={formName} onChange={e => setFormName(e.target.value)} />
 
-              <div className="autoplan-form__group">
-                <span className="autoplan-form__group-title">Что публикуем</span>
+              {/* Mode toggle */}
+              <div className="autoplan-form__mode-toggle">
+                <button className={`adm-filter-chip${formMode === 'product' ? ' adm-filter-chip--active' : ''}`} onClick={() => setFormMode('product')}>🛍 Товары</button>
+                <button className={`adm-filter-chip${formMode === 'custom' ? ' adm-filter-chip--active' : ''}`} onClick={() => setFormMode('custom')}>📝 Свой пост</button>
+              </div>
 
+              <div className="autoplan-form__group">
+                <span className="autoplan-form__group-title">{formMode === 'custom' ? 'Содержание поста' : 'Что публикуем'}</span>
+
+                {formMode === 'custom' ? (
+                  <>
+                    <label className="tg-label">Текст поста</label>
+                    <textarea
+                      className="adm-input tg-textarea"
+                      value={formCustomText}
+                      onChange={e => setFormCustomText(e.target.value)}
+                      rows={5}
+                      placeholder="Введите текст поста (Markdown поддерживается)"
+                    />
+                    <ButtonConstructor
+                      value={formButtons}
+                      onChange={setFormButtons}
+                      filterOptions={{
+                        categories: categoryOptions.filter(c => c.val).map(c => c.val),
+                        genders: [
+                          { id: 'mens', label: 'Мужское' },
+                          { id: 'womens', label: 'Женское' },
+                          { id: 'kids', label: 'Детское' },
+                          { id: 'unisex', label: 'Унисекс' },
+                        ],
+                        brands: brandOptions.filter(b => b.val).map(b => ({ id: b.val, label: b.label })),
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
                 {preselectedIds && preselectedIds.length > 0 ? (
                   <div className="autoplan-preselected">
                     ✅ Выбрано {preselectedIds.length} товаров
@@ -453,6 +521,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                     brands: brandOptions.filter(b => b.val).map(b => ({ id: b.val, label: b.label })),
                   }}
                 />
+                  </>
+                )}
               </div>
 
               <div className="autoplan-form__group">
@@ -482,10 +552,10 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
               </div>
 
               <div className="autoplan-form__actions">
-                <button className="adm-btn adm-btn--sm" onClick={handlePreview} disabled={previewLoading || !formEndDate}>
+                <button className="adm-btn adm-btn--sm" onClick={handlePreview} disabled={previewLoading || !formEndDate || (formMode === 'custom' && !formCustomText.trim())}>
                   {previewLoading ? 'Загрузка...' : '👁 Превью'}
                 </button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={handleCreate} disabled={creating || !formEndDate || !formName.trim()}>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={handleCreate} disabled={creating || !formEndDate || !formName.trim() || (formMode === 'custom' && !formCustomText.trim())}>
                   {creating ? 'Создание...' : '✅ Создать план'}
                 </button>
               </div>

@@ -3,6 +3,7 @@ import authFetch from './authFetch';
 import ButtonConstructor from './ButtonConstructor';
 
 const DEFAULT_BUTTONS = [[{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]];
+const EMPTY_BUTTONS = [[{ text: '', type: 'url', url: '', filter: { category: '', gender: [], brand: [], sale: false } }]];
 
 function renderTgMarkdown(text) {
   return text.split('\n').map((line, i) => {
@@ -29,7 +30,8 @@ const TEMPLATES = [
   { id: 'premium', label: '✨ Премиум' },
 ];
 
-export default function TgDrawer({ productIds, onClose, onSent, filterOptions }) {
+export default function TgDrawer({ productIds, onClose, onSent, filterOptions, initialMode }) {
+  const [mode, setMode] = useState(initialMode || 'product');
   const [template, setTemplate] = useState('basic');
   const [previews, setPreviews] = useState([]); // [{text, photos, url, product}]
   const [activeIdx, setActiveIdx] = useState(0);
@@ -46,8 +48,9 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions })
   // Cleanup polling on unmount
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  // Load previews when productIds or template changes
+  // Load previews when productIds or template changes (product mode only)
   useEffect(() => {
+    if (mode === 'custom') return;
     if (!productIds || productIds.length === 0) return;
     let cancelled = false;
     setLoading(true);
@@ -73,7 +76,7 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions })
     });
 
     return () => { cancelled = true; };
-  }, [productIds, template]);
+  }, [productIds, template, mode]);
 
   // Sync editText when switching active product
   useEffect(() => {
@@ -84,7 +87,39 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions })
   }, [activeIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = useCallback(async () => {
-    if (previews.length === 0 || sending) return;
+    if (sending) return;
+
+    // Custom mode: text + buttons only
+    if (mode === 'custom') {
+      if (!editText.trim()) return;
+      setSending(true);
+      setResult(null);
+      setSendProgress({ current: 1, total: 1 });
+      try {
+        const res = await authFetch('/api/tg/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'custom', text: editText, buttons }),
+        });
+        const json = await res.json();
+        setSending(false);
+        setSendProgress(null);
+        if (res.ok && json.ok) {
+          setResult({ type: 'ok', text: 'Отправлено в Telegram' });
+          if (onSent) setTimeout(onSent, 1200);
+        } else {
+          setResult({ type: 'error', text: json.error || 'Ошибка отправки' });
+        }
+      } catch {
+        setSending(false);
+        setSendProgress(null);
+        setResult({ type: 'error', text: 'Ошибка соединения' });
+      }
+      return;
+    }
+
+    // Product mode
+    if (previews.length === 0) return;
     setSending(true);
     setResult(null);
 
@@ -165,13 +200,27 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions })
       setSending(false);
       setResult({ type: 'error', text: 'Ошибка запуска отправки' });
     }
-  }, [previews, sending, editText, template, selectedPhoto, withBadge, buttons, onSent]);
+  }, [previews, sending, editText, template, selectedPhoto, withBadge, buttons, mode, onSent]);
 
   const current = previews[activeIdx];
-  const isSingle = previews.length === 1;
-  const limit = current && current.photos.length > 0 ? 1024 : 4096;
+  const isSingle = mode === 'custom' || previews.length === 1;
+  const customLimit = 4096;
+  const limit = mode === 'custom' ? customLimit : (current && current.photos.length > 0 ? 1024 : 4096);
   const charLen = editText.length;
   const overLimit = charLen > limit;
+
+  const handleModeSwitch = (m) => {
+    if (m === mode) return;
+    setMode(m);
+    setResult(null);
+    if (m === 'custom') {
+      setEditText('');
+      setButtons(EMPTY_BUTTONS);
+    } else {
+      setButtons(DEFAULT_BUTTONS);
+      if (current) setEditText(current.text);
+    }
+  };
 
   return (
     <>
@@ -179,18 +228,76 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions })
       <div className="tg-drawer">
         <div className="tg-drawer__header">
           <span className="tg-drawer__title">
-            {isSingle ? '📤 Telegram пост' : `📤 Отправка ${previews.length} товаров`}
+            {mode === 'custom' ? '📝 Свой пост' : isSingle ? '📤 Telegram пост' : `📤 Отправка ${previews.length} товаров`}
           </span>
           <button className="tg-drawer__close" onClick={onClose}>✕</button>
         </div>
 
-        {loading && <div className="tg-drawer__loading">Загрузка...</div>}
+        {/* Mode toggle */}
+        <div className="tg-drawer__mode-toggle">
+          <button className={`adm-filter-chip${mode === 'product' ? ' adm-filter-chip--active' : ''}`} onClick={() => handleModeSwitch('product')}>🛍 Товар</button>
+          <button className={`adm-filter-chip${mode === 'custom' ? ' adm-filter-chip--active' : ''}`} onClick={() => handleModeSwitch('custom')}>📝 Свой пост</button>
+        </div>
 
-        {!loading && previews.length === 0 && (
+        {/* Custom mode body */}
+        {mode === 'custom' && (
+          <div className="tg-drawer__body">
+            <div className="tg-drawer__text-preview">
+              {editText.trim() ? renderTgMarkdown(editText) : <span className="tg-drawer__placeholder">Введите текст поста...</span>}
+            </div>
+            <div className="tg-drawer__button-preview">
+              {(buttons || EMPTY_BUTTONS).map((row, ri) => (
+                <div key={ri} className="tg-drawer__btn-row">
+                  {row.map((btn, ci) => (
+                    <span key={ci} className="tg-drawer__inline-btn">{btn.text || '—'}</span>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <ButtonConstructor
+              value={buttons}
+              onChange={setButtons}
+              filterOptions={filterOptions}
+            />
+
+            <div className="tg-drawer__editor">
+              <label className="tg-label">Текст поста</label>
+              <textarea
+                className="adm-input tg-textarea"
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                rows={6}
+                placeholder="Введите текст поста (Markdown поддерживается)"
+              />
+              <div className={`tg-charcount${overLimit ? ' tg-charcount--over' : ''}`}>
+                {charLen} / {limit}{overLimit ? ' — превышен лимит' : ''}
+              </div>
+            </div>
+
+            <div className="tg-drawer__footer">
+              <button
+                className="adm-btn adm-btn--primary tg-drawer__send"
+                onClick={handleSend}
+                disabled={sending || overLimit || !editText.trim()}
+              >
+                {sending ? 'Отправка...' : '📤 Отправить в Telegram'}
+              </button>
+              {result && (
+                <div className={`tg-msg tg-msg--${result.type}`}>{result.text}</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Product mode */}
+        {mode === 'product' && loading && <div className="tg-drawer__loading">Загрузка...</div>}
+
+        {mode === 'product' && !loading && previews.length === 0 && (
           <div className="tg-drawer__empty">Не удалось загрузить товары</div>
         )}
 
-        {!loading && current && (
+        {mode === 'product' && !loading && current && (
           <div className="tg-drawer__body">
             {/* Template selector */}
             <div className="tg-drawer__templates">
