@@ -1601,11 +1601,6 @@ function productUrl(p) {
   return `${SITE_ORIGIN}/product/${slug}-${p.id}`;
 }
 
-// ── Escape HTML entities for parse_mode: HTML ──
-function escapeHtml(text) {
-  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 // ── Format sizes ──
 function formatSizes(sizes) {
   if (!sizes || sizes.length === 0) return '';
