@@ -1609,11 +1609,7 @@ function formatSizes(sizes) {
     if (!isNaN(na) && !isNaN(nb)) return na - nb;
     return a.localeCompare(b);
   });
-  if (sorted.length > 6) {
-    const allNum = sorted.every(s => !isNaN(Number(s)));
-    if (allNum) return `${sorted[0]}–${sorted[sorted.length - 1]}`;
-  }
-  return sorted.join(' · ');
+  return sorted.join(' ');
 }
 
 // ════════════════════════════════════════════
@@ -1642,8 +1638,8 @@ const TG_TEMPLATES = {
       const name = escapeHtml(p.name || '');
       const sizeLine = formatSizes(p.sizes);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(name);
       if (sizeLine) { lines.push(''); lines.push(sizeLine); }
@@ -1663,8 +1659,8 @@ const TG_TEMPLATES = {
       const name = escapeHtml(p.name || '');
       const sizeLine = formatSizes(p.sizes);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(`<b>НОВИНКА</b>`);
       lines.push(name);
@@ -1690,8 +1686,8 @@ const TG_TEMPLATES = {
       if (!hasSale) return TG_TEMPLATES.basic.buildText(p);
       const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(`<b>СКИДКА −${discount}%</b>`);
       lines.push(name);
@@ -1712,8 +1708,8 @@ const TG_TEMPLATES = {
       const name = escapeHtml(p.name || '');
       const sizeLine = formatSizes(p.sizes);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(name);
       if (sizeLine) { lines.push(''); lines.push(sizeLine); }

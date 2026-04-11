@@ -33,11 +33,7 @@ function formatSizes(sizes) {
     if (!isNaN(na) && !isNaN(nb)) return na - nb;
     return a.localeCompare(b);
   });
-  if (sorted.length > 6) {
-    const allNum = sorted.every(s => !isNaN(Number(s)));
-    if (allNum) return `${sorted[0]}–${sorted[sorted.length - 1]}`;
-  }
-  return sorted.join(' · ');
+  return sorted.join(' ');
 }
 
 function productUrl(p) {
@@ -121,8 +117,8 @@ const TG_TEMPLATES = {
       const name = escapeHtml(p.name || '');
       const sizeLine = formatSizes(p.sizes);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(name);
       if (sizeLine) { lines.push(''); lines.push(sizeLine); }
@@ -141,8 +137,8 @@ const TG_TEMPLATES = {
       const name = escapeHtml(p.name || '');
       const sizeLine = formatSizes(p.sizes);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(`<b>НОВИНКА</b>`);
       lines.push(name);
@@ -166,8 +162,8 @@ const TG_TEMPLATES = {
       if (!hasSale) return TG_TEMPLATES.basic.buildText(p);
       const discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(`<b>СКИДКА −${discount}%</b>`);
       lines.push(name);
@@ -187,8 +183,8 @@ const TG_TEMPLATES = {
       const name = escapeHtml(p.name || '');
       const sizeLine = formatSizes(p.sizes);
       const lines = [];
-      if (brand) lines.push(`<b>${brand}</b>                              IWAK.RU`);
-      else lines.push('IWAK.RU');
+      if (brand) lines.push(`<b>${brand}</b>                              <a href="https://iwak.ru">IWAK.RU</a>`);
+      else lines.push('<a href="https://iwak.ru">IWAK.RU</a>');
       lines.push('');
       lines.push(name);
       if (sizeLine) { lines.push(''); lines.push(sizeLine); }
@@ -234,9 +230,10 @@ console.log('\n═══ ЭТАП 1: ШАБЛОНЫ ТЕКСТА ═══');
   const text = buildPostText(PRODUCT_BASIC, 'basic');
   assert(text.includes('<b>Nike</b>'), '1.1a basic: brand bold');
   assert(text.includes('IWAK.RU'), '1.1b basic: IWAK.RU header');
+  assert(text.includes('<a href="https://iwak.ru">IWAK.RU</a>'), '1.1b2 basic: IWAK.RU is clickable link');
   assert(text.includes('Air Force 1'), '1.1c basic: name');
   assert(text.includes('12990 ₽'), '1.1d basic: price');
-  assert(text.includes('40 · 41 · 42 · 43'), '1.1e basic: sizes');
+  assert(text.includes('40 41 42 43'), '1.1e basic: sizes (space separated)');
   assert(text.includes('В наличии'), '1.1f basic: in stock');
   assert(text.includes('Россия / Беларусь'), '1.1g basic: delivery');
   // No emoji
@@ -282,14 +279,14 @@ console.log('\n═══ ЭТАП 1: ШАБЛОНЫ ТЕКСТА ═══');
 // 1.6 No brand
 {
   const text = buildPostText(PRODUCT_NO_BRAND, 'basic');
-  assert(text.startsWith('IWAK.RU'), '1.6a no brand: starts with IWAK.RU');
+  assert(text.startsWith('<a href="https://iwak.ru">IWAK.RU</a>'), '1.6a no brand: starts with IWAK.RU link');
   assert(text.includes('Basic Sneakers'), '1.6b no brand: name present');
 }
 
-// 1.7 Many sizes → range
+// 1.7 Many sizes → full list (not range)
 {
   const text = buildPostText(PRODUCT_SALE, 'basic');
-  assert(text.includes('38–44'), '1.7 many sizes: range format');
+  assert(text.includes('38 39 40 41 42 43 44'), '1.7 many sizes: full list');
 }
 
 // 1.8 Custom template returns empty
