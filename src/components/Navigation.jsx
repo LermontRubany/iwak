@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
 
 const NAV_CATEGORIES = [
-  { label: 'МУЖСКОЕ', gender: 'mens' },
-  { label: 'ЖЕНСКОЕ', gender: 'womens' },
-  { label: 'ДЕТСКОЕ', gender: 'kids' },
+  { label: 'МУЖСКОЕ', search: '?gender=mens' },
+  { label: 'ЖЕНСКОЕ', search: '?gender=womens' },
+  { label: 'АКСЕССУАРЫ', search: '?category=accessories' },
 ];
 
 const secondaryLinks = [];
@@ -99,10 +99,10 @@ export default function Navigation({ isOpen, onClose }) {
 
         <ul className="nav-main-links">
           {NAV_CATEGORIES.map((section) => (
-            <li key={section.gender} className="nav-section">
+            <li key={section.label} className="nav-section">
               <button
                 className="nav-link nav-link--main"
-                onClick={() => handleCatalog(`?gender=${section.gender}`)}
+                onClick={() => handleCatalog(section.search)}
               >
                 {section.label}
               </button>
