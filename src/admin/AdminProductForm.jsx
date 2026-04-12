@@ -355,7 +355,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, { sendToTelegram = false } = {}) => {
     e.preventDefault();
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
     // Only use successfully uploaded images
@@ -385,12 +385,34 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
       badge2: form.badge2.enabled ? form.badge2 : null,
     };
     try {
+      let created;
       if (initial && initial.id) {
         await updateProduct(initial.id, saveData);
       } else {
-        await addProduct(saveData);
+        created = await addProduct(saveData);
       }
-      notify('success', initial ? 'Товар обновлён' : 'Товар добавлен');
+      // Send to Telegram (only for new products)
+      if (sendToTelegram && created?.id) {
+        try {
+          const tgRes = await authFetch('/api/tg/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId: created.id, template: 'new' }),
+          });
+          if (tgRes.ok) {
+            notify('success', 'Товар создан и отправлен в Telegram');
+          } else {
+            const tgBody = await tgRes.json().catch(() => ({}));
+            notify('success', 'Товар создан');
+            notify('error', tgBody.error || 'Ошибка отправки в Telegram');
+          }
+        } catch {
+          notify('success', 'Товар создан');
+          notify('error', 'Ошибка отправки в Telegram');
+        }
+      } else {
+        notify('success', initial ? 'Товар обновлён' : 'Товар добавлен');
+      }
       if (onSave) onSave(saveData);
     } catch {} finally {
       setSaving(false);
@@ -720,9 +742,18 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <button type="button" className="adm-btn adm-btn--ghost" onClick={onCancel}>
           ОТМЕНА
         </button>
-        <button type="submit" className={`adm-btn adm-btn--primary${saving ? ' adm-btn--saving' : ''}`}>
+        <button type="submit" className={`adm-btn${saving ? ' adm-btn--saving' : ''}`}>
           СОХРАНИТЬ
         </button>
+        {!initial && (
+          <button
+            type="button"
+            className={`adm-btn adm-btn--primary${saving ? ' adm-btn--saving' : ''}`}
+            onClick={(e) => handleSubmit(e, { sendToTelegram: true })}
+          >
+            СОХРАНИТЬ И ОТПРАВИТЬ
+          </button>
+        )}
       </div>
     </form>
   );
