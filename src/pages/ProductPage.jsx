@@ -47,9 +47,32 @@ export default function ProductPage() {
 
   // Находим товар по id, закодированному в slug (slug = name-id)
   const productId = idFromSlug(slug);
-  const product = productId != null
+  const productFromList = productId != null
     ? products.find((p) => String(p.id) === String(productId))
     : undefined;
+
+  // ── Fallback: прямой запрос по ID если товар не найден в списке ──
+  const [fallbackProduct, setFallbackProduct] = useState(null);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+
+  useEffect(() => {
+    if (productFromList || loading || !productId) {
+      setFallbackProduct(null);
+      return;
+    }
+    let cancelled = false;
+    setFallbackLoading(true);
+    fetch(`/api/products/${productId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && data.id != null) setFallbackProduct(data);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setFallbackLoading(false); });
+    return () => { cancelled = true; };
+  }, [productFromList, loading, productId]);
+
+  const product = productFromList || fallbackProduct;
 
   // ── Sale carousel items ──
   const saleItems = useMemo(() => {
@@ -210,7 +233,7 @@ export default function ProductPage() {
   }, [product]);
 
   // Загрузка
-  if (loading) {
+  if (loading || fallbackLoading) {
     return (
       <div className="overlay overlay--open">
         <div className="product-page" style={{ textAlign: 'center', paddingTop: 120 }}>

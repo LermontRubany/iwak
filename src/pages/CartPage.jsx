@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
 import { makeProductSlug } from '../utils/slug';
@@ -21,7 +21,7 @@ function useHandleClose() {
 
 export default function CartPage() {
   const { items, removeItem, updateQty } = useCart();
-  const { products } = useProducts();
+  const { products, loading: productsLoading } = useProducts();
   const { closing, handleClose } = useHandleClose();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -31,8 +31,9 @@ export default function CartPage() {
   const sharedParam = searchParams.get('items');
   const isSharedCart = Boolean(sharedParam);
 
-  const sharedItems = useMemo(() => {
-    if (!sharedParam || products.length === 0) return [];
+  // ── Parse shared item IDs for fallback fetching ──
+  const sharedParsed = useMemo(() => {
+    if (!sharedParam) return [];
     const result = [];
     for (const pair of sharedParam.split(',')) {
       const colonIdx = pair.indexOf(':');
@@ -41,21 +42,65 @@ export default function CartPage() {
       const size = pair.slice(colonIdx + 1).trim();
       if (!rawId || !size) continue;
       const id = /^\d+$/.test(rawId) ? Number(rawId) : rawId;
-      const product = products.find((p) => String(p.id) === String(id));
-      if (product) result.push({ ...product, size, qty: 1 });
+      result.push({ id, size });
     }
     return result;
-  }, [sharedParam, products]);
+  }, [sharedParam]);
+
+  // ── Fallback: fetch missing products by ID for shared cart ──
+  const [fallbackProducts, setFallbackProducts] = useState([]);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+
+  // Pool of all known products (context + fallback)
+  const allProducts = useMemo(() => {
+    if (fallbackProducts.length === 0) return products;
+    const map = new Map(products.map((p) => [String(p.id), p]));
+    for (const fp of fallbackProducts) map.set(String(fp.id), fp);
+    return Array.from(map.values());
+  }, [products, fallbackProducts]);
+
+  useEffect(() => {
+    if (!isSharedCart || productsLoading) return;
+    // Find IDs not yet in products
+    const missing = sharedParsed.filter(
+      (sp) => !products.some((p) => String(p.id) === String(sp.id))
+    );
+    if (missing.length === 0) return;
+    let cancelled = false;
+    setFallbackLoading(true);
+    Promise.all(
+      missing.map((m) =>
+        fetch(`/api/products/${m.id}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const valid = results.filter((r) => r && r.id != null);
+      if (valid.length > 0) setFallbackProducts(valid);
+    }).finally(() => { if (!cancelled) setFallbackLoading(false); });
+    return () => { cancelled = true; };
+  }, [isSharedCart, productsLoading, products, sharedParsed]);
+
+  const sharedItems = useMemo(() => {
+    if (!sharedParam || allProducts.length === 0) return [];
+    const result = [];
+    for (const sp of sharedParsed) {
+      const product = allProducts.find((p) => String(p.id) === String(sp.id));
+      if (product) result.push({ ...product, size: sp.size, qty: 1 });
+    }
+    return result;
+  }, [sharedParam, sharedParsed, allProducts]);
 
   // Показываемые товары: shared ИЛИ свои
   const displayItems = isSharedCart ? sharedItems : items;
 
   // Обогащаем элементы корзины актуальными ценами из products
   const enrichedItems = useMemo(() => displayItems.map((item) => {
-    const current = products.find((p) => String(p.id) === String(item.id));
+    const current = allProducts.find((p) => String(p.id) === String(item.id));
     if (!current) return item;
     return { ...item, price: current.price, originalPrice: current.originalPrice, image: current.image, name: current.name, brand: current.brand };
-  }), [displayItems, products]);
+  }), [displayItems, allProducts]);
 
   const totalPrice = useMemo(
     () => enrichedItems.reduce((acc, i) => acc + i.price * (i.qty || 1), 0), [enrichedItems]
@@ -91,6 +136,18 @@ export default function CartPage() {
 
   // Фоновая локация для overlay товара: каталог или то, что было до корзины
   const bgLocation = location.state?.backgroundLocation || { pathname: '/catalog', search: '' };
+
+  // Загрузка (shared cart на cold start)
+  if (isSharedCart && (productsLoading || fallbackLoading)) {
+    return (
+      <div className="overlay overlay--open">
+        <div className="cart-empty">
+          <h2 className="cart-title">КОРЗИНА</h2>
+          <p className="cart-empty__text">Загрузка корзины...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (enrichedItems.length === 0) {
     return (
