@@ -487,6 +487,7 @@ app.post('/api/products', requireAuth, async (req, res) => {
        badge2 ? JSON.stringify(badge2) : null,
        priority ?? 50]
     );
+    if (category) pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [category]).catch(() => {});
     res.status(201).json(rowToCamel(result.rows[0]));
     cacheInvalidate();
   } catch (err) {
@@ -528,6 +529,7 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
        id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Товар не найден' });
+    if (category) pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [category]).catch(() => {});
     res.json(rowToCamel(result.rows[0]));
     cacheInvalidate();
   } catch (err) {
@@ -1301,13 +1303,13 @@ app.get('/api/analytics/export-report', requireAuth, async (req, res) => {
 app.get('/api/filters', async (_req, res) => {
   try {
     const [categories, brands, genders, sizes] = await Promise.all([
-      pool.query("SELECT DISTINCT category FROM products WHERE category <> '' ORDER BY category"),
+      pool.query("SELECT name FROM categories ORDER BY name"),
       pool.query("SELECT DISTINCT brand FROM products WHERE brand <> '' ORDER BY brand"),
       pool.query('SELECT DISTINCT gender FROM products ORDER BY gender'),
       pool.query('SELECT DISTINCT unnest(sizes) AS size FROM products ORDER BY size'),
     ]);
     res.json({
-      categories: categories.rows.map(r => r.category),
+      categories: categories.rows.map(r => r.name),
       brands: brands.rows.map(r => r.brand),
       genders: genders.rows.map(r => r.gender),
       sizes: sizes.rows.map(r => r.size),
@@ -1315,6 +1317,47 @@ app.get('/api/filters', async (_req, res) => {
   } catch (err) {
     logger.error({ err }, 'GET /api/filters error');
     res.status(500).json({ success: false, error: 'Ошибка получения фильтров' });
+  }
+});
+
+// ════════════════════════════════════════════
+// CATEGORIES CRUD
+// ════════════════════════════════════════════
+
+app.post('/api/categories', requireAuth, async (req, res) => {
+  try {
+    const name = (req.body.name || '').trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
+    if (!name || name.length > 60) {
+      return res.status(400).json({ success: false, error: 'Некорректное название категории' });
+    }
+    await pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
+    res.json({ success: true, category: name });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/categories error');
+    res.status(500).json({ success: false, error: 'Ошибка создания категории' });
+  }
+});
+
+app.delete('/api/categories/:name', requireAuth, async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    if (!name) return res.status(400).json({ success: false, error: 'Не указана категория' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("UPDATE products SET category = '' WHERE category = $1", [name]);
+      await client.query('DELETE FROM categories WHERE name = $1', [name]);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, 'DELETE /api/categories error');
+    res.status(500).json({ success: false, error: 'Ошибка удаления категории' });
   }
 });
 

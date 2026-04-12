@@ -3,6 +3,7 @@ import { useProducts } from '../context/ProductsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import AdminProductForm from './AdminProductForm';
 import NotificationBell from './NotificationBell';
+import authFetch from './authFetch';
 import AnalyticsTab from './AnalyticsTab';
 import TelegramTab from './TelegramTab';
 import PromoTab from './PromoTab';
@@ -58,7 +59,55 @@ export default function AdminApp() {
 
   // ADMIN_PIN больше не хранится на клиенте — проверка идёт через /api/admin/verify-pin
 
+  // Category management
+  const [catList, setCatList] = useState([]);
+  const [showAddCatInput, setShowAddCatInput] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  // Load categories from API
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/filters');
+      if (res.ok) {
+        const data = await res.json();
+        setCatList(data.categories || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
+
+  const handleAddCat = async () => {
+    const val = newCatName.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
+    if (!val) return;
+    try {
+      const res = await authFetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: val }),
+      });
+      if (res.ok) {
+        setCatList((prev) => [...prev, val].filter((v, i, a) => a.indexOf(v) === i).sort());
+        setNewCatName('');
+        setShowAddCatInput(false);
+        notify('success', `Категория «${val}» создана`);
+      }
+    } catch { notify('error', 'Ошибка создания категории'); }
+  };
+
+  const handleDeleteCat = async (name) => {
+    if (!confirm(`Удалить категорию «${name}»?\nКатегория будет снята со всех товаров.`)) return;
+    try {
+      const res = await authFetch(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCatList((prev) => prev.filter((c) => c !== name));
+        if (catFilter === name) setCatFilter('');
+        reloadProducts();
+        notify('success', `Категория «${name}» удалена`);
+      }
+    } catch { notify('error', 'Ошибка удаления категории'); }
+  };
 
   const GENDER_DISPLAY = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
 
@@ -108,6 +157,7 @@ export default function AdminApp() {
   const handleSave = () => {
     setView('list');
     setEditTarget(null);
+    loadCategories();
   };
 
   const handleEdit = (product) => {
@@ -367,11 +417,12 @@ export default function AdminApp() {
     });
   }, []);
 
-  // Derive category filter chips from product data
+  // Merge categories from API table + product data for completeness
   const categoryFilterOptions = useMemo(() => {
-    const cats = [...new Set((Array.isArray(products) ? products : []).map((p) => p?.category).filter(Boolean))].sort();
-    return [{ id: '', label: 'Все' }, ...cats.map((c) => ({ id: c, label: c }))];
-  }, [products]);
+    const fromProducts = (Array.isArray(products) ? products : []).map((p) => p?.category).filter(Boolean);
+    const merged = [...new Set([...catList, ...fromProducts])].sort();
+    return [{ id: '', label: 'Все' }, ...merged.map((c) => ({ id: c, label: c }))];
+  }, [products, catList]);
 
   const filtered = useMemo(() => {
     let list = (Array.isArray(products) ? products : []).filter((p) => p && p.id != null);
@@ -527,9 +578,34 @@ export default function AdminApp() {
               onClick={() => setCatFilter(c.id)}
             >
               {c.label}
+              {c.id && (
+                <span
+                  className="adm-filter-chip__del"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteCat(c.id); }}
+                  title="Удалить категорию"
+                >×</span>
+              )}
             </button>
           ))}
+          <button
+            className="adm-filter-chip adm-filter-chip--add"
+            onClick={() => setShowAddCatInput((v) => !v)}
+          >+</button>
         </div>
+        {showAddCatInput && (
+          <div className="adm-filter-row adm-cat-add-row">
+            <input
+              className="adm-input adm-input--small"
+              type="text"
+              placeholder="Новая категория"
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCat(); } if (e.key === 'Escape') setShowAddCatInput(false); }}
+              autoFocus
+            />
+            <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCat}>Добавить</button>
+          </div>
+        )}
         <div className="adm-filter-row">
           {genderFilterOptions.map((g) => (
             <button
