@@ -10,7 +10,7 @@ const STATUS_ICONS = { active: '●', paused: '⏸', completed: '✅', cancelled
 
 const FALLBACK_PRODUCT_BUTTONS = [
   [{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }],
-  [{ text: 'Заказать', type: 'url', url: 'https://t.me/IWAKm' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
+  [{ text: 'Заказать', type: 'order' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
   [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
   [{ text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
 ];

@@ -67,6 +67,11 @@ function resolveButton(btn, product) {
       const qs = params.toString();
       return { text: btn.text, url: `${SITE_ORIGIN}/catalog${qs ? '?' + qs : ''}` };
     }
+    case 'order': {
+      const mgr = 'IWAKm';
+      if (!product) return { text: btn.text, url: `https://t.me/${mgr}` };
+      return { text: btn.text, url: `https://t.me/${mgr}` };
+    }
     case 'webapp':
       if (!btn.url) return null;
       return { text: btn.text, web_app: { url: btn.url } };

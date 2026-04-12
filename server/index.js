@@ -1666,7 +1666,7 @@ function formatSizes(sizes) {
 // ════════════════════════════════════════════
 const TG_PRODUCT_BUTTONS = [
   [{ text: 'Смотреть товар', type: 'product' }],
-  [{ text: 'Заказать', type: 'url', url: 'https://t.me/IWAKm' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
+  [{ text: 'Заказать', type: 'order' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
   [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
   [{ text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
 ];
@@ -1850,6 +1850,35 @@ function resolveButton(btn, product) {
       if (f.sale) params.set('sale', 'true');
       const qs = params.toString();
       return { text: btn.text, url: `${SITE_ORIGIN}/catalog${qs ? '?' + qs : ''}` };
+    }
+
+    case 'order': {
+      const mgr = 'IWAKm';
+      if (!product) return { text: btn.text, url: `https://t.me/${mgr}` };
+      const productName = (`${product.brand || ''} ${product.name || ''}`.trim()) || 'Товар';
+      const sizeLine = formatSizes(product.sizes);
+      const price = Math.round(product.price);
+      const pUrl = productUrl(product);
+      const lines = [
+        'Здравствуйте!',
+        '',
+        'Хочу заказать:',
+        '',
+        productName,
+      ];
+      if (sizeLine) lines.push(sizeLine);
+      lines.push(`${price} ₽`);
+      lines.push('');
+      lines.push(`ID: ${product.id}`);
+      lines.push('');
+      lines.push(pUrl);
+      lines.push('');
+      lines.push('Источник: Telegram');
+      let orderText = lines.join('\n');
+      if (orderText.length > 1500) orderText = orderText.slice(0, 1500) + '...';
+      const url = `https://t.me/${mgr}?text=${encodeURIComponent(orderText)}`;
+      if (!IS_PRODUCTION) console.log('[TG ORDER]', url);
+      return { text: btn.text, url };
     }
 
     case 'webapp':

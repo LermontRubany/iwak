@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 
 const BUTTON_TYPES = [
   { id: 'product', label: '🛍 Товар', desc: 'Ссылка на страницу товара' },
+  { id: 'order',   label: '🛒 Заказать', desc: 'Deeplink заказ через чат' },
   { id: 'url',     label: '🔗 Ссылка', desc: 'Произвольная URL-ссылка' },
   { id: 'filter',  label: '📂 Каталог', desc: 'Каталог с фильтрами' },
   { id: 'webapp',  label: '📱 Web App', desc: 'Telegram Web App' },

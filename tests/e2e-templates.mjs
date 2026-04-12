@@ -65,6 +65,32 @@ function resolveButton(btn, product) {
       const qs = params.toString();
       return { text: btn.text, url: `${SITE_ORIGIN}/catalog${qs ? '?' + qs : ''}` };
     }
+    case 'order': {
+      const mgr = 'IWAKm';
+      if (!product) return { text: btn.text, url: `https://t.me/${mgr}` };
+      const productName = (`${product.brand || ''} ${product.name || ''}`.trim()) || 'Товар';
+      const sizeLine = formatSizes(product.sizes);
+      const price = Math.round(product.price);
+      const pUrl = productUrl(product);
+      const lines = [
+        'Здравствуйте!',
+        '',
+        'Хочу заказать:',
+        '',
+        productName,
+      ];
+      if (sizeLine) lines.push(sizeLine);
+      lines.push(`${price} ₽`);
+      lines.push('');
+      lines.push(`ID: ${product.id}`);
+      lines.push('');
+      lines.push(pUrl);
+      lines.push('');
+      lines.push('Источник: Telegram');
+      let orderText = lines.join('\n');
+      if (orderText.length > 1500) orderText = orderText.slice(0, 1500) + '...';
+      return { text: btn.text, url: `https://t.me/${mgr}?text=${encodeURIComponent(orderText)}` };
+    }
     case 'webapp':
       if (!btn.url) return null;
       return { text: btn.text, web_app: { url: btn.url } };
@@ -97,7 +123,7 @@ function resolveKeyboard(buttons, product) {
 // ── TG_TEMPLATES copy ──
 const TG_PRODUCT_BUTTONS = [
   [{ text: 'Смотреть товар', type: 'product' }],
-  [{ text: 'Заказать', type: 'url', url: 'https://t.me/IWAKm' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
+  [{ text: 'Заказать', type: 'order' }, { text: 'Скидки', type: 'filter', filter: { sale: true } }],
   [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
   [{ text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
 ];
@@ -372,7 +398,7 @@ console.log('\n═══ ЭТАП 3: ДЕФОЛТНЫЕ КНОПКИ ═══')
   const kb = resolveKeyboard(getDefaultButtons('basic'), PRODUCT_BASIC);
   assert(kb.inline_keyboard.length === 4, '3.4a 4 rows resolved');
   assert(kb.inline_keyboard[0][0].url.includes('/product/'), '3.4b row 1: product URL');
-  assert(kb.inline_keyboard[1][0].url === 'https://t.me/IWAKm', '3.4c row 2: Заказать URL');
+  assert(kb.inline_keyboard[1][0].url.startsWith('https://t.me/IWAKm?text='), '3.4c row 2: Заказать deeplink URL');
   assert(kb.inline_keyboard[1][1].url.includes('sale=true'), '3.4d row 2: Скидки filter URL');
   assert(kb.inline_keyboard[2][0].url === 'https://t.me/iwakotzivi', '3.4e row 3: Отзывы URL');
   assert(kb.inline_keyboard[2][1].url === 'https://t.me/IWAK3', '3.4f row 3: Канал URL');
@@ -614,6 +640,186 @@ console.log('\n═══ ЭТАП 8: FULL RESOLVE FLOW ═══');
     assert(text.includes('Россия / Беларусь'), `8.5c ${tpl}: has delivery`);
     assert(text.includes('12990 ₽'), `8.5d ${tpl}: has price`);
   }
+}
+
+// ═══════════════════════════════════════════════
+// ЭТАП 9: DEEPLINK КНОПКА "ЗАКАЗАТЬ" — ВСЕ СЦЕНАРИИ
+// ═══════════════════════════════════════════════
+console.log('\n═══ ЭТАП 9: DEEPLINK КНОПКА "ЗАКАЗАТЬ" ═══');
+
+// helper: extract deeplink URL from resolved keyboard
+function getOrderUrl(kb) {
+  for (const row of kb.inline_keyboard) {
+    for (const btn of row) {
+      if (btn.text === 'Заказать') return btn.url;
+    }
+  }
+  return null;
+}
+
+// helper: decode deeplink text
+function decodeOrderText(url) {
+  const match = url.match(/\?text=(.+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// 9.1 Ручной постинг — product mode (POST /api/tg/send)
+{
+  const buttons = undefined;
+  const template = 'new';
+  const effectiveButtons = (buttons && Array.isArray(buttons) && buttons.length > 0) ? buttons : getDefaultButtons(template);
+  const kb = resolveKeyboard(effectiveButtons, PRODUCT_BASIC);
+  const url = getOrderUrl(kb);
+  assert(url !== null, '9.1a manual send: Заказать button exists');
+  assert(url.startsWith('https://t.me/IWAKm?text='), '9.1b manual send: deeplink format');
+  const text = decodeOrderText(url);
+  assert(text.includes('Здравствуйте!'), '9.1c manual send: greeting');
+  assert(text.includes('Хочу заказать:'), '9.1d manual send: intent');
+  assert(text.includes('Nike Air Force 1'), '9.1e manual send: brand+name');
+  assert(text.includes('40 41 42 43'), '9.1f manual send: sizes');
+  assert(text.includes('12990 ₽'), '9.1g manual send: price');
+  assert(text.includes('/product/'), '9.1h manual send: product URL');
+  assert(text.includes('ID: 42'), '9.1i manual send: product ID');
+  assert(text.includes('Источник: Telegram'), '9.1j manual send: source');
+}
+
+// 9.2 Batch / массовая отправка (processTgBatch)
+{
+  const batchButtons = null;
+  const template = 'basic';
+  const effectiveButtons = (batchButtons && Array.isArray(batchButtons) && batchButtons.length > 0) ? batchButtons : getDefaultButtons(template);
+  // batch resolves per product
+  const kb1 = resolveKeyboard(effectiveButtons, PRODUCT_BASIC);
+  const kb2 = resolveKeyboard(effectiveButtons, PRODUCT_SALE);
+  const url1 = getOrderUrl(kb1);
+  const url2 = getOrderUrl(kb2);
+  assert(url1 !== url2, '9.2a batch: different products → different deeplinks');
+  const t1 = decodeOrderText(url1);
+  const t2 = decodeOrderText(url2);
+  assert(t1.includes('Nike'), '9.2b batch product 1: Nike');
+  assert(t2.includes('Adidas'), '9.2c batch product 2: Adidas');
+  assert(t2.includes('8990 ₽'), '9.2d batch product 2: sale price');
+}
+
+// 9.3 Автоплан — product mode (processScheduledTask)
+{
+  const task = { product_id: 42, template: 'sale', buttons: null };
+  const effectiveButtons = (task.buttons && Array.isArray(task.buttons) && task.buttons.length > 0) ? task.buttons : getDefaultButtons(task.template);
+  const kb = resolveKeyboard(effectiveButtons, PRODUCT_SALE);
+  const url = getOrderUrl(kb);
+  assert(url !== null, '9.3a autoplan product: Заказать exists');
+  const text = decodeOrderText(url);
+  assert(text.includes('Adidas Superstar'), '9.3b autoplan: brand+name');
+  assert(text.includes('8990 ₽'), '9.3c autoplan: price');
+}
+
+// 9.4 Автоплан — custom mode (product=null → fallback URL)
+{
+  const task = { product_id: null, custom_text: 'Sale!', buttons: null };
+  const effectiveButtons = (task.buttons && Array.isArray(task.buttons) && task.buttons.length > 0) ? task.buttons : getDefaultButtons('custom');
+  const kb = resolveKeyboard(effectiveButtons, null);
+  // custom mode buttons don't have Заказать, so it should be null
+  const url = getOrderUrl(kb);
+  assert(url === null, '9.4 autoplan custom: no Заказать button (correct)');
+}
+
+// 9.5 Order button без product → просто ссылка на чат (fallback)
+{
+  const btn = { text: 'Заказать', type: 'order' };
+  const resolved = resolveButton(btn, null);
+  assert(resolved.url === 'https://t.me/IWAKm', '9.5 order without product → plain chat link');
+}
+
+// 9.6 Все product шаблоны содержат order кнопку
+{
+  for (const tpl of ['basic', 'new', 'sale', 'premium']) {
+    const btns = getDefaultButtons(tpl);
+    const hasOrder = btns.some(row => row.some(b => b.type === 'order'));
+    assert(hasOrder, `9.6 ${tpl}: has order button`);
+  }
+}
+
+// 9.7 Custom шаблон НЕ содержит order кнопку
+{
+  const btns = getDefaultButtons('custom');
+  const hasOrder = btns.some(row => row.some(b => b.type === 'order'));
+  assert(!hasOrder, '9.7 custom: no order button');
+}
+
+// 9.8 Deeplink encoding — roundtrip без двойного кодирования
+{
+  const kb = resolveKeyboard(getDefaultButtons('basic'), PRODUCT_HTML_CHARS);
+  const url = getOrderUrl(kb);
+  const text = decodeOrderText(url);
+  assert(text.includes('H&M'), '9.8a encoding: H&M decoded correctly');
+  assert(text.includes('T-shirt <Classic>'), '9.8b encoding: angle brackets decoded');
+  assert(!url.includes('%25'), '9.8c no double encoding (%25)');
+}
+
+// 9.9 Deeplink URL длина не превышает лимит Telegram (2048)
+{
+  const longProduct = { id: 1, brand: 'A'.repeat(50), name: 'B'.repeat(80), price: 99999, sizes: Array.from({length: 20}, (_, i) => String(35 + i)) };
+  const kb = resolveKeyboard(getDefaultButtons('basic'), longProduct);
+  const url = getOrderUrl(kb);
+  assert(url.length < 2048, `9.9 deeplink URL length (${url.length}) < 2048`);
+}
+
+// 9.10 Deeplink текст — переносы строк сохранены
+{
+  const kb = resolveKeyboard(getDefaultButtons('basic'), PRODUCT_BASIC);
+  const url = getOrderUrl(kb);
+  const text = decodeOrderText(url);
+  const lines = text.split('\n');
+  assert(lines.length >= 9, '9.10a deeplink: multi-line (9+ lines)');
+  assert(lines[0] === 'Здравствуйте!', '9.10b first line: greeting');
+  assert(lines[1] === '', '9.10c second line: empty separator');
+}
+
+// 9.11 Товар без размеров — нет пустой строки размеров
+{
+  const noSizes = { id: 88, brand: 'Zara', name: 'Tee', price: 1990, sizes: [] };
+  const kb = resolveKeyboard(getDefaultButtons('basic'), noSizes);
+  const url = getOrderUrl(kb);
+  const text = decodeOrderText(url);
+  assert(!text.includes('undefined'), '9.11a no sizes: no undefined');
+  assert(text.includes('Zara Tee'), '9.11b no sizes: name present');
+  assert(text.includes('1990 ₽'), '9.11c no sizes: price present');
+  assert(text.includes('ID: 88'), '9.11d no sizes: ID present');
+  // Проверить что нет пустой строки между name и price
+  const lines = text.split('\n');
+  const nameIdx = lines.findIndex(l => l === 'Zara Tee');
+  assert(lines[nameIdx + 1] === '1990 ₽', '9.11e no sizes: price right after name');
+}
+
+// 9.12 Товар без brand и name — fallback "Товар"
+{
+  const empty = { id: 10, brand: '', name: '', price: 500, sizes: [] };
+  const kb = resolveKeyboard(getDefaultButtons('basic'), empty);
+  const url = getOrderUrl(kb);
+  const text = decodeOrderText(url);
+  assert(text.includes('Товар'), '9.12a fallback: "Товар" present');
+  assert(!text.includes('undefined'), '9.12b fallback: no undefined');
+  assert(text.includes('ID: 10'), '9.12c fallback: ID present');
+}
+
+// 9.13 Очень длинное название — текст обрезается
+{
+  const longProduct = { id: 1, brand: 'X'.repeat(300), name: 'Y'.repeat(600), price: 100, sizes: Array.from({length: 30}, (_, i) => String(30 + i)) };
+  const kb = resolveKeyboard(getDefaultButtons('basic'), longProduct);
+  const url = getOrderUrl(kb);
+  const text = decodeOrderText(url);
+  assert(text.length <= 1503, `9.13a truncation: text length ${text.length} <= 1503`);
+  assert(text.endsWith('...'), '9.13b truncation: ends with ...');
+  assert(text.includes('Здравствуйте!'), '9.13c truncation: greeting preserved');
+  // URL должен быть < 2048
+  assert(url.length < 2048, `9.13d truncation: URL length ${url.length} < 2048`);
+}
+
+// 9.14 Нет двойного encode в новом формате
+{
+  const kb = resolveKeyboard(getDefaultButtons('basic'), PRODUCT_BASIC);
+  const url = getOrderUrl(kb);
+  assert(!url.includes('%25'), '9.14 no double encoding');
 }
 
 // ═══════════════════════════════════════════════
