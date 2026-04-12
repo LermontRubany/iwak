@@ -173,6 +173,7 @@ export default function CartPage() {
             <span className="cart-shared-chip">Мой выбор{enrichedItems.length > 0 ? ` · ${enrichedItems.length}` : ''}</span>
           )}
         </div>
+        <Link to="/catalog" className="cart-header-browse">ПОДОБРАТЬ ТОВАРЫ +</Link>
       </div>
 
       <ul className="cart-list">
