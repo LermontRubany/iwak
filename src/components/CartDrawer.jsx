@@ -88,17 +88,17 @@ export default function CartDrawer({ isOpen, onClose }) {
   const handleCheckout = () => {
     const total = enrichedItems.reduce((acc, i) => acc + i.price * i.qty, 0);
     track('checkout_click', { itemCount: enrichedItems.length, totalPrice: total, productIds: enrichedItems.map(i => i.id) });
-    const lines = enrichedItems.map((item, i) => {
-      const itemUrl = `${window.location.origin}/product/${makeProductSlug(item)}`;
-      return `${i + 1}. ${item.brand} ${item.name} — ${item.size}\n${itemUrl}`;
-    });
+    const param = enrichedItems.map((i) => `${i.id}:${i.size}`).join(',');
+    const cartUrl = `${window.location.origin}/cart?items=${param}`;
     const text = [
       'Здравствуйте!',
       '',
       'Хочу заказать:',
       '',
-      lines.join('\n\n'),
+      '🛒 Корзина:',
+      cartUrl,
       '',
+      `Товаров: ${enrichedItems.length}`,
       `Итого: ₽${total.toLocaleString('ru-RU')}`,
     ].join('\n');
     window.open(`https://t.me/IWAKm?text=${encodeURIComponent(text)}`, '_blank');
