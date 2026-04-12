@@ -487,7 +487,7 @@ app.post('/api/products', requireAuth, async (req, res) => {
        badge2 ? JSON.stringify(badge2) : null,
        priority ?? 50]
     );
-    if (category) pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [category]).catch(() => {});
+    if (category) pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [normCatName(category)]).catch(() => {});
     res.status(201).json(rowToCamel(result.rows[0]));
     cacheInvalidate();
   } catch (err) {
@@ -529,7 +529,7 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
        id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Товар не найден' });
-    if (category) pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [category]).catch(() => {});
+    if (category) pool.query('INSERT INTO categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [normCatName(category)]).catch(() => {});
     res.json(rowToCamel(result.rows[0]));
     cacheInvalidate();
   } catch (err) {
@@ -1303,13 +1303,16 @@ app.get('/api/analytics/export-report', requireAuth, async (req, res) => {
 app.get('/api/filters', async (_req, res) => {
   try {
     const [categories, brands, genders, sizes] = await Promise.all([
-      pool.query("SELECT name FROM categories ORDER BY name"),
+      pool.query(`SELECT c.name, count(p.id)::int AS cnt
+                  FROM categories c
+                  LEFT JOIN products p ON p.category = c.name
+                  GROUP BY c.name ORDER BY c.name`),
       pool.query("SELECT DISTINCT brand FROM products WHERE brand <> '' ORDER BY brand"),
       pool.query('SELECT DISTINCT gender FROM products ORDER BY gender'),
       pool.query('SELECT DISTINCT unnest(sizes) AS size FROM products ORDER BY size'),
     ]);
     res.json({
-      categories: categories.rows.map(r => r.name),
+      categories: categories.rows.map(r => ({ name: r.name, count: r.cnt })),
       brands: brands.rows.map(r => r.brand),
       genders: genders.rows.map(r => r.gender),
       sizes: sizes.rows.map(r => r.size),
@@ -1324,9 +1327,14 @@ app.get('/api/filters', async (_req, res) => {
 // CATEGORIES CRUD
 // ════════════════════════════════════════════
 
+/** Normalise a category slug: lowercase, only alphanum/cyrillic + hyphens */
+function normCatName(raw) {
+  return (raw || '').trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
+}
+
 app.post('/api/categories', requireAuth, async (req, res) => {
   try {
-    const name = (req.body.name || '').trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
+    const name = normCatName(req.body.name);
     if (!name || name.length > 60) {
       return res.status(400).json({ success: false, error: 'Некорректное название категории' });
     }
@@ -1342,18 +1350,16 @@ app.delete('/api/categories/:name', requireAuth, async (req, res) => {
   try {
     const name = decodeURIComponent(req.params.name);
     if (!name) return res.status(400).json({ success: false, error: 'Не указана категория' });
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query("UPDATE products SET category = '' WHERE category = $1", [name]);
-      await client.query('DELETE FROM categories WHERE name = $1', [name]);
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
+    // Refuse deletion when products reference this category
+    const { rows } = await pool.query('SELECT count(*)::int AS cnt FROM products WHERE category = $1', [name]);
+    if (rows[0].cnt > 0) {
+      return res.status(409).json({
+        success: false,
+        error: `Нельзя удалить — ${rows[0].cnt} товар(ов) используют эту категорию`,
+        count: rows[0].cnt,
+      });
     }
+    await pool.query('DELETE FROM categories WHERE name = $1', [name]);
     res.json({ success: true });
   } catch (err) {
     logger.error({ err }, 'DELETE /api/categories error');

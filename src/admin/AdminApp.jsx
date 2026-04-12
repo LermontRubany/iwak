@@ -66,13 +66,14 @@ export default function AdminApp() {
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
-  // Load categories from API
+  // Load categories from API (source of truth)
   const loadCategories = useCallback(async () => {
     try {
       const res = await authFetch('/api/filters');
       if (res.ok) {
         const data = await res.json();
-        setCatList(data.categories || []);
+        // API returns [{name, count}]
+        setCatList(Array.isArray(data.categories) ? data.categories : []);
       }
     } catch { /* ignore */ }
   }, []);
@@ -88,23 +89,25 @@ export default function AdminApp() {
         body: JSON.stringify({ name: val }),
       });
       if (res.ok) {
-        setCatList((prev) => [...prev, val].filter((v, i, a) => a.indexOf(v) === i).sort());
         setNewCatName('');
         setShowAddCatInput(false);
+        loadCategories();
         notify('success', `Категория «${val}» создана`);
       }
     } catch { notify('error', 'Ошибка создания категории'); }
   };
 
   const handleDeleteCat = async (name) => {
-    if (!confirm(`Удалить категорию «${name}»?\nКатегория будет снята со всех товаров.`)) return;
+    if (!confirm(`Удалить категорию «${name}»?`)) return;
     try {
       const res = await authFetch(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' });
       if (res.ok) {
-        setCatList((prev) => prev.filter((c) => c !== name));
         if (catFilter === name) setCatFilter('');
-        reloadProducts();
+        loadCategories();
         notify('success', `Категория «${name}» удалена`);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        notify('error', body.error || 'Ошибка удаления категории');
       }
     } catch { notify('error', 'Ошибка удаления категории'); }
   };
@@ -417,12 +420,13 @@ export default function AdminApp() {
     });
   }, []);
 
-  // Merge categories from API table + product data for completeness
+  // Categories from API table — single source of truth
   const categoryFilterOptions = useMemo(() => {
-    const fromProducts = (Array.isArray(products) ? products : []).map((p) => p?.category).filter(Boolean);
-    const merged = [...new Set([...catList, ...fromProducts])].sort();
-    return [{ id: '', label: 'Все' }, ...merged.map((c) => ({ id: c, label: c }))];
-  }, [products, catList]);
+    const items = (Array.isArray(catList) ? catList : []).map((c) =>
+      typeof c === 'string' ? { id: c, label: c, count: null } : { id: c.name, label: c.name, count: c.count }
+    );
+    return [{ id: '', label: 'Все', count: null }, ...items];
+  }, [catList]);
 
   const filtered = useMemo(() => {
     let list = (Array.isArray(products) ? products : []).filter((p) => p && p.id != null);
@@ -577,12 +581,12 @@ export default function AdminApp() {
               className={`adm-filter-chip${catFilter === c.id ? ' adm-filter-chip--active' : ''}`}
               onClick={() => setCatFilter(c.id)}
             >
-              {c.label}
+              {c.label}{c.count != null && c.id ? ` (${c.count})` : ''}
               {c.id && (
                 <span
                   className="adm-filter-chip__del"
                   onClick={(e) => { e.stopPropagation(); handleDeleteCat(c.id); }}
-                  title="Удалить категорию"
+                  title={c.count > 0 ? `${c.count} товар(ов) — сначала переназначьте` : 'Удалить категорию'}
                 >×</span>
               )}
             </button>
