@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useProducts } from '../context/ProductsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { normalizeBrand, formatBrand } from '../utils/brandUtils';
+import authFetch from './authFetch';
 
 let _imgId = 0;
 const nextImgId = () => ++_imgId;
@@ -127,8 +128,20 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     return { ...EMPTY_FORM };
   });
 
-  // Derive category options from existing products
-  const existingCategories = [...new Set(products.map((p) => p.category).filter(Boolean))].sort();
+  // Load categories from API (single source of truth)
+  const [apiCategories, setApiCategories] = useState([]);
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/filters');
+      if (res.ok) {
+        const data = await res.json();
+        const cats = (data.categories || []).map((c) => typeof c === 'string' ? c : c.name);
+        setApiCategories(cats);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  const existingCategories = apiCategories;
 
   // ── Duplicate detection ──
   const brandWarn = useMemo(() => {
@@ -182,12 +195,25 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     autoFillSizes(form.category, g, sizesTouched);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     const val = newCatValue.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
     if (!val) return;
-    handleCategoryChange(val);
-    setShowAddCat(false);
-    setNewCatValue('');
+    try {
+      const res = await authFetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: val }),
+      });
+      if (res.ok) {
+        await fetchCategories();
+        handleCategoryChange(val);
+        setShowAddCat(false);
+        setNewCatValue('');
+      } else {
+        const body = await res.json().catch(() => ({}));
+        notify('error', body.error || 'Ошибка создания категории');
+      }
+    } catch { notify('error', 'Ошибка создания категории'); }
   };
 
   const handleColorChange = (value) => {
