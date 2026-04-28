@@ -3942,6 +3942,12 @@
   gap: 10px;
   margin-top: 16px;
 }
+.autoplan-form__warning {
+  color: #c0392b;
+  font-size: 12px;
+  font-weight: 600;
+  margin: -2px 0 10px;
+}
 .autoplan-radio-group {
   display: flex;
   flex-wrap: wrap;

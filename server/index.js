@@ -2458,6 +2458,32 @@ app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
 // ════════════════════════════════════════════
 const MAX_AUTOPLAN_POSTS = 100;
 
+function findDuplicate(values) {
+  const seen = new Set();
+  for (const value of values) {
+    if (seen.has(value)) return value;
+    seen.add(value);
+  }
+  return null;
+}
+
+function validateAutoplanRequest({ timeSlots, startDate, endDate }) {
+  if (!Array.isArray(timeSlots) || timeSlots.filter(Boolean).length === 0) {
+    return 'postsPerDay и timeSlots обязательны';
+  }
+  if (!startDate || !endDate) {
+    return 'startDate и endDate обязательны';
+  }
+  if (endDate < startDate) {
+    return 'Дата окончания не может быть раньше даты начала';
+  }
+  const duplicate = findDuplicate(timeSlots.filter(Boolean));
+  if (duplicate) {
+    return `Время ${duplicate} указано несколько раз`;
+  }
+  return null;
+}
+
 function validateAutoplanSize(slots) {
   if (slots.length > MAX_AUTOPLAN_POSTS) {
     return `Максимум ${MAX_AUTOPLAN_POSTS} постов в одном плане`;
@@ -2470,12 +2496,8 @@ app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
   try {
     const { productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge, mode, text: customText } = req.body;
 
-    if (!postsPerDay || !timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0) {
-      return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
-    }
-    if (!startDate || !endDate) {
-      return res.status(400).json({ error: 'startDate и endDate обязательны' });
-    }
+    const requestError = validateAutoplanRequest({ timeSlots, startDate, endDate });
+    if (requestError) return res.status(400).json({ error: requestError });
 
     // Custom mode: generate slots without products
     if (mode === 'custom') {
@@ -2588,8 +2610,8 @@ app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
     const { name, productIds, filters, strategy, postsPerDay, timeSlots, startDate, endDate, template, withBadge, buttons, mode, text: customText } = req.body;
 
     if (!name?.trim()) return res.status(400).json({ error: 'Название плана обязательно' });
-    if (!postsPerDay || !timeSlots || timeSlots.length === 0) return res.status(400).json({ error: 'postsPerDay и timeSlots обязательны' });
-    if (!startDate || !endDate) return res.status(400).json({ error: 'startDate и endDate обязательны' });
+    const requestError = validateAutoplanRequest({ timeSlots, startDate, endDate });
+    if (requestError) return res.status(400).json({ error: requestError });
 
     // Custom mode: text-only posts without products
     if (mode === 'custom') {

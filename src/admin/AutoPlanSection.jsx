@@ -42,13 +42,27 @@ function fmtTime(d) {
   const dt = new Date(d);
   return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 function nextSlotTime(slot) {
   const [h = '12', m = '00'] = String(slot || '12:00').split(':');
   const hours = Number.parseInt(h, 10);
   const minutes = Number.parseInt(m, 10);
   const total = ((Number.isFinite(hours) ? hours : 12) * 60 + (Number.isFinite(minutes) ? minutes : 0) + 30) % (24 * 60);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+function findDuplicate(values) {
+  const seen = new Set();
+  for (const value of values) {
+    if (seen.has(value)) return value;
+    seen.add(value);
+  }
+  return null;
 }
 
 export default function AutoPlanSection({ products, onPlansChanged, preselectedIds, onPreselectedClear }) {
@@ -151,8 +165,24 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
     return [{ val: '', label: 'Все бренды' }, ...brands.map(b => ({ val: b, label: b }))];
   }, [products]);
 
+  const validTimeSlots = useMemo(() => formTimeSlots.filter(Boolean), [formTimeSlots]);
+  const formValidationError = useMemo(() => {
+    if (formStartDate && formEndDate && formEndDate < formStartDate) {
+      return 'Дата окончания не может быть раньше даты начала';
+    }
+    if (validTimeSlots.length === 0) {
+      return 'Добавьте хотя бы один слот времени';
+    }
+    const duplicate = findDuplicate(validTimeSlots);
+    if (duplicate) {
+      return `Время ${duplicate} указано несколько раз`;
+    }
+    return '';
+  }, [formStartDate, formEndDate, validTimeSlots]);
+
   // ── Preview ──
   const handlePreview = useCallback(async () => {
+    if (formValidationError) { notifyGlobal('error', formValidationError); return; }
     setPreviewLoading(true);
     setPreview(null);
     try {
@@ -161,8 +191,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
         body = {
           mode: 'custom',
           text: formCustomText,
-          postsPerDay: formTimeSlots.length,
-          timeSlots: formTimeSlots.filter(Boolean),
+          postsPerDay: validTimeSlots.length,
+          timeSlots: validTimeSlots,
           startDate: formStartDate,
           endDate: formEndDate,
         };
@@ -178,8 +208,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                 onlyUnsent: formOnlyUnsent,
               } }),
           strategy: formStrategy,
-          postsPerDay: formTimeSlots.length,
-          timeSlots: formTimeSlots.filter(Boolean),
+          postsPerDay: validTimeSlots.length,
+          timeSlots: validTimeSlots,
           startDate: formStartDate,
           endDate: formEndDate,
           template: formTemplate,
@@ -196,13 +226,13 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
       else notifyGlobal('error', json.error || 'Ошибка превью');
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setPreviewLoading(false);
-  }, [preselectedIds, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formTimeSlots, formStartDate, formEndDate, formTemplate, formWithBadge, formMode, formCustomText]);
+  }, [preselectedIds, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, validTimeSlots, formStartDate, formEndDate, formTemplate, formWithBadge, formMode, formCustomText, formValidationError]);
 
   // ── Create plan ──
   const handleCreate = useCallback(async () => {
     if (!formName.trim()) { notifyGlobal('error', 'Введите название плана'); return; }
     if (!formEndDate) { notifyGlobal('error', 'Укажите дату окончания'); return; }
-    if (formTimeSlots.filter(Boolean).length === 0) { notifyGlobal('error', 'Добавьте хотя бы один слот времени'); return; }
+    if (formValidationError) { notifyGlobal('error', formValidationError); return; }
     if (formMode === 'custom' && !formCustomText.trim()) { notifyGlobal('error', 'Введите текст для custom-поста'); return; }
     setCreating(true);
     try {
@@ -213,8 +243,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
           mode: 'custom',
           text: formCustomText,
           buttons: formButtons,
-          postsPerDay: formTimeSlots.length,
-          timeSlots: formTimeSlots.filter(Boolean),
+          postsPerDay: validTimeSlots.length,
+          timeSlots: validTimeSlots,
           startDate: formStartDate,
           endDate: formEndDate,
           template: formTemplate,
@@ -233,8 +263,8 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                 onlyUnsent: formOnlyUnsent,
               } }),
           strategy: formStrategy,
-          postsPerDay: formTimeSlots.length,
-          timeSlots: formTimeSlots.filter(Boolean),
+          postsPerDay: validTimeSlots.length,
+          timeSlots: validTimeSlots,
           startDate: formStartDate,
           endDate: formEndDate,
           template: formTemplate,
@@ -261,7 +291,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
       }
     } catch { notifyGlobal('error', 'Ошибка соединения'); }
     setCreating(false);
-  }, [formName, formEndDate, formTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, formButtons, formMode, formCustomText, loadPlans]);
+  }, [formName, formEndDate, validTimeSlots, preselectedIds, onPreselectedClear, formCategory, formGender, formBrand, formOnlyUnsent, formStrategy, formStartDate, formTemplate, formWithBadge, formButtons, formMode, formCustomText, loadPlans, formValidationError]);
 
   // ── Plan actions ──
   const handlePlanAction = useCallback(async (planId, action) => {
@@ -586,6 +616,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
 
                 <label className="tg-label">Время постов</label>
                 <div className="autoplan-slots__hint">Слотов: {formTimeSlots.length} / {MAX_AUTOPLAN_POSTS}</div>
+                {formValidationError && <div className="autoplan-form__warning">{formValidationError}</div>}
                 <div className="autoplan-slots">
                   {formTimeSlots.map((slot, i) => (
                     <div key={i} className="autoplan-slot">
@@ -604,10 +635,10 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
               </div>
 
               <div className="autoplan-form__actions">
-                <button className="adm-btn adm-btn--sm" onClick={handlePreview} disabled={previewLoading || !formEndDate || (formMode === 'custom' && !formCustomText.trim())}>
+                <button className="adm-btn adm-btn--sm" onClick={handlePreview} disabled={previewLoading || !formEndDate || !!formValidationError || (formMode === 'custom' && !formCustomText.trim())}>
                   {previewLoading ? 'Загрузка...' : '👁 Превью'}
                 </button>
-                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={handleCreate} disabled={creating || !formEndDate || !formName.trim() || (formMode === 'custom' && !formCustomText.trim())}>
+                <button className="adm-btn adm-btn--accent adm-btn--sm" onClick={handleCreate} disabled={creating || !formEndDate || !formName.trim() || !!formValidationError || (formMode === 'custom' && !formCustomText.trim())}>
                   {creating ? 'Создание...' : '✅ Создать план'}
                 </button>
               </div>
