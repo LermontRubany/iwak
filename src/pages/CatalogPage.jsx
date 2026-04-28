@@ -113,6 +113,7 @@ export default function CatalogPage() {
   // Non-filter params
   const query = searchParams.get('q') || '';
   const saleParam = searchParams.get('sale') === 'true';
+  const catalogPlusParam = searchParams.get('catalogPlus') === '1';
 
   // ── URL → State ──
   const [filters, setFilters] = useState(() => parseFiltersFromURL(searchParams).filters);
@@ -141,6 +142,10 @@ export default function CatalogPage() {
     }, URL_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [filters, sortBy]);
+
+  useEffect(() => {
+    if (catalogPlusParam && !query) setFilterOpen(true);
+  }, [catalogPlusParam, query]);
 
   // Derive filter options from product data
   const productCategories = useMemo(() =>
@@ -180,7 +185,7 @@ export default function CatalogPage() {
     sizes: filters.sizes,
   }), [filters]);
 
-  const getMatchCount = useCallback((draftFilters, draftSort) => {
+  const getMatchCount = useCallback((draftFilters, draftSort, draftSale = saleParam) => {
     // draftFilters comes from FilterPanel in {categories[], genders[], ...} shape
     const adapted = {
       category: draftFilters.categories?.[0] || '',
@@ -188,7 +193,7 @@ export default function CatalogPage() {
       brands: draftFilters.brands || [],
       sizes: draftFilters.sizes || [],
     };
-    return applyFilters(products, adapted, draftSort, query, saleParam).length;
+    return applyFilters(products, adapted, draftSort, query, draftSale).length;
   }, [products, query, saleParam]);
 
   const toggleFilter = (key, value, bulk) => {
@@ -236,6 +241,15 @@ export default function CatalogPage() {
     setSortBy('default');
   };
 
+  const setSaleFilter = useCallback((enabled) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (enabled) next.set('sale', 'true');
+      else next.delete('sale');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const clearAll = () => {
     clearFilters();
     setSearchParams((prev) => {
@@ -268,6 +282,46 @@ export default function CatalogPage() {
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {});
   }, []);
+
+  const openCatalogPlus = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('catalogPlus', '1');
+      return next;
+    }, { replace: true });
+    setFilterOpen(true);
+  }, [setSearchParams]);
+
+  const closeCatalogPlus = useCallback(() => {
+    setFilterOpen(false);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('catalogPlus');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const applyCatalogPlus = useCallback(({ filters: draftFilters, sortBy: nextSort, sale: nextSale }) => {
+    const nextFilters = {
+      category: draftFilters.categories?.[0] || '',
+      genders: draftFilters.genders || [],
+      brands: draftFilters.brands || [],
+      sizes: draftFilters.sizes || [],
+    };
+    const baseParams = new URLSearchParams(searchParams);
+    if (nextSale) baseParams.set('sale', 'true');
+    else baseParams.delete('sale');
+    baseParams.delete('catalogPlus');
+    const nextParams = buildFilterParams(nextFilters, nextSort, baseParams);
+
+    setFilters(nextFilters);
+    setSortBy(nextSort);
+    setFilterOpen(false);
+    skipUrlParse.current = true;
+    setSearchParams(nextParams, { replace: true });
+    track('filter_apply', { hash: getFilterHash(nextFilters, nextSort) });
+    return true;
+  }, [searchParams, setSearchParams]);
 
   // Build chips: Sale → Category → Gender → Brand → Size
   const chips = useMemo(() => {
@@ -316,8 +370,8 @@ export default function CatalogPage() {
               )}
             </button>
           )}
-          <button className={`toolbar-btn${activeCount > 0 ? ' toolbar-btn--active' : ''}`} onClick={() => setFilterOpen(true)}>
-            {activeCount > 0 ? `ПОДОБРАТЬ ТОВАРЫ (${activeCount})` : 'ПОДОБРАТЬ ТОВАРЫ +'}
+          <button className={`toolbar-btn${activeCount > 0 ? ' toolbar-btn--active' : ''}`} onClick={openCatalogPlus}>
+            {activeCount > 0 ? `КАТАЛОГ+ (${activeCount})` : 'КАТАЛОГ+'}
           </button>
         </div>
       )}
@@ -335,7 +389,7 @@ export default function CatalogPage() {
             </button>
           ))}
           {chips.length > 1 && (
-            <button className="filter-chips__clear" onClick={clearFilters}>
+            <button className="filter-chips__clear" onClick={clearAll}>
               Очистить всё
             </button>
           )}
@@ -377,12 +431,16 @@ export default function CatalogPage() {
 
       <FilterPanel
         isOpen={filterOpen}
-        onClose={() => setFilterOpen(false)}
+        onClose={closeCatalogPlus}
         filters={panelFilters}
         onToggleFilter={toggleFilter}
-        onApply={() => setFilterOpen(false)}
+        onApply={applyCatalogPlus}
         sortBy={sortBy}
         onSort={setSortBy}
+        sale={saleParam}
+        onSaleChange={setSaleFilter}
+        onCopyLink={handleCopyLink}
+        copied={copied}
         brands={brands}
         categories={productCategories}
         genders={productGenders}
