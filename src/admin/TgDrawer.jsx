@@ -14,6 +14,28 @@ const FALLBACK_CUSTOM_BUTTONS = [
   [{ text: 'Скидки', type: 'filter', filter: { sale: true } }, { text: 'Канал', type: 'url', url: 'https://t.me/IWAK3' }],
   [{ text: 'Отзывы', type: 'url', url: 'https://t.me/iwakotzivi' }, { text: 'Мы в Max', type: 'url', url: 'https://max.ru/join/XJio5vHkjIhHJfk4CqNB09pvE0bKwDCVxGuYMxI1buo' }],
 ];
+const CUSTOM_POST_PRESETS = [
+  {
+    id: 'drop',
+    label: 'Дроп',
+    text: 'Новый дроп уже на сайте.\n\nСобрали свежие позиции, размеры быстро уходят.',
+  },
+  {
+    id: 'sale',
+    label: 'Скидки',
+    text: 'Добавили позиции со скидками.\n\nПроверьте каталог, пока есть размеры.',
+  },
+  {
+    id: 'reminder',
+    label: 'Напоминание',
+    text: 'Напоминаем: доставка бесплатная.\n\nЕсли нужна помощь с размером, напишите менеджеру.',
+  },
+  {
+    id: 'reviews',
+    label: 'Отзывы',
+    text: 'Перед заказом можно посмотреть отзывы покупателей.\n\nСсылка ниже.',
+  },
+];
 
 function renderTgHtml(text) {
   return text.split('\n').map((line, i) => {
@@ -252,6 +274,13 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
     }
   };
 
+  const applyCustomPreset = (text) => {
+    setEditText(prev => {
+      const currentText = prev.trim();
+      return currentText ? `${currentText}\n\n${text}` : text;
+    });
+  };
+
   return (
     <>
       <div className="tg-drawer-overlay" onClick={onClose} />
@@ -272,6 +301,31 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
         {/* Custom mode body */}
         {mode === 'custom' && (
           <div className="tg-drawer__body">
+            <div className="tg-custom-tools">
+              <span className="tg-custom-tools__label">Заготовки</span>
+              <div className="tg-custom-tools__chips">
+                {CUSTOM_POST_PRESETS.map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className="tg-custom-tools__chip"
+                    onClick={() => applyCustomPreset(preset.text)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+                {editText && (
+                  <button
+                    type="button"
+                    className="tg-custom-tools__chip tg-custom-tools__chip--muted"
+                    onClick={() => setEditText('')}
+                  >
+                    Очистить
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="tg-drawer__text-preview">
               {editText.trim() ? renderTgHtml(editText) : <span className="tg-drawer__placeholder">Введите текст поста...</span>}
             </div>
@@ -298,7 +352,7 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
                 value={editText}
                 onChange={e => setEditText(e.target.value)}
                 rows={6}
-                placeholder="Введите текст поста (Markdown поддерживается)"
+                placeholder="Введите текст поста..."
               />
               <div className={`tg-charcount${overLimit ? ' tg-charcount--over' : ''}`}>
                 {charLen} / {limit}{overLimit ? ' — превышен лимит' : ''}
