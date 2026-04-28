@@ -6,6 +6,7 @@ import ProductCard from '../components/ProductCard';
 import { idFromSlug, makeProductSlug } from '../utils/slug';
 import sortSizes from '../utils/sortSizes';
 import { track } from '../utils/tracker';
+import { productDisplayName, stripBrandFromName } from '../utils/productDisplay';
 
 function setMetaTag(attr, name, value) {
   const selector = `meta[${attr}="${name}"]`;
@@ -118,7 +119,7 @@ export default function ProductPage() {
   // OG meta tags — обновляем при каждом открытии товара
   useEffect(() => {
     if (!product) return;
-    const title = `${product.name} — IWAK`;
+    const title = `${productDisplayName(product)} — IWAK`;
     const priceStr = product.originalPrice && product.originalPrice > product.price
       ? `₽${product.price.toLocaleString('ru-RU')} (было ₽${product.originalPrice.toLocaleString('ru-RU')})`
       : `₽${product.price.toLocaleString('ru-RU')}`;
@@ -210,11 +211,11 @@ export default function ProductPage() {
     if (!product) return;
     track('share', { productId: product.id });
     const url = `${window.location.origin}/product/${makeProductSlug(product)}`;
-    const title = product.name;
+    const title = productDisplayName(product);
     const sharePrice = product.originalPrice && product.originalPrice > product.price
       ? `₽${product.price.toLocaleString('ru-RU')} (было ₽${product.originalPrice.toLocaleString('ru-RU')})`
       : `₽${product.price.toLocaleString('ru-RU')}`;
-    const text = `${product.name} — ${sharePrice}`;
+    const text = `${productDisplayName(product)} — ${sharePrice}`;
 
     if (navigator.share) {
       navigator.share({ title, text, url }).catch(() => {});
@@ -396,7 +397,7 @@ export default function ProductPage() {
             {copied ? 'Скопировано' : 'Поделиться'}
           </button>
         </div>
-        <h1 className="product-page__name">{product.name}</h1>
+        <h1 className="product-page__name">{stripBrandFromName(product)}</h1>
         <p className="product-page__price">
           {product.originalPrice && product.originalPrice > product.price ? (
             <>
@@ -455,7 +456,7 @@ export default function ProductPage() {
               '',
               'Хочу заказать:',
               '',
-              `${product.brand} ${product.name} — ${selectedSize}`,
+              `${productDisplayName(product)} — ${selectedSize}`,
               '',
               `Цена: ₽${product.price.toLocaleString('ru-RU')}`,
               '',

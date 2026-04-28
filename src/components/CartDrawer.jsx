@@ -5,6 +5,7 @@ import { useProducts } from '../context/ProductsContext';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
 import { track } from '../utils/tracker';
 import { makeProductSlug } from '../utils/slug';
+import { stripBrandFromName } from '../utils/productDisplay';
 
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, removeItem, updateQty } = useCart();
@@ -183,7 +184,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                         onClick={() => handleItemClick(item)}
                       >
                         <span className="cart-drawer__item-brand">{item.brand}</span>
-                        <span className="cart-drawer__item-name">{item.name}</span>
+	                        <span className="cart-drawer__item-name">{stripBrandFromName(item)}</span>
                       </button>
                       <span className="cart-drawer__item-size">Размер: {item.size}</span>
                       <div className="cart-drawer__item-qty">

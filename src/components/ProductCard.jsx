@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { makeProductSlug } from '../utils/slug';
+import { stripBrandFromName } from '../utils/productDisplay';
 
 const prefetched = new Set();
 const imagesPrefetched = new Set();
@@ -110,7 +111,7 @@ export default memo(function ProductCard({ product, priority }) {
       </div>
       <div className="product-card__info">
         <span className="product-card__brand">{product.brand}</span>
-        <span className="product-card__name">{product.name}</span>
+        <span className="product-card__name">{stripBrandFromName(product)}</span>
         {product.originalPrice && product.originalPrice > product.price ? (
           <span className="product-card__price-row">
             <span className="product-card__price product-card__price--sale">₽{product.price.toLocaleString('ru-RU')}</span>

@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
 import { makeProductSlug } from '../utils/slug';
 import { track } from '../utils/tracker';
+import { stripBrandFromName } from '../utils/productDisplay';
 
 function useHandleClose() {
   const navigate = useNavigate();
@@ -197,7 +198,7 @@ export default function CartPage() {
                 className="cart-item__name-link"
               >
                 <span className="cart-item__brand">{item.brand}</span>
-                <span className="cart-item__name">{item.name}</span>
+                <span className="cart-item__name">{stripBrandFromName(item)}</span>
               </Link>
               <span className="cart-item__meta">Размер: {item.size}</span>
               {!isSharedCart && (

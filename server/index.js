@@ -1645,8 +1645,30 @@ app.post('/api/tg/config', requireAuth, async (req, res) => {
 });
 
 // ── Product URL helper ──
+function stripBrandFromName(product) {
+  const name = (product?.name || '').trim();
+  const brand = (product?.brand || '').trim();
+  if (!name || !brand) return name;
+
+  const lowerName = name.toLowerCase();
+  const lowerBrand = brand.toLowerCase();
+  if (lowerName === lowerBrand) return '';
+  if (!lowerName.startsWith(lowerBrand)) return name;
+
+  const nextChar = name.charAt(brand.length);
+  if (nextChar && /[a-zа-яё0-9]/i.test(nextChar)) return name;
+
+  return name.slice(brand.length).trim().replace(/^[-–—:|/\\]+/, '').trim() || name;
+}
+
+function productDisplayName(product) {
+  const brand = (product?.brand || '').trim();
+  const name = stripBrandFromName(product);
+  return [brand, name].filter(Boolean).join(' ') || 'Товар';
+}
+
 function productUrl(p) {
-  const slug = (p.brand ? p.brand + ' ' : '').concat(p.name)
+  const slug = productDisplayName(p)
     .toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
   return `${SITE_ORIGIN}/product/${slug}-${p.id}`;
 }
@@ -1856,7 +1878,7 @@ function resolveButton(btn, product) {
     case 'order': {
       const mgr = 'IWAKm';
       if (!product) return { text: btn.text, url: `https://t.me/${mgr}` };
-      const productName = (`${product.brand || ''} ${product.name || ''}`.trim()) || 'Товар';
+      const productName = productDisplayName(product);
       const sizeLine = formatSizes(product.sizes);
       const price = Math.round(product.price);
       const pUrl = productUrl(product);
