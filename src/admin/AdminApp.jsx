@@ -789,13 +789,6 @@ export default function AdminApp() {
                   onClick={() => setCatFilter(c.id)}
                 >
                   {c.label}{c.count != null && c.id ? ` (${c.count})` : ''}
-                  {c.id && !trashMode && (
-                    <span
-                      className="adm-filter-chip__del"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteCat(c.id); }}
-                      title={c.count > 0 ? `${c.count} товар(ов) — сначала переназначьте` : 'Удалить категорию'}
-                    >×</span>
-                  )}
                 </button>
               ))}
             </div>
