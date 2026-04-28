@@ -5,9 +5,7 @@ import { useProducts } from '../context/ProductsContext';
 import { makeProductSlug } from '../utils/slug';
 import { track } from '../utils/tracker';
 import { stripBrandFromName } from '../utils/productDisplay';
-
-const RECEIPT_DATE = '24.05.2024';
-const RECEIPT_TIME = '16:42';
+import { makeReceiptTimestamp } from '../utils/receiptTime';
 
 function formatCartSize(item) {
   if (item.size === 'OS' && (!Array.isArray(item.sizes) || item.sizes.length === 0)) return 'Без размера';
@@ -30,6 +28,7 @@ export default function CartPage() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const [copied, setCopied] = useState(false);
+  const [receiptTime] = useState(() => makeReceiptTimestamp());
 
   // Shared cart: парсим ?items= НЕ трогая локальную корзину
   const sharedParam = searchParams.get('items');
@@ -193,7 +192,7 @@ export default function CartPage() {
 
         <div className="cart-receipt__meta">
           <span>DROP RECEIPT</span>
-          <span>{RECEIPT_DATE} {RECEIPT_TIME}</span>
+          <span>{receiptTime.date} {receiptTime.time}</span>
         </div>
 
         <div className="cart-receipt__dash" aria-hidden="true" />
