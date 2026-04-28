@@ -101,6 +101,7 @@ export default function CatalogPage() {
   const didRedirect = useRef(false);
   useEffect(() => {
     if (didRedirect.current) return;
+    if (searchParams.get('catalogPlus') === '1') return;
     if (needsCanonicalRedirect(searchParams)) {
       didRedirect.current = true;
       const { filters: parsed, sortBy: parsedSort } = parseFiltersFromURL(searchParams);
@@ -133,6 +134,7 @@ export default function CatalogPage() {
 
   // ── State → URL (debounced) ──
   useEffect(() => {
+    if (catalogPlusParam) return;
     const timer = setTimeout(() => {
       const nextParams = buildFilterParams(filters, sortBy, searchParams);
       if (nextParams.toString() !== searchParams.toString()) {
@@ -141,7 +143,7 @@ export default function CatalogPage() {
       }
     }, URL_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [filters, sortBy]);
+  }, [filters, sortBy, catalogPlusParam]);
 
   useEffect(() => {
     if (catalogPlusParam && !query) setFilterOpen(true);
