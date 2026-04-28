@@ -34,6 +34,8 @@ export default function AdminApp() {
   const [catFilter, setCatFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
+  const [filterPanel, setFilterPanel] = useState(null);
+  const [brandSearch, setBrandSearch] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [trashMode, setTrashMode] = useState(false);
   const [trashProducts, setTrashProducts] = useState([]);
@@ -148,6 +150,29 @@ export default function AdminApp() {
     const brands = getUniqueBrands(Array.isArray(source) ? source : []);
     return [{ id: '', label: 'Все', count: null }, ...brands.map((b) => ({ id: b.key, label: b.label, count: b.count }))];
   }, [products, trashMode, trashProducts]);
+
+  const visibleBrandFilterOptions = useMemo(() => {
+    const q = brandSearch.trim().toLowerCase();
+    if (!q) return brandFilterOptions;
+    return brandFilterOptions.filter((b) => !b.id || b.label.toLowerCase().includes(q));
+  }, [brandFilterOptions, brandSearch]);
+
+  const selectedCategoryLabel = categoryFilterOptions.find((c) => c.id === catFilter)?.label || 'Все';
+  const selectedGenderLabel = genderFilterOptions.find((g) => g.id === genderFilter)?.label || 'Все';
+  const selectedBrandLabel = brandFilterOptions.find((b) => b.id === brandFilter)?.label || 'Все';
+  const hasProductFilters = Boolean(catFilter || genderFilter || brandFilter);
+
+  const toggleFilterPanel = (panel) => {
+    setFilterPanel((current) => (current === panel ? null : panel));
+  };
+
+  const clearProductFilters = () => {
+    setCatFilter('');
+    setGenderFilter('');
+    setBrandFilter('');
+    setBrandSearch('');
+    setFilterPanel(null);
+  };
 
   // Live-превью итоговой цены для bulk-изменения
   const pricePreview = useMemo(() => {
@@ -541,6 +566,8 @@ export default function AdminApp() {
     setCatFilter('');
     setGenderFilter('');
     setBrandFilter('');
+    setBrandSearch('');
+    setFilterPanel(null);
     setSearch('');
   };
 
@@ -678,66 +705,134 @@ export default function AdminApp() {
         )}
       </div>
 
-      {/* Category + Gender + Brand filter chips */}
-      <div className="adm-filters">
-        <div className="adm-filter-row">
-          {categoryFilterOptions.map((c) => (
-            <button
-              key={c.id}
-              className={`adm-filter-chip${catFilter === c.id ? ' adm-filter-chip--active' : ''}`}
-              onClick={() => setCatFilter(c.id)}
-            >
-              {c.label}{c.count != null && c.id ? ` (${c.count})` : ''}
-              {c.id && !trashMode && (
-                <span
-                  className="adm-filter-chip__del"
-                  onClick={(e) => { e.stopPropagation(); handleDeleteCat(c.id); }}
-                  title={c.count > 0 ? `${c.count} товар(ов) — сначала переназначьте` : 'Удалить категорию'}
-                >×</span>
-              )}
-            </button>
-          ))}
+      <div className="adm-filters adm-filters--compact">
+        <div className="adm-filter-summary">
           <button
-            className="adm-filter-chip adm-filter-chip--add"
-            onClick={() => setShowAddCatInput((v) => !v)}
-          >+</button>
+            type="button"
+            className={`adm-filter-control${filterPanel === 'category' ? ' adm-filter-control--open' : ''}${catFilter ? ' adm-filter-control--active' : ''}`}
+            onClick={() => toggleFilterPanel('category')}
+          >
+            <span>Категория</span>
+            <strong>{selectedCategoryLabel}</strong>
+          </button>
+          <button
+            type="button"
+            className={`adm-filter-control${filterPanel === 'gender' ? ' adm-filter-control--open' : ''}${genderFilter ? ' adm-filter-control--active' : ''}`}
+            onClick={() => toggleFilterPanel('gender')}
+          >
+            <span>Пол</span>
+            <strong>{selectedGenderLabel}</strong>
+          </button>
+          <button
+            type="button"
+            className={`adm-filter-control${filterPanel === 'brand' ? ' adm-filter-control--open' : ''}${brandFilter ? ' adm-filter-control--active' : ''}`}
+            onClick={() => toggleFilterPanel('brand')}
+          >
+            <span>Бренд</span>
+            <strong>{selectedBrandLabel}</strong>
+          </button>
+          {hasProductFilters && (
+            <button type="button" className="adm-filter-reset" onClick={clearProductFilters}>
+              Сбросить
+            </button>
+          )}
         </div>
-        {showAddCatInput && (
-          <div className="adm-filter-row adm-cat-add-row">
-            <input
-              className="adm-input adm-input--small"
-              type="text"
-              placeholder="Новая категория"
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCat(); } if (e.key === 'Escape') setShowAddCatInput(false); }}
-              autoFocus
-            />
-            <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCat}>Добавить</button>
+
+        {hasProductFilters && (
+          <div className="adm-active-filters">
+            {catFilter && <button type="button" onClick={() => setCatFilter('')}>{selectedCategoryLabel} ×</button>}
+            {genderFilter && <button type="button" onClick={() => setGenderFilter('')}>{selectedGenderLabel} ×</button>}
+            {brandFilter && <button type="button" onClick={() => setBrandFilter('')}>{selectedBrandLabel} ×</button>}
           </div>
         )}
-        <div className="adm-filter-row">
-          {genderFilterOptions.map((g) => (
-            <button
-              key={g.id}
-              className={`adm-filter-chip${genderFilter === g.id ? ' adm-filter-chip--active' : ''}`}
-              onClick={() => setGenderFilter(g.id)}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-        {brandFilterOptions.length > 1 && (
-          <div className="adm-filter-row adm-filter-row--scroll">
-            {brandFilterOptions.map((b) => (
-              <button
-                key={b.id}
-                className={`adm-filter-chip${brandFilter === b.id ? ' adm-filter-chip--active' : ''}`}
-                onClick={() => setBrandFilter(b.id)}
-              >
-                {b.label}{b.count !== null ? ` (${b.count})` : ''}
-              </button>
-            ))}
+
+        {filterPanel === 'category' && (
+          <div className="adm-filter-panel">
+            <div className="adm-filter-panel__head">
+              <span>Категории</span>
+              {!trashMode && (
+                <button type="button" className="adm-filter-panel__link" onClick={() => setShowAddCatInput((v) => !v)}>
+                  {showAddCatInput ? 'Скрыть добавление' : '+ категория'}
+                </button>
+              )}
+            </div>
+            {showAddCatInput && !trashMode && (
+              <div className="adm-filter-row adm-cat-add-row">
+                <input
+                  className="adm-input adm-input--small"
+                  type="text"
+                  placeholder="Новая категория"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCat(); } if (e.key === 'Escape') setShowAddCatInput(false); }}
+                  autoFocus
+                />
+                <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCat}>Добавить</button>
+              </div>
+            )}
+            <div className="adm-filter-row">
+              {categoryFilterOptions.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`adm-filter-chip${catFilter === c.id ? ' adm-filter-chip--active' : ''}`}
+                  onClick={() => setCatFilter(c.id)}
+                >
+                  {c.label}{c.count != null && c.id ? ` (${c.count})` : ''}
+                  {c.id && !trashMode && (
+                    <span
+                      className="adm-filter-chip__del"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteCat(c.id); }}
+                      title={c.count > 0 ? `${c.count} товар(ов) — сначала переназначьте` : 'Удалить категорию'}
+                    >×</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {filterPanel === 'gender' && (
+          <div className="adm-filter-panel">
+            <div className="adm-filter-panel__head"><span>Пол</span></div>
+            <div className="adm-filter-row">
+              {genderFilterOptions.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`adm-filter-chip${genderFilter === g.id ? ' adm-filter-chip--active' : ''}`}
+                  onClick={() => setGenderFilter(g.id)}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {filterPanel === 'brand' && brandFilterOptions.length > 1 && (
+          <div className="adm-filter-panel">
+            <div className="adm-filter-panel__head"><span>Бренды</span></div>
+            <input
+              className="adm-input adm-input--small adm-brand-filter-search"
+              type="text"
+              placeholder="Найти бренд..."
+              value={brandSearch}
+              onChange={(e) => setBrandSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="adm-filter-row adm-filter-row--brand-list">
+              {visibleBrandFilterOptions.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={`adm-filter-chip${brandFilter === b.id ? ' adm-filter-chip--active' : ''}`}
+                  onClick={() => setBrandFilter(b.id)}
+                >
+                  {b.label}{b.count !== null ? ` (${b.count})` : ''}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
