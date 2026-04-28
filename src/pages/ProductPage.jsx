@@ -279,22 +279,6 @@ export default function ProductPage() {
             <path d="M12.5 4L6.5 10L12.5 16" stroke="rgba(0,0,0,0.8)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <button
-          className={`pp-share-btn ${copied ? 'pp-share-btn--copied' : ''}`}
-          onClick={handleShare}
-          aria-label="Поделиться"
-        >
-          {copied ? (
-            <span className="pp-share-btn__done">✓</span>
-          ) : (
-            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M7.5 6.5L10 4L12.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M10 4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              <path d="M5 9.5V15C5 15.55 5.45 16 6 16H14C14.55 16 15 15.55 15 15V9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          )}
-        </button>
-
         {/* Badges on gallery */}
         {(() => {
           const radius = { rect: '1px', rounded: '4px', pill: '999px', circle: '50%' };
@@ -404,6 +388,21 @@ export default function ProductPage() {
       <div className="product-page__info" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
         <div className="pp-title-row">
           <span className="product-page__brand">{product.brand}</span>
+          <button
+            className={`pp-info-share ${copied ? 'pp-info-share--copied' : ''}`}
+            onClick={handleShare}
+            aria-label="Поделиться"
+          >
+            {copied ? (
+              <span>✓</span>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M7.5 6.5L10 4L12.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10 4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M5 9.5V15C5 15.55 5.45 16 6 16H14C14.55 16 15 15.55 15 15V9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            )}
+          </button>
         </div>
         <h1 className="product-page__name">{stripBrandFromName(product)}</h1>
         <p className="product-page__price">

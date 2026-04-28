@@ -2005,41 +2005,8 @@ img {
   transform: scale(0.95);
 }
 
-.pp-share-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 6;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.25);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.35);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  color: rgba(0,0,0,0.8);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease, background 0.15s ease;
-  padding: 0;
-}
-
-.pp-share-btn:active {
-  transform: scale(0.95);
-}
-
-.pp-share-btn__done {
-  font-size: 16px;
-  font-weight: 700;
-}
-
 @media (hover: hover) {
-  .back-btn:hover,
-  .pp-share-btn:hover {
+  .back-btn:hover {
     background: rgba(255,255,255,0.35);
   }
 }
@@ -2236,6 +2203,33 @@ img {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   opacity: 0.45;
+}
+
+.pp-info-share {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  color: #333;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.pp-info-share:active {
+  transform: scale(0.96);
+  background: #f7f7f7;
+}
+
+.pp-info-share--copied {
+  color: #111;
+  border-color: #d8d8d8;
 }
 
 /* Кнопка шаринга (pill, text-only) */
