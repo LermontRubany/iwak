@@ -3430,11 +3430,13 @@ img {
 
 .cart-drawer__close {
   position: absolute;
-  top: calc(22px + env(safe-area-inset-top, 0px));
-  right: 18px;
+  top: calc(26px + env(safe-area-inset-top, 0px));
+  right: 8px;
   z-index: 2;
   background: rgba(255, 255, 255, 0.86);
   border-radius: 50%;
+  width: 36px;
+  height: 36px;
 }
 
 .cart-drawer__receipt-head {
@@ -3443,7 +3445,13 @@ img {
 }
 
 .cart-drawer__receipt-head .cart-receipt__top {
-  padding-right: 34px;
+  padding-right: 26px;
+}
+
+.cart-drawer__heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .cart-drawer__receipt-head .cart-receipt__wave {
@@ -3464,6 +3472,20 @@ img {
   font-size: clamp(16px, 4vw, 21px);
   letter-spacing: 0;
   text-transform: none;
+}
+
+.cart-drawer__receipt-head .cart-receipt__marks {
+  gap: 12px;
+}
+
+.cart-drawer__receipt-head .cart-receipt__barcode {
+  width: clamp(78px, 20vw, 112px);
+  height: clamp(34px, 8vw, 48px);
+}
+
+.cart-drawer__receipt-head .cart-receipt__star {
+  width: clamp(36px, 8vw, 46px);
+  height: clamp(36px, 8vw, 46px);
 }
 
 .cart-drawer__item {
