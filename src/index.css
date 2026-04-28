@@ -1441,7 +1441,6 @@ img {
   height: calc(118px + env(safe-area-inset-top, 0px));
   z-index: 580;
   background: #fff;
-  border-bottom: 1px solid #f0f0f0;
   pointer-events: none;
 }
 
@@ -1470,7 +1469,6 @@ img {
   margin: 0;
   padding: 10px 0;
   background: transparent;
-  border-bottom: 1px solid #f0f0f0;
 }
 
 @media (max-width: 767px) {
