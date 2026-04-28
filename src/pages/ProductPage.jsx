@@ -186,14 +186,10 @@ export default function ProductPage() {
 
     const onPointerDown = () => pause(4200);
     const onWheel = () => pause(4200);
-    const onMouseEnter = () => pause(4200);
-    const onMouseLeave = () => pause(1200);
 
     el.addEventListener('pointerdown', onPointerDown, { passive: true });
     el.addEventListener('touchstart', onPointerDown, { passive: true });
     el.addEventListener('wheel', onWheel, { passive: true });
-    el.addEventListener('mouseenter', onMouseEnter);
-    el.addEventListener('mouseleave', onMouseLeave);
 
     const step = (ts) => {
       const lastTs = saleAutoLastTsRef.current ?? ts;
@@ -224,8 +220,6 @@ export default function ProductPage() {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('touchstart', onPointerDown);
       el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('mouseenter', onMouseEnter);
-      el.removeEventListener('mouseleave', onMouseLeave);
     };
   }, [saleItems.length, product?.id]);
 
