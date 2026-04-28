@@ -251,6 +251,12 @@ export default function CartDrawer({ isOpen, onClose }) {
 
         {enrichedItems.length > 0 && (
           <div className="cart-drawer__footer">
+            {hasTotalDiscount && (
+              <div className="cart-drawer__saving-row">
+                <span>Экономия</span>
+                <span>₽{savings.toLocaleString('ru-RU')}</span>
+              </div>
+            )}
             <div className="cart-drawer__total-row">
               <span>ИТОГО</span>
               <div className="cart-drawer__total-prices">
@@ -264,12 +270,6 @@ export default function CartDrawer({ isOpen, onClose }) {
                 </span>
               </div>
             </div>
-            {hasTotalDiscount && (
-              <div className="cart-drawer__saving-row">
-                <span>Экономия</span>
-                <span>₽{savings.toLocaleString('ru-RU')}</span>
-              </div>
-            )}
             <button className="cart-drawer__checkout" onClick={handleCheckout}>
               ОФОРМИТЬ ЗАКАЗ
             </button>
