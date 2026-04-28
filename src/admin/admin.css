@@ -2369,6 +2369,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.anl-table--compact {
+  font-size: 12px;
+}
+
+.anl-table--compact td {
+  padding: 8px 10px;
+}
+
 @media (max-width: 480px) {
   .anl-cards,
   .anl-cards--overview { grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -2531,6 +2539,42 @@
 
 .anl-online__text strong {
   font-variant-numeric: tabular-nums;
+}
+
+/* ─── GEO / DEVICES ─── */
+.anl-geo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.anl-geo-card {
+  min-width: 0;
+}
+
+.anl-geo-card h4 {
+  margin: 0 0 8px;
+  color: var(--adm-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.anl-geo-empty {
+  padding: 18px 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  background: var(--adm-surface);
+  color: var(--adm-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .anl-geo-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── EXPORT ─── */

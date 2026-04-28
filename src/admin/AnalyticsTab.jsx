@@ -23,6 +23,27 @@ function fmtDate(dateStr) {
   return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
 }
 
+const COUNTRY_LABELS = {
+  RU: 'Россия',
+  BY: 'Беларусь',
+  KZ: 'Казахстан',
+  KG: 'Кыргызстан',
+  AM: 'Армения',
+  GE: 'Грузия',
+  UZ: 'Узбекистан',
+  TJ: 'Таджикистан',
+  AZ: 'Азербайджан',
+  TR: 'Турция',
+  AE: 'ОАЭ',
+  US: 'США',
+  NL: 'Нидерланды',
+};
+
+function fmtCountry(code) {
+  if (!code || code === 'Неизвестно') return 'Неизвестно';
+  return COUNTRY_LABELS[code] || code;
+}
+
 function DeltaBadge({ delta, percent, isNew, showArrow = false }) {
   if (delta == null && percent == null) return null;
   if (isNew && delta > 0) {
@@ -441,26 +462,13 @@ export default function AnalyticsTab() {
           {/* Top cities */}
           <div className="anl-section">
             <h3 className="anl-section__title">География</h3>
-            {data.topCities.length === 0 ? (
+            {data.topCities.length === 0 && (!data.topCountries || data.topCountries.length === 0) && (!data.topDevices || data.topDevices.length === 0) ? (
               <div className="anl-empty">Нет данных</div>
             ) : (
-              <div className="anl-table-wrap">
-                <table className="anl-table">
-                  <thead>
-                    <tr>
-                      <th>Город</th>
-                      <th>Визиты</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.topCities.map((c) => (
-                      <tr key={c.city}>
-                        <td>{c.city}</td>
-                        <td className="anl-table__num">{c.visits}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="anl-geo-grid">
+                <GeoTable title="Страны" rows={(data.topCountries || []).map((c) => ({ label: fmtCountry(c.country), visits: c.visits }))} />
+                <GeoTable title="Города" rows={(data.topCities || []).map((c) => ({ label: c.city, visits: c.visits }))} />
+                <GeoTable title="Устройства" rows={(data.topDevices || []).map((d) => ({ label: d.device, visits: d.visits }))} />
               </div>
             )}
           </div>
@@ -493,6 +501,28 @@ export default function AnalyticsTab() {
             </div>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function GeoTable({ title, rows }) {
+  return (
+    <div className="anl-geo-card">
+      <h4>{title}</h4>
+      {rows.length === 0 ? (
+        <div className="anl-geo-empty">Нет данных</div>
+      ) : (
+        <table className="anl-table anl-table--compact">
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <td>{row.label || 'Неизвестно'}</td>
+                <td className="anl-table__num">{row.visits}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

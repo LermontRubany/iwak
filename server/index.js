@@ -21,6 +21,7 @@ import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import geoip from 'geoip-lite';
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -801,15 +802,37 @@ const ALLOWED_EVENT_TYPES = new Set([
   'size_select', 'filter_apply', 'promo_click',
 ]);
 
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const ip = (raw || req.ip || req.socket?.remoteAddress || '').split(',')[0].trim();
+  if (!ip) return null;
+  return ip.replace(/^::ffff:/, '');
+}
+
+function detectDevice(userAgent = '') {
+  const ua = String(userAgent).toLowerCase();
+  if (/iphone|ipad|ipod/.test(ua)) return 'iOS';
+  if (/android/.test(ua)) return 'Android';
+  if (/windows|macintosh|linux|x11|cros/.test(ua)) return 'Desktop';
+  return 'Other';
+}
+
 app.post('/api/events', async (req, res) => {
   const events = req.body;
   if (!Array.isArray(events) || events.length === 0 || events.length > 20) {
     return res.status(400).json({ error: 'Expected array of 1-20 events' });
   }
 
-  // City from Cloudflare header (enable "Add visitor location headers" in CF dashboard)
+  const ip = getClientIp(req);
+  const device = detectDevice(req.headers['user-agent']);
+  const geo = ip ? geoip.lookup(ip) : null;
   const rawCity = req.headers['cf-ipcity'];
-  const city = rawCity ? decodeURIComponent(rawCity) : null;
+  const rawCountry = req.headers['cf-ipcountry'];
+  const rawRegion = req.headers['cf-region'];
+  const city = rawCity ? decodeURIComponent(rawCity) : geo?.city || null;
+  const country = rawCountry ? String(rawCountry).toUpperCase() : geo?.country || null;
+  const region = rawRegion ? decodeURIComponent(rawRegion) : geo?.region || null;
 
   try {
     const values = [];
@@ -823,16 +846,16 @@ app.post('/api/events', async (req, res) => {
       const data = evt.data && typeof evt.data === 'object' && !Array.isArray(evt.data) ? evt.data : {};
       const sessionId = typeof evt.sessionId === 'string' ? evt.sessionId.slice(0, 36) : null;
 
-      const base = idx * 4;
-      values.push(`($${base + 1}, $${base + 2}::jsonb, $${base + 3}, $${base + 4})`);
-      params.push(evt.type, JSON.stringify(data), sessionId, city);
+      const base = idx * 8;
+      values.push(`($${base + 1}, $${base + 2}::jsonb, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}::inet, $${base + 7}, $${base + 8})`);
+      params.push(evt.type, JSON.stringify(data), sessionId, city, device, ip, country, region);
       idx++;
     }
 
     if (values.length === 0) return res.status(400).json({ error: 'No valid events' });
 
     await pool.query(
-      `INSERT INTO events (type, data, session_id, city) VALUES ${values.join(', ')}`,
+      `INSERT INTO events (type, data, session_id, city, device, ip, country, region) VALUES ${values.join(', ')}`,
       params
     );
 
@@ -901,6 +924,21 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
          LIMIT 15`
       ),
       pool.query(
+        `SELECT COALESCE(country, 'Неизвестно') AS country, COUNT(DISTINCT session_id) AS visits
+         FROM events
+         WHERE type = 'page_view' AND created_at >= ${sinceExpr}
+         GROUP BY country
+         ORDER BY visits DESC
+         LIMIT 15`
+      ),
+      pool.query(
+        `SELECT COALESCE(device, 'Other') AS device, COUNT(DISTINCT session_id) AS visits
+         FROM events
+         WHERE type = 'page_view' AND created_at >= ${sinceExpr}
+         GROUP BY device
+         ORDER BY visits DESC`
+      ),
+      pool.query(
         `SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'Europe/Moscow')::int AS hour, COUNT(*) AS count
          FROM events
          WHERE created_at >= ${sinceExpr}
@@ -954,9 +992,9 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
     }
 
     const results = await Promise.all(baseQueries);
-    const [visits, views, shares, topProducts, topCities, byHour, byDay, productHours, online] = results;
-    const prevKpi = results[9] || null;
-    const prevTopProducts = results[10] || null;
+    const [visits, views, shares, topProducts, topCities, topCountries, topDevices, byHour, byDay, productHours, online] = results;
+    const prevKpi = results[11] || null;
+    const prevTopProducts = results[12] || null;
 
     // Enrich top products with names from products table
     const productIds = topProducts.rows
@@ -1035,6 +1073,14 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       }),
       topCities: topCities.rows.map(r => ({
         city: r.city,
+        visits: parseInt(r.visits),
+      })),
+      topCountries: topCountries.rows.map(r => ({
+        country: r.country,
+        visits: parseInt(r.visits),
+      })),
+      topDevices: topDevices.rows.map(r => ({
+        device: r.device,
         visits: parseInt(r.visits),
       })),
       activityByHour: byHour.rows.map(r => ({
