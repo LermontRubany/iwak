@@ -3259,12 +3259,9 @@ img {
 }
 
 .cart-receipt__wave {
-  height: 12px;
+  height: 1px;
   margin: 18px 0 14px;
-  background:
-    radial-gradient(circle at 6px 8px, transparent 4px, #9d9d9d 4.4px, #9d9d9d 5.2px, transparent 5.6px)
-    0 0 / 12px 12px repeat-x;
-  opacity: 0.9;
+  background: repeating-linear-gradient(90deg, #9d9d9d 0 6px, transparent 6px 12px);
 }
 
 .cart-receipt__meta {
@@ -3626,9 +3623,8 @@ img {
   }
 
   .cart-receipt__wave {
-    height: 9px;
+    height: 1px;
     margin: 10px 0 8px;
-    background-size: 10px 10px;
   }
 
   .cart-receipt__meta {
