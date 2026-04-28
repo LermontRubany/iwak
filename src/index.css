@@ -3126,8 +3126,8 @@ img {
 }
 
 .cart-receipt__wave {
-  height: 16px;
-  margin: 34px 0 30px;
+  height: 12px;
+  margin: 18px 0 14px;
   background:
     radial-gradient(circle at 6px 8px, transparent 4px, #9d9d9d 4.4px, #9d9d9d 5.2px, transparent 5.6px)
     0 0 / 12px 12px repeat-x;
@@ -3146,7 +3146,7 @@ img {
 
 .cart-receipt__dash {
   height: 1px;
-  margin: 28px 0 0;
+  margin: 14px 0 0;
   background: repeating-linear-gradient(90deg, #9d9d9d 0 6px, transparent 6px 12px);
 }
 
@@ -3464,8 +3464,8 @@ img {
   }
 
   .cart-receipt__wave {
-    height: 12px;
-    margin: 18px 0 14px;
+    height: 9px;
+    margin: 10px 0 8px;
     background-size: 10px 10px;
   }
 
@@ -3475,13 +3475,13 @@ img {
   }
 
   .cart-receipt__dash {
-    margin-top: 14px;
+    margin-top: 8px;
   }
 
   .cart-item {
     grid-template-columns: 31px 30% minmax(0, 1fr);
     gap: 9px;
-    padding: 16px 0;
+    padding: 12px 0;
   }
 
   .cart-item__index {
