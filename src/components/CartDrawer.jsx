@@ -7,6 +7,9 @@ import { track } from '../utils/tracker';
 import { makeProductSlug } from '../utils/slug';
 import { stripBrandFromName } from '../utils/productDisplay';
 
+const RECEIPT_DATE = '24.05.2024';
+const RECEIPT_TIME = '16:42';
+
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, removeItem, updateQty } = useCart();
   const { products } = useProducts();
@@ -145,21 +148,39 @@ export default function CartDrawer({ isOpen, onClose }) {
         aria-modal="true"
         aria-label="Корзина"
       >
-        <div className="cart-drawer__header">
-          <div className="cart-drawer__heading">
-            <span className="cart-drawer__title">IWAK SELECT</span>
-            <span className="cart-drawer__count">
-              {enrichedItems.length > 0
-                ? `${enrichedItems.length} ${enrichedItems.length === 1 ? 'позиция' : 'позиции'}`
-                : 'выбор пуст'}
-            </span>
+        <button className="cart-drawer__close" onClick={handleClose} aria-label="Закрыть">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <line x1="1" y1="1" x2="17" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+            <line x1="17" y1="1" x2="1" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+          </svg>
+        </button>
+
+        <div className="cart-drawer__receipt-head">
+          <div className="cart-receipt__top">
+            <div className="cart-drawer__heading">
+              <span className="cart-drawer__title">IWAK SELECT</span>
+              <span className="cart-drawer__count">
+                {enrichedItems.length > 0
+                  ? `${enrichedItems.length} ${enrichedItems.length === 1 ? 'позиция' : 'позиции'}`
+                  : 'выбор пуст'}
+              </span>
+            </div>
+            <div className="cart-receipt__marks" aria-hidden="true">
+              <span className="cart-receipt__barcode" />
+              <span className="cart-receipt__star">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path d="M12 2.8 14.7 9.3 21.2 12 14.7 14.7 12 21.2 9.3 14.7 2.8 12 9.3 9.3 12 2.8Z" fill="currentColor" />
+                </svg>
+              </span>
+            </div>
           </div>
-          <button className="cart-drawer__close" onClick={handleClose} aria-label="Закрыть">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <line x1="1" y1="1" x2="17" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-              <line x1="17" y1="1" x2="1" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            </svg>
-          </button>
+
+          <div className="cart-receipt__wave" aria-hidden="true" />
+          <div className="cart-receipt__meta">
+            <span>DROP RECEIPT</span>
+            <span>{RECEIPT_DATE} {RECEIPT_TIME}</span>
+          </div>
+          <div className="cart-receipt__dash" aria-hidden="true" />
         </div>
 
         <div className="cart-drawer__body">

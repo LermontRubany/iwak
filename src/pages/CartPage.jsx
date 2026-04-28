@@ -177,7 +177,6 @@ export default function CartPage() {
             <span className="cart-title">IWAK SELECT</span>
             <span className="cart-shared-chip">
               {enrichedItems.length} {enrichedItems.length === 1 ? 'позиция' : 'позиции'}
-              {isSharedCart ? ' · Мой выбор' : ''}
             </span>
           </div>
           <div className="cart-receipt__marks" aria-hidden="true">
