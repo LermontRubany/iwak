@@ -161,7 +161,7 @@ export const demoProducts = [
     gender: 'unisex',
     price: 1990,
     originalPrice: 2900,
-    sizes: ['OS'],
+    sizes: [],
     color: 'Black',
     colorHex: '#1b1b1b',
     image: img('photo-1590874103328-eac38a683ce7'),

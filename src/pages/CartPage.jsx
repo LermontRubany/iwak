@@ -9,6 +9,11 @@ import { stripBrandFromName } from '../utils/productDisplay';
 const RECEIPT_DATE = '24.05.2024';
 const RECEIPT_TIME = '16:42';
 
+function formatCartSize(item) {
+  if (item.size === 'OS' && (!Array.isArray(item.sizes) || item.sizes.length === 0)) return 'Без размера';
+  return item.size;
+}
+
 function useHandleClose() {
   const navigate = useNavigate();
   const closing = false;
@@ -217,7 +222,7 @@ export default function CartPage() {
                 <span className="cart-item__brand">{item.brand}</span>
                 <span className="cart-item__name">{stripBrandFromName(item)}</span>
               </Link>
-              <span className="cart-item__meta">Размер: {item.size}</span>
+              <span className="cart-item__meta">Размер: {formatCartSize(item)}</span>
               {!isSharedCart && (
               <div className="cart-item__qty">
                 <span>Кол-во:</span>

@@ -10,6 +10,11 @@ import { stripBrandFromName } from '../utils/productDisplay';
 const RECEIPT_DATE = '24.05.2024';
 const RECEIPT_TIME = '16:42';
 
+function formatCartSize(item) {
+  if (item.size === 'OS' && (!Array.isArray(item.sizes) || item.sizes.length === 0)) return 'Без размера';
+  return item.size;
+}
+
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, removeItem, updateQty } = useCart();
   const { products } = useProducts();
@@ -216,7 +221,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                         <span className="cart-drawer__item-brand">{item.brand}</span>
 	                        <span className="cart-drawer__item-name">{stripBrandFromName(item)}</span>
                       </button>
-                      <span className="cart-drawer__item-size">Размер: {item.size}</span>
+                      <span className="cart-drawer__item-size">Размер: {formatCartSize(item)}</span>
                       <div className="cart-drawer__item-qty">
                         <button
                           className="cart-drawer__qty-btn"

@@ -74,6 +74,10 @@ export default function ProductPage() {
   }, [productFromList, loading, productId]);
 
   const product = productFromList || fallbackProduct;
+  const sortedSizes = useMemo(() => sortSizes(product?.sizes || []), [product?.sizes]);
+  const sizeRequired = sortedSizes.length > 0;
+  const cartSize = sizeRequired ? selectedSize : 'OS';
+  const orderSizeLabel = sizeRequired ? selectedSize : 'Без размера';
 
   // ── Sale carousel items ──
   const saleItems = useMemo(() => {
@@ -123,7 +127,9 @@ export default function ProductPage() {
     const priceStr = product.originalPrice && product.originalPrice > product.price
       ? `₽${product.price.toLocaleString('ru-RU')} (было ₽${product.originalPrice.toLocaleString('ru-RU')})`
       : `₽${product.price.toLocaleString('ru-RU')}`;
-    const description = `${priceStr} · Размеры: ${sortSizes(product.sizes).join(', ')}`;
+    const description = sortedSizes.length > 0
+      ? `${priceStr} · Размеры: ${sortedSizes.join(', ')}`
+      : `${priceStr} · Размер не требуется`;
 
     // og:image теперь всегда /og-image/:id
     const image = `${window.location.origin}/og-image/${product.id}`;
@@ -197,12 +203,12 @@ export default function ProductPage() {
   }, [handleBack]);
 
   const handleAddToCart = () => {
-    if (!selectedSize) {
+    if (sizeRequired && !selectedSize) {
       setSizeShake(true);
       setTimeout(() => setSizeShake(false), 600);
       return;
     }
-    addItem(product, selectedSize);
+    addItem(product, cartSize);
     setAdded(true);
     setTimeout(() => setAdded(false), 2500);
   };
@@ -432,40 +438,42 @@ export default function ProductPage() {
         </div>
 
         {/* Size buttons */}
-        <div className={`pp-sizes ${sizeShake ? 'pp-sizes--shake' : ''}`}>
-          <div className="pp-sizes__head">
-            <span className="pp-sizes__label">Размер</span>
+        {sizeRequired ? (
+          <div className={`pp-sizes ${sizeShake ? 'pp-sizes--shake' : ''}`}>
+            <div className="pp-sizes__head">
+              <span className="pp-sizes__label">Размер</span>
+            </div>
+            <div className={`pp-sizes__grid${sortedSizes.length > 5 ? ' pp-sizes__grid--many' : ''}`}>
+              {sortedSizes.map((size) => (
+                <button
+                  key={size}
+                  className={`pp-size-btn ${selectedSize === size ? 'pp-size-btn--active' : ''}`}
+                  onClick={() => { setSelectedSize(size); track('size_select', { productId: product.id, size }); }}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className={`pp-sizes__grid${sortSizes(product.sizes).length > 5 ? ' pp-sizes__grid--many' : ''}`}>
-            {sortSizes(product.sizes).map((size) => (
-              <button
-                key={size}
-                className={`pp-size-btn ${selectedSize === size ? 'pp-size-btn--active' : ''}`}
-                onClick={() => { setSelectedSize(size); track('size_select', { productId: product.id, size }); }}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-        </div>
+        ) : null}
 
         <div className="pp-actions">
           <button
             className="btn-buy-now"
             onClick={() => {
-              if (!selectedSize) {
+              if (sizeRequired && !selectedSize) {
                 setSizeShake(true);
                 setTimeout(() => setSizeShake(false), 600);
                 return;
               }
-              track('buy_now', { productId: product.id, size: selectedSize, price: product.price, brand: product.brand });
+              track('buy_now', { productId: product.id, size: cartSize, price: product.price, brand: product.brand });
               const productUrl = `${window.location.origin}/product/${makeProductSlug(product)}`;
               const text = [
                 'Здравствуйте!',
                 '',
                 'Хочу заказать:',
                 '',
-                `${productDisplayName(product)} — ${selectedSize}`,
+                `${productDisplayName(product)} — ${orderSizeLabel}`,
                 '',
                 `Цена: ₽${product.price.toLocaleString('ru-RU')}`,
                 '',
