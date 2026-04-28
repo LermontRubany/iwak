@@ -157,11 +157,6 @@ export default function AdminApp() {
     return brandFilterOptions.filter((b) => !b.id || b.label.toLowerCase().includes(q));
   }, [brandFilterOptions, brandSearch]);
 
-  const selectedCategoryLabel = categoryFilterOptions.find((c) => c.id === catFilter)?.label || 'Все';
-  const selectedGenderLabel = genderFilterOptions.find((g) => g.id === genderFilter)?.label || 'Все';
-  const selectedBrandLabel = brandFilterOptions.find((b) => b.id === brandFilter)?.label || 'Все';
-  const hasProductFilters = Boolean(catFilter || genderFilter || brandFilter);
-
   const toggleFilterPanel = (panel) => {
     setFilterPanel((current) => (current === panel ? null : panel));
   };
@@ -538,6 +533,11 @@ export default function AdminApp() {
     );
     return [{ id: '', label: 'Все', count: null }, ...items];
   }, [catList, trashMode, trashProducts]);
+
+  const selectedCategoryLabel = categoryFilterOptions.find((c) => c.id === catFilter)?.label || 'Все';
+  const selectedGenderLabel = genderFilterOptions.find((g) => g.id === genderFilter)?.label || 'Все';
+  const selectedBrandLabel = brandFilterOptions.find((b) => b.id === brandFilter)?.label || 'Все';
+  const hasProductFilters = Boolean(catFilter || genderFilter || brandFilter);
 
   const filtered = useMemo(() => {
     const source = trashMode ? trashProducts : products;
