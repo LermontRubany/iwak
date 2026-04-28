@@ -257,15 +257,6 @@ export default function CartDrawer({ isOpen, onClose }) {
                 })}
               </ul>
 
-              <div className="cart-drawer__share-row">
-                <button
-                  className={`share-btn${copied ? ' share-btn--copied' : ''}`}
-                  onClick={handleShare}
-                  aria-label="Поделиться корзиной"
-                >
-                  {copied ? 'Скопировано' : 'Поделиться'}
-                </button>
-              </div>
             </>
           )}
         </div>
@@ -294,9 +285,26 @@ export default function CartDrawer({ isOpen, onClose }) {
             <button className="cart-drawer__checkout" onClick={handleCheckout}>
               ОФОРМИТЬ ЗАКАЗ
             </button>
-            <button className="cart-drawer__continue" onClick={handleCatalog}>
-              ПРОДОЛЖИТЬ ПОКУПКИ
-            </button>
+            <div className="cart-drawer__actions-secondary">
+              <button
+                className={`share-btn${copied ? ' share-btn--copied' : ''}`}
+                onClick={handleShare}
+                aria-label="Поделиться корзиной"
+              >
+                <span className="cart-share-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22">
+                    <path d="M12 4v11" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                    <path d="m8.5 7.5 3.5-3.5 3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M6 11v8h12v-8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                {copied ? 'Скопировано' : 'Поделиться'}
+              </button>
+              <button className="cart-drawer__continue" onClick={handleCatalog}>
+                Продолжить покупки
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -3358,20 +3358,20 @@ img {
 }
 
 .cart-receipt__tear {
-  height: 18px;
+  height: 22px;
   margin: 0 -26px;
   background:
-    radial-gradient(circle at 8px 0, transparent 8px, #fff 8.5px)
-    0 0 / 16px 18px repeat-x;
-  filter: drop-shadow(0 8px 7px rgba(0, 0, 0, 0.13));
+    radial-gradient(circle at 8px 0, transparent 7px, #fff 7.5px)
+    0 0 / 16px 22px repeat-x;
+  filter: drop-shadow(0 12px 9px rgba(0, 0, 0, 0.14));
 }
 
 .cart-actions {
-  padding-top: 52px;
+  padding-top: 54px;
 }
 
 .btn-telegram--cart {
-  min-height: 74px;
+  min-height: 76px;
   background: #020202;
   color: #fff;
   border: 1px solid #020202;
@@ -3387,7 +3387,7 @@ img {
 }
 
 .cart-actions__secondary {
-  margin-top: 46px;
+  margin-top: 42px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
@@ -3398,13 +3398,14 @@ img {
   height: 58px;
   border: 0;
   color: #070707;
-  font-size: clamp(15px, 4vw, 21px);
+  font-size: clamp(16px, 3.7vw, 21px);
   letter-spacing: 0;
   text-transform: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 14px;
+  white-space: nowrap;
 }
 
 .cart-actions__secondary .share-btn {
@@ -3414,6 +3415,7 @@ img {
 }
 
 .cart-actions__secondary .btn-continue span {
+  margin-left: 6px;
   font-size: 34px;
   line-height: 1;
 }
@@ -3610,6 +3612,41 @@ img {
   font-weight: 700;
   letter-spacing: 0.22em;
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.12);
+}
+
+.cart-drawer__actions-secondary {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+}
+
+.cart-drawer__actions-secondary .share-btn,
+.cart-drawer__actions-secondary .cart-drawer__continue {
+  height: 52px;
+  border: 0;
+  color: #070707;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+  padding: 0;
+}
+
+.cart-drawer__actions-secondary .share-btn {
+  border-right: 1px solid #d6d6d6;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cart-drawer__actions-secondary .cart-drawer__continue span {
+  margin-left: 4px;
+  font-size: 28px;
+  line-height: 1;
 }
 
 .btn-primary {

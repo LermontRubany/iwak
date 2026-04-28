@@ -332,7 +332,7 @@ export default function CartPage() {
             {copied ? 'Скопировано' : 'Поделиться'}
           </button>
           <button className="btn-continue" onClick={handleClose}>
-            ПРОДОЛЖИТЬ ПОКУПКИ
+            Продолжить покупки
             <span aria-hidden="true">›</span>
           </button>
         </div>
