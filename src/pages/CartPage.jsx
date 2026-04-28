@@ -11,15 +11,10 @@ const RECEIPT_TIME = '16:42';
 
 function useHandleClose() {
   const navigate = useNavigate();
-  const [closing, setClosing] = useState(false);
-  const handleClose = () => {
-    if (closing) return;
-    setClosing(true);
-    setTimeout(() => {
-      if (window.history.length > 1) navigate(-1);
-      else navigate('/catalog', { replace: true });
-    }, 300);
-  };
+  const closing = false;
+  const handleClose = useCallback(() => {
+    navigate('/catalog', { replace: true });
+  }, [navigate]);
   return { closing, handleClose };
 }
 
