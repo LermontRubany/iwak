@@ -251,11 +251,15 @@ export default function CatalogPage() {
   };
 
   const clearSearchQuery = useCallback(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('q');
       return next;
     }, { replace: true });
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
   }, [setSearchParams]);
 
   const activeCount =
