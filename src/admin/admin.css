@@ -3994,6 +3994,17 @@
   font-size: 11px;
   margin: -2px 0 8px;
 }
+.autoplan-slot-presets {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -2px 0 10px;
+}
+.autoplan-slot-presets span {
+  color: var(--adm-text-muted);
+  font-size: 11px;
+}
 .autoplan-slot {
   display: flex;
   align-items: center;

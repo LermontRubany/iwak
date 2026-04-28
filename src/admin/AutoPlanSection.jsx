@@ -50,11 +50,21 @@ function todayStr() {
   return `${yyyy}-${mm}-${dd}`;
 }
 function nextSlotTime(slot) {
+  return addMinutesToSlot(slot, 30);
+}
+function addMinutesToSlot(slot, stepMinutes) {
   const [h = '12', m = '00'] = String(slot || '12:00').split(':');
   const hours = Number.parseInt(h, 10);
   const minutes = Number.parseInt(m, 10);
-  const total = ((Number.isFinite(hours) ? hours : 12) * 60 + (Number.isFinite(minutes) ? minutes : 0) + 30) % (24 * 60);
+  const total = ((Number.isFinite(hours) ? hours : 12) * 60 + (Number.isFinite(minutes) ? minutes : 0) + stepMinutes) % (24 * 60);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+function buildSlotSeries(startSlot, count, stepMinutes) {
+  const slots = [startSlot || '10:00'];
+  while (slots.length < count) {
+    slots.push(addMinutesToSlot(slots[slots.length - 1], stepMinutes));
+  }
+  return slots;
 }
 function findDuplicate(values) {
   const seen = new Set();
@@ -339,6 +349,9 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
     return next;
   });
   const addSlot = () => addSlots(1);
+  const applySlotPreset = (stepMinutes) => setFormTimeSlots(prev => (
+    buildSlotSeries(prev[0] || '10:00', prev.length, stepMinutes)
+  ));
 
   // ── Preview grouping by date ──
   const previewByDate = useMemo(() => {
@@ -616,6 +629,11 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
 
                 <label className="tg-label">Время постов</label>
                 <div className="autoplan-slots__hint">Слотов: {formTimeSlots.length} / {MAX_AUTOPLAN_POSTS}</div>
+                <div className="autoplan-slot-presets">
+                  <span>Автошаг от первого времени:</span>
+                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => applySlotPreset(30)}>каждые 30 мин</button>
+                  <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => applySlotPreset(60)}>каждый час</button>
+                </div>
                 {formValidationError && <div className="autoplan-form__warning">{formValidationError}</div>}
                 <div className="autoplan-slots">
                   {formTimeSlots.map((slot, i) => (
