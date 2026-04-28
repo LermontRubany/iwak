@@ -2070,24 +2070,46 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId, 
   let result;
 
   if (photos.length === 0) {
-    result = await tgApiCall(`${TG}/sendMessage`, { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: keyboard });
-  } else if (badges && badges.length > 0) {
-    try {
-      const imgPath = path.join(__dirname, '..', photos[0]);
-      const buffer = await composeBadgeImage(imgPath, badges);
-      if (buffer) {
-        result = await tgApiCallMultipart(`${TG}/sendPhoto`, {
-          chatId, photoBuffer: buffer, caption: text, parseMode: 'HTML', replyMarkup: keyboard,
-        });
-      } else {
-        result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'HTML', reply_markup: keyboard });
-      }
-    } catch (err) {
-      logger.warn({ err, productId }, 'Badge compose failed — sending original');
-      result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'HTML', reply_markup: keyboard });
-    }
+    result = await tgApiCall(`${TG}/sendMessage`, {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      reply_markup: keyboard,
+    });
   } else {
-    result = await tgApiCall(`${TG}/sendPhoto`, { chat_id: chatId, photo: `${SITE_ORIGIN}${photos[0]}`, caption: text, parse_mode: 'HTML', reply_markup: keyboard });
+    const photoPath = photos[0];
+    const imgPath = path.join(__dirname, '..', photoPath);
+
+    try {
+      let buffer = null;
+
+      if (badges && badges.length > 0) {
+        buffer = await composeBadgeImage(imgPath, badges);
+      }
+
+      // Telegram can reject WebP image URLs, so send the local image as JPG multipart.
+      if (!buffer) {
+        buffer = await sharp(imgPath).jpeg({ quality: 85 }).toBuffer();
+      }
+
+      result = await tgApiCallMultipart(`${TG}/sendPhoto`, {
+        chatId,
+        photoBuffer: buffer,
+        caption: text,
+        parseMode: 'HTML',
+        replyMarkup: keyboard,
+      });
+    } catch (err) {
+      logger.warn({ err, productId, photoPath }, 'Local image convert/send failed — trying URL fallback');
+      result = await tgApiCall(`${TG}/sendPhoto`, {
+        chat_id: chatId,
+        photo: `${SITE_ORIGIN}${photoPath}`,
+        caption: text,
+        parse_mode: 'HTML',
+        reply_markup: keyboard,
+      });
+    }
   }
 
   const status = result.ok === false ? 'error' : 'success';
