@@ -715,6 +715,16 @@ export default function AdminApp() {
             <span>Категория</span>
             <strong>{selectedCategoryLabel}</strong>
           </button>
+          {!trashMode && (
+            <button
+              type="button"
+              className="adm-filter-add-category"
+              onClick={() => { setFilterPanel('category'); setShowAddCatInput(true); }}
+              title="Добавить категорию"
+            >
+              + Категория
+            </button>
+          )}
           <button
             type="button"
             className={`adm-filter-control${filterPanel === 'gender' ? ' adm-filter-control--open' : ''}${genderFilter ? ' adm-filter-control--active' : ''}`}

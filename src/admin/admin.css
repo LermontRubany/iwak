@@ -181,6 +181,7 @@
 }
 
 .adm-filter-control,
+.adm-filter-add-category,
 .adm-filter-reset,
 .adm-active-filters button,
 .adm-filter-panel__link {
@@ -232,6 +233,25 @@
 .adm-filter-control--active strong,
 .adm-filter-control--open strong {
   color: var(--adm-accent);
+}
+
+.adm-filter-add-category {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px dashed var(--adm-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--adm-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.adm-filter-add-category:hover {
+  border-color: var(--adm-accent);
+  background: rgba(83, 180, 164, 0.08);
 }
 
 .adm-filter-reset {
