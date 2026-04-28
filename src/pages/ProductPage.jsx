@@ -494,21 +494,15 @@ export default function ProductPage() {
                 Все&nbsp;›
               </Link>
             </div>
-            <div className={`pp-sale-track${saleItems.length >= 3 ? ' pp-sale-track--marquee' : ''}`}>
-              <div className="pp-sale-track__inner">
-                {[0, 1].map((groupIdx) => (
-                  <div key={groupIdx} className="pp-sale-track__group">
-                    {saleItems.map((p) => (
-                      <div key={`${p.id}-${groupIdx}`} className="pp-sale-card">
-                        <ProductCard product={p} />
-                      </div>
-                    ))}
-                    <Link to="/catalog?sale=true" className="pp-sale-more">
-                      Смотреть ещё&nbsp;›
-                    </Link>
-                  </div>
-                ))}
-              </div>
+            <div className="pp-sale-track">
+              {saleItems.map((p) => (
+                <div key={p.id} className="pp-sale-card">
+                  <ProductCard product={p} />
+                </div>
+              ))}
+              <Link to="/catalog?sale=true" className="pp-sale-more">
+                Смотреть ещё&nbsp;›
+              </Link>
             </div>
           </div>
         )}
