@@ -281,7 +281,7 @@ export default function CatalogPage() {
   }, [filters, saleParam]);
 
   return (
-    <div className="catalog-page">
+    <div className={`catalog-page${query ? ' catalog-page--search' : ''}`}>
       {query && (
         <div className="search-results-header">
           <div className="search-results-main">

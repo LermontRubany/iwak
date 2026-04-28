@@ -1405,6 +1405,10 @@ img {
   background: #fff;
 }
 
+.catalog-page--search {
+  padding-top: 58px;
+}
+
 .catalog-toolbar {
   display: flex;
   align-items: center;
@@ -1428,14 +1432,16 @@ img {
 }
 
 .search-results-header {
-  position: sticky;
+  position: fixed;
   top: calc(64px + env(safe-area-inset-top, 0px));
-  z-index: 120;
+  left: 16px;
+  right: 16px;
+  z-index: 590;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin: 24px 16px 4px;
+  margin: 0;
   padding: 10px 0;
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid #f0f0f0;
