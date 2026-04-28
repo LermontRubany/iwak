@@ -2668,6 +2668,64 @@
   gap: 10px;
 }
 
+.tg-config--collapsible {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tg-config__summary {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--adm-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tg-config__summary-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tg-config__summary-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tg-config__summary-subtitle {
+  display: block;
+  margin-top: 3px;
+  color: var(--adm-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.tg-config__summary-action {
+  color: var(--adm-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tg-config__body {
+  border-top: 1px solid var(--adm-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+
 .tg-config__status {
   display: flex;
   align-items: center;

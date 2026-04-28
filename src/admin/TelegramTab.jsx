@@ -40,6 +40,7 @@ export default function TelegramTab() {
   const [masked, setMasked] = useState('');
   const [configSaving, setConfigSaving] = useState(false);
   const [configMsg, setConfigMsg] = useState(null);
+  const [configExpanded, setConfigExpanded] = useState(false);
 
   // ── Posting state ──
   const [search, setSearch] = useState('');
@@ -74,6 +75,7 @@ export default function TelegramTab() {
           setMasked(json.botTokenMasked || '');
           setChatId(json.chatId || '');
           setConfigured(json.configured);
+          setConfigExpanded(!json.configured);
         }
       } catch { /* ignore */ }
     })();
@@ -108,6 +110,7 @@ export default function TelegramTab() {
       notifyGlobal('success', 'Telegram успешно подключен');
       setBotToken('');
       setConfigured(true);
+      setConfigExpanded(false);
       setFieldError(null);
       const r2 = await authFetch('/api/tg/config');
       if (r2.ok) {
@@ -158,6 +161,7 @@ export default function TelegramTab() {
         setMasked('');
         setChatId('');
         setBotToken('');
+        setConfigExpanded(true);
         setConfigMsg({ type: 'ok', text: 'Бот удалён' });
       }
     } catch {
@@ -271,62 +275,79 @@ export default function TelegramTab() {
     <div className="tg">
       {/* ── Config ── */}
       <div className="tg-section">
-        <h3 className="tg-section__title">Telegram настройки</h3>
-        <div className="tg-config">
-          {configured && (
-            <div className="tg-config__status">
-              <span className="tg-config__dot tg-config__dot--ok" />
-              Настроено · {masked}
+        <div className="tg-config tg-config--collapsible">
+          <button
+            className="tg-config__summary"
+            onClick={() => setConfigExpanded(prev => !prev)}
+            type="button"
+          >
+            <span className="tg-config__summary-main">
+              <span className={`tg-config__dot${configured ? ' tg-config__dot--ok' : ''}`} />
+              <span>
+                <span className="tg-config__summary-title">Telegram</span>
+                <span className="tg-config__summary-subtitle">
+                  {configured ? `Подключен · ${masked}` : 'Бот не настроен'}
+                </span>
+              </span>
+            </span>
+            <span className="tg-config__summary-action">
+              {configExpanded ? 'Скрыть' : 'Настройки'}
+            </span>
+          </button>
+
+          {configExpanded && (
+            <div className="tg-config__body">
+              <label className="tg-label">Bot Token</label>
+              <input
+                className={`adm-input tg-input${fieldError?.botToken ? ' tg-input--error' : ''}`}
+                type="password"
+                placeholder={configured ? 'Введите новый токен для замены' : 'Вставьте Bot Token'}
+                value={botToken}
+                onChange={e => { setBotToken(e.target.value); setFieldError(null); }}
+              />
+              {fieldError?.botToken && <div className="tg-field-error">{fieldError.botToken}</div>}
+              <label className="tg-label">Chat ID</label>
+              <input
+                className={`adm-input tg-input${fieldError?.chatId ? ' tg-input--error' : ''}`}
+                type="text"
+                placeholder="-100... или @channel"
+                value={chatId}
+                onChange={e => { setChatId(e.target.value); setFieldError(null); }}
+              />
+              {fieldError?.chatId && <div className="tg-field-error">{fieldError.chatId}</div>}
+              <div className="tg-config__actions">
+                <button
+                  className="adm-btn adm-btn--accent adm-btn--sm"
+                  onClick={handleSaveConfig}
+                  disabled={configSaving}
+                >
+                  {configSaving ? 'Сохранение...' : 'Сохранить'}
+                </button>
+                {configured && (
+                  <>
+                    <button
+                      className="adm-btn adm-btn--sm"
+                      onClick={handleTestBot}
+                      disabled={testing}
+                    >
+                      {testing ? 'Проверка...' : 'Проверить'}
+                    </button>
+                    <button
+                      className="adm-btn adm-btn--ghost adm-btn--sm tg-config__delete"
+                      onClick={handleDeleteConfig}
+                    >
+                      Удалить бота
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           )}
-          <label className="tg-label">Bot Token</label>
-          <input
-            className={`adm-input tg-input${fieldError?.botToken ? ' tg-input--error' : ''}`}
-            type="password"
-            placeholder={configured ? 'Введите новый токен для замены' : 'Вставьте Bot Token'}
-            value={botToken}
-            onChange={e => { setBotToken(e.target.value); setFieldError(null); }}
-          />
-          {fieldError?.botToken && <div className="tg-field-error">{fieldError.botToken}</div>}
-          <label className="tg-label">Chat ID</label>
-          <input
-            className={`adm-input tg-input${fieldError?.chatId ? ' tg-input--error' : ''}`}
-            type="text"
-            placeholder="-100... или @channel"
-            value={chatId}
-            onChange={e => { setChatId(e.target.value); setFieldError(null); }}
-          />
-          {fieldError?.chatId && <div className="tg-field-error">{fieldError.chatId}</div>}
-          <div className="tg-config__actions">
-            <button
-              className="adm-btn adm-btn--accent adm-btn--sm"
-              onClick={handleSaveConfig}
-              disabled={configSaving}
-            >
-              {configSaving ? 'Сохранение...' : 'Сохранить'}
-            </button>
-            {configured && (
-              <>
-                <button
-                  className="adm-btn adm-btn--sm"
-                  onClick={handleTestBot}
-                  disabled={testing}
-                >
-                  {testing ? 'Проверка...' : 'Проверить'}
-                </button>
-                <button
-                  className="adm-btn adm-btn--ghost adm-btn--sm tg-config__delete"
-                  onClick={handleDeleteConfig}
-                >
-                  Удалить бота
-                </button>
-              </>
-            )}
+
           </div>
           {configMsg && (
             <div className={`tg-msg tg-msg--${configMsg.type}`}>{configMsg.text}</div>
           )}
-        </div>
       </div>
 
       {/* ── Autoplan ── */}
