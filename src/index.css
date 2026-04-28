@@ -2544,7 +2544,7 @@ img {
 .pp-sale-track {
   display: flex;
   overflow-x: auto;
-  scroll-snap-type: x proximity;
+  scroll-snap-type: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   touch-action: pan-x pan-y pinch-zoom;
