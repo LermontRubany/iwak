@@ -258,8 +258,9 @@ export default function CartPage() {
               <button
                 className="cart-item__remove"
                 onClick={() => removeItem(item.id, item.size)}
+                aria-label={`Удалить ${item.name} из корзины`}
               >
-                Удалить
+                ×
               </button>
               )}
             </div>
