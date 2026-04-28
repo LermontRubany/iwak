@@ -13,6 +13,7 @@ export default function Header() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const menuParam = searchParams.get('menu') === '1';
+  const isSearchMode = searchOpen || (location.pathname.startsWith('/catalog') && !!searchParams.get('q'));
 
   // Закрываем все drawer при смене маршрута
   useEffect(() => {
@@ -79,16 +80,18 @@ export default function Header() {
     <>
       <header className={`site-header${onDark ? ' site-header--light' : ''}`}>
         <div className="header-left">
-          <button
-            className="header-icon-btn menu-btn"
-            onClick={toggleMenu}
-            aria-label={navOpen ? 'Закрыть меню' : 'Меню'}
-          >
-            <svg width="20" height="9" viewBox="0 0 20 9" fill="none">
-              <line x1="0" y1="0.5" x2="20" y2="0.5" stroke="currentColor" strokeWidth="1"/>
-              <line x1="0" y1="8.5" x2="20" y2="8.5" stroke="currentColor" strokeWidth="1"/>
-            </svg>
-          </button>
+          {!isSearchMode && (
+            <button
+              className="header-icon-btn menu-btn"
+              onClick={toggleMenu}
+              aria-label={navOpen ? 'Закрыть меню' : 'Меню'}
+            >
+              <svg width="20" height="9" viewBox="0 0 20 9" fill="none">
+                <line x1="0" y1="0.5" x2="20" y2="0.5" stroke="currentColor" strokeWidth="1"/>
+                <line x1="0" y1="8.5" x2="20" y2="8.5" stroke="currentColor" strokeWidth="1"/>
+              </svg>
+            </button>
+          )}
         </div>
 
         <button onClick={handleLogoClick} className="site-logo">IWAK</button>
