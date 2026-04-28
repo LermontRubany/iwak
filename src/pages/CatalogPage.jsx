@@ -250,6 +250,14 @@ export default function CatalogPage() {
     }, { replace: true });
   };
 
+  const clearSearchQuery = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('q');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const activeCount =
     (filters.category ? 1 : 0) + filters.genders.length + filters.sizes.length + filters.brands.length +
     (saleParam ? 1 : 0) + (sortBy !== 'default' ? 1 : 0);
@@ -276,12 +284,23 @@ export default function CatalogPage() {
     <div className="catalog-page">
       {query && (
         <div className="search-results-header">
-          <span className="search-results-label">Результаты для «{query}»</span>
-          <span className="search-results-count">{filtered.length}</span>
+          <div className="search-results-main">
+            <span className="search-results-label">Поиск</span>
+            <span className="search-results-query">«{query}»</span>
+          </div>
+          <div className="search-results-side">
+            <span className="search-results-count">{filtered.length}</span>
+            <button className="search-results-clear" onClick={clearSearchQuery} aria-label="Выйти из поиска">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <line x1="1" y1="1" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                <line x1="15" y1="1" x2="1" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="catalog-toolbar">
+      <div className={`catalog-toolbar${query ? ' catalog-toolbar--search' : ''}`}>
         {activeCount > 0 && (
           <button
             className={`toolbar-share${copied ? ' toolbar-share--done' : ''}`}
