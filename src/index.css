@@ -555,6 +555,48 @@ img {
   margin-top: 3px;
 }
 
+.search-all-btn {
+  width: 100%;
+  margin-top: 18px;
+  min-height: 48px;
+  background: #0a0a0a;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.search-all-btn:active {
+  transform: scale(0.99);
+}
+
+.search-all-btn:hover {
+  opacity: 0.88;
+}
+
+.search-empty {
+  margin-top: 24px;
+  padding: 18px 0 2px;
+  border-top: 1px solid #eee;
+}
+
+.search-empty__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111;
+}
+
+.search-empty__text {
+  margin-top: 8px;
+  max-width: 360px;
+  color: #8a8a8a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 /* ── фоновый слой с blob-пятнами ── */
 .search-backdrop {
   position: absolute;

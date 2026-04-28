@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../context/ProductsContext';
 import ProductCard from './ProductCard';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
@@ -7,6 +8,7 @@ const MAX_SUGGESTIONS = 6;
 
 export default function SearchOverlay({ isOpen, onClose }) {
   const { products } = useProducts();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [closing, setClosing] = useState(false);
@@ -52,8 +54,9 @@ export default function SearchOverlay({ isOpen, onClose }) {
       .filter((p) => {
         const name = (p.name || '').toLowerCase();
         const brand = (p.brand || '').toLowerCase();
+        const category = (p.category || '').toLowerCase();
         return words.every((w) => {
-          const textMatch = name.includes(w) || brand.includes(w);
+          const textMatch = name.includes(w) || brand.includes(w) || category.includes(w);
           const isNumber = /^\d+$/.test(w);
           const couldBeSize = /^[a-z]{1,3}$|^\d{1,3}$/.test(w);
           const sizeMatch = couldBeSize && p.sizes?.some((s) =>
@@ -63,10 +66,25 @@ export default function SearchOverlay({ isOpen, onClose }) {
         });
       })
       .slice(0, MAX_SUGGESTIONS);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, products]);
+
+  const normalizedQuery = query.replace(/\s+/g, ' ').trim();
+  const normalizedDebouncedQuery = debouncedQuery.replace(/\s+/g, ' ').trim();
+  const showEmptyState = normalizedDebouncedQuery && suggestions.length === 0;
+
+  const openCatalogResults = () => {
+    if (!normalizedQuery) {
+      inputRef.current?.focus();
+      return;
+    }
+
+    navigate({ pathname: '/catalog', search: `?q=${encodeURIComponent(normalizedQuery)}` });
+    handleClose();
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    openCatalogResults();
   };
 
   return (
@@ -84,6 +102,12 @@ export default function SearchOverlay({ isOpen, onClose }) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    openCatalogResults();
+                  }
+                }}
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}
@@ -104,12 +128,24 @@ export default function SearchOverlay({ isOpen, onClose }) {
         </form>
 
         {suggestions.length > 0 && (
-          <div className="search-suggestions">
-            {suggestions.map((product) => (
-              <div key={product.id} className="search-suggestion-card" onClick={handleClose}>
-                <ProductCard product={product} />
-              </div>
-            ))}
+          <div className="search-results-preview">
+            <div className="search-suggestions">
+              {suggestions.map((product) => (
+                <div key={product.id} className="search-suggestion-card" onClick={handleClose}>
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+            <button type="button" className="search-all-btn" onClick={openCatalogResults}>
+              Показать все результаты
+            </button>
+          </div>
+        )}
+
+        {showEmptyState && (
+          <div className="search-empty">
+            <div className="search-empty__title">Ничего не нашли</div>
+            <div className="search-empty__text">Попробуйте бренд, модель или размер: Nike, Adidas, 42</div>
           </div>
         )}
       </div>
