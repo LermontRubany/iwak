@@ -123,6 +123,18 @@ export default function AnalyticsTab() {
     ?.filter(e => e.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 3) || [];
+  const attentionProducts = data?.funnel?.topCartProducts
+    ?.filter((p) => p.adds >= 2 || p.buyNows > 0)
+    .filter((p) => p.checkouts === 0 || p.abandonRate >= 80)
+    .map((p) => {
+      let reason = 'Высокий интерес, слабое оформление';
+      if (p.checkouts === 0 && p.buyNows > 0) reason = 'Нажимали купить, но не оформили';
+      else if (p.checkouts === 0) reason = 'Кладут в корзину, но не оформляют';
+      else if (p.abandonRate >= 80) reason = 'Большая часть корзин не дошла до оформления';
+      return { ...p, reason };
+    })
+    .sort((a, b) => (b.adds + b.buyNows * 2) - (a.adds + a.buyNows * 2))
+    .slice(0, 6) || [];
 
   return (
     <div className="anl">
@@ -145,13 +157,13 @@ export default function AnalyticsTab() {
           className={`anl-mode-btn${mode === 'data' ? ' anl-mode-btn--active' : ''}`}
           onClick={() => setMode('data')}
         >
-          Сегодня
+          Данные
         </button>
         <button
           className={`anl-mode-btn${mode === 'analysis' ? ' anl-mode-btn--active' : ''}`}
           onClick={() => setMode('analysis')}
         >
-          Анализ
+          Сравнение
         </button>
       </div>
 
@@ -171,7 +183,7 @@ export default function AnalyticsTab() {
       {data && !loading && (
         <>
           {/* Summary cards */}
-          <div className="anl-cards">
+          <div className={`anl-cards${data.funnel ? ' anl-cards--overview' : ''}`}>
             <div className="anl-card">
               <span className="anl-card__value">{data.visits}</span>
               {mode === 'analysis' && <DeltaBadge delta={data.visitsDelta} percent={data.visitsPercent} isNew={data.visitsIsNew} showArrow />}
@@ -182,11 +194,24 @@ export default function AnalyticsTab() {
               {mode === 'analysis' && <DeltaBadge delta={data.productViewsDelta} percent={data.productViewsPercent} isNew={data.productViewsIsNew} showArrow />}
               <span className="anl-card__label">Просмотры</span>
             </div>
-            <div className="anl-card">
-              <span className="anl-card__value">{data.shares}</span>
-              {mode === 'analysis' && <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} isNew={data.sharesIsNew} showArrow />}
-              <span className="anl-card__label">Шаринг</span>
-            </div>
+            {data.funnel ? (
+              <>
+                <div className="anl-card">
+                  <span className="anl-card__value">{data.funnel.cartAdds}</span>
+                  <span className="anl-card__label">В корзину</span>
+                </div>
+                <div className="anl-card">
+                  <span className="anl-card__value">{data.funnel.checkoutClicks}</span>
+                  <span className="anl-card__label">Оформить</span>
+                </div>
+              </>
+            ) : (
+              <div className="anl-card">
+                <span className="anl-card__value">{data.shares}</span>
+                {mode === 'analysis' && <DeltaBadge delta={data.sharesDelta} percent={data.sharesPercent} isNew={data.sharesIsNew} showArrow />}
+                <span className="anl-card__label">Шаринг</span>
+              </div>
+            )}
           </div>
 
           {/* Activity — compact */}
@@ -195,24 +220,6 @@ export default function AnalyticsTab() {
               {/* ── Funnel KPI cards ── */}
               <div className="anl-section">
                 <h3 className="anl-section__title">🛒 Воронка</h3>
-                <div className="anl-cards" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                  <div className="anl-card">
-                    <span className="anl-card__value">{data.funnel.cartAdds}</span>
-                    <span className="anl-card__label">В корзину</span>
-                  </div>
-                  <div className="anl-card">
-                    <span className="anl-card__value">{data.funnel.buyNows}</span>
-                    <span className="anl-card__label">Купить сейчас</span>
-                  </div>
-                  <div className="anl-card">
-                    <span className="anl-card__value">{data.funnel.checkoutClicks}</span>
-                    <span className="anl-card__label">Оформить</span>
-                  </div>
-                  <div className="anl-card">
-                    <span className="anl-card__value">{data.funnel.totalConversion}%</span>
-                    <span className="anl-card__label">Конверсия</span>
-                  </div>
-                </div>
 
                 {/* Funnel bar */}
                 <div className="anl-funnel">
@@ -256,6 +263,30 @@ export default function AnalyticsTab() {
                       <span className="anl-card__value" style={{ color: data.funnel.lostValue > 0 ? '#e53935' : undefined }}>₽{Math.round(data.funnel.lostValue).toLocaleString('ru-RU')}</span>
                       <span className="anl-card__label">Упущено</span>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {attentionProducts.length > 0 && (
+                <div className="anl-section">
+                  <h3 className="anl-section__title">Товары требуют внимания</h3>
+                  <div className="anl-attention-list">
+                    {attentionProducts.map((p) => (
+                      <div key={p.productId} className="anl-attention-card">
+                        <div className="anl-attention-card__main">
+                          <span className="anl-table__brand">{p.brand}</span>{' '}
+                          <span>{p.name || `#${p.productId}`}</span>
+                          {p.price && <span className="anl-attention-card__price"> ₽{p.price.toLocaleString('ru-RU')}</span>}
+                        </div>
+                        <div className="anl-attention-card__reason">{p.reason}</div>
+                        <div className="anl-attention-card__stats">
+                          <span>В корзину: <strong>{p.adds}</strong></span>
+                          <span>Купить: <strong>{p.buyNows}</strong></span>
+                          <span>Оформить: <strong>{p.checkouts}</strong></span>
+                          <span>Потеря: <strong>{p.abandonRate}%</strong></span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

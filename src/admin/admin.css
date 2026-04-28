@@ -2247,6 +2247,10 @@
   margin-bottom: 20px;
 }
 
+.anl-cards--overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .anl-card {
   background: var(--adm-surface);
   border: 1px solid var(--adm-border);
@@ -2366,7 +2370,8 @@
 }
 
 @media (max-width: 480px) {
-  .anl-cards { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .anl-cards,
+  .anl-cards--overview { grid-template-columns: 1fr 1fr; gap: 6px; }
   .anl-card { padding: 12px 8px; }
   .anl-card__value { font-size: 22px; }
 }
@@ -2409,6 +2414,68 @@
   font-size: 12px;
   color: var(--adm-text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* ─── ATTENTION PRODUCTS ─── */
+.anl-attention-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.anl-attention-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(231, 76, 60, 0.22);
+  border-radius: var(--adm-radius);
+  background: #fffafa;
+}
+
+.anl-attention-card__main {
+  color: var(--adm-text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.anl-attention-card__price {
+  color: var(--adm-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.anl-attention-card__reason {
+  color: #c0392b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.anl-attention-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.anl-attention-card__stats span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--adm-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.anl-attention-card__stats strong {
+  color: var(--adm-text);
+}
+
+@media (max-width: 680px) {
+  .anl-attention-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── TABLE PEAK HOUR COLUMN ─── */
