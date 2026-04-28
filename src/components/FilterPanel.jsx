@@ -42,6 +42,9 @@ export default function FilterPanel({
   getMatchCount,
 }) {
   const panelRef = useRef(null);
+  const sizeSectionRef = useRef(null);
+  const brandSectionRef = useRef(null);
+  const sortSectionRef = useRef(null);
   const [closing, setClosing] = useState(false);
   const [showAllBrands, setShowAllBrands] = useState(false);
   const [showBrandPicker, setShowBrandPicker] = useState(false);
@@ -135,6 +138,38 @@ export default function FilterPanel({
   const toggleDraftSale = useCallback(() => {
     setDraft((prev) => ({ ...prev, sale: !prev.sale }));
   }, []);
+
+  const scrollToSection = useCallback((sectionRef) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const body = panelRef.current?.querySelector('.filter-panel__body');
+        const section = sectionRef.current;
+        if (!body || !section) return;
+        body.scrollTo({
+          top: Math.max(0, section.offsetTop - 10),
+          behavior: 'smooth',
+        });
+      });
+    });
+  }, []);
+
+  const toggleSizePicker = useCallback(() => {
+    const shouldOpen = !showSizePicker;
+    setShowSizePicker(shouldOpen);
+    if (shouldOpen) scrollToSection(sizeSectionRef);
+  }, [showSizePicker, scrollToSection]);
+
+  const toggleBrandPicker = useCallback(() => {
+    const shouldOpen = !showBrandPicker;
+    setShowBrandPicker(shouldOpen);
+    if (shouldOpen) scrollToSection(brandSectionRef);
+  }, [showBrandPicker, scrollToSection]);
+
+  const toggleSortPicker = useCallback(() => {
+    const shouldOpen = !showSortPicker;
+    setShowSortPicker(shouldOpen);
+    if (shouldOpen) scrollToSection(sortSectionRef);
+  }, [showSortPicker, scrollToSection]);
 
   const handleApply = () => {
     const { sortBy: draftSort, sale: draftSale, ...draftFilters } = draft;
@@ -360,7 +395,7 @@ export default function FilterPanel({
               <button
                 type="button"
                 className="filter-detail-row"
-                onClick={() => setShowSizePicker((v) => !v)}
+                onClick={toggleSizePicker}
               >
                 <span>Размер</span>
                 <strong>{sizeSummary}</strong>
@@ -369,7 +404,7 @@ export default function FilterPanel({
               <button
                 type="button"
                 className="filter-detail-row"
-                onClick={() => setShowBrandPicker((v) => !v)}
+                onClick={toggleBrandPicker}
               >
                 <span>Бренд</span>
                 <strong>{brandSummary}</strong>
@@ -377,7 +412,7 @@ export default function FilterPanel({
               <button
                 type="button"
                 className="filter-detail-row"
-                onClick={() => setShowSortPicker((v) => !v)}
+                onClick={toggleSortPicker}
               >
                 <span>Сначала</span>
                 <strong>{sortSummary}</strong>
@@ -387,7 +422,7 @@ export default function FilterPanel({
           )}
 
           {showSizePicker && shouldShowSizes && sizeOptions.length > 0 && (
-          <div className="filter-section">
+          <div className="filter-section" ref={sizeSectionRef}>
             <div className="filter-section__label">
               Размер
               {draft.sizes.length > 0 && <span className="filter-section__count"> ({draft.sizes.length})</span>}
@@ -409,7 +444,7 @@ export default function FilterPanel({
           )}
 
           {showBrandPicker && brandOptions.length > 0 && (
-            <div className="filter-section">
+            <div className="filter-section" ref={brandSectionRef}>
               <div className="filter-section__label">
                 Бренд
                 {draft.brands.length > 0 && <span className="filter-section__count"> ({draft.brands.length})</span>}
@@ -426,7 +461,7 @@ export default function FilterPanel({
           )}
 
           {showSortPicker && (
-          <div className="filter-section filter-section--compact">
+          <div className="filter-section filter-section--compact" ref={sortSectionRef}>
             <div className="filter-section__label">
               Сначала
               {draft.sortBy !== 'default' && <span className="filter-section__count"> (1)</span>}
