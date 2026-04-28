@@ -3533,8 +3533,8 @@ img {
   .cart-item__badge {
     top: 8px;
     left: 8px;
-    font-size: 12px;
-    padding: 5px 8px;
+    font-size: 10px;
+    padding: 4px 7px;
     border-radius: 4px;
   }
 
