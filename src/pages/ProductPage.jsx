@@ -279,6 +279,21 @@ export default function ProductPage() {
             <path d="M12.5 4L6.5 10L12.5 16" stroke="rgba(0,0,0,0.8)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
+        <button
+          className={`pp-share-btn ${copied ? 'pp-share-btn--copied' : ''}`}
+          onClick={handleShare}
+          aria-label="Поделиться"
+        >
+          {copied ? (
+            <span className="pp-share-btn__done">✓</span>
+          ) : (
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M7.5 6.5L10 4L12.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M10 4V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M5 9.5V15C5 15.55 5.45 16 6 16H14C14.55 16 15 15.55 15 15V9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          )}
+        </button>
 
         {/* Badges on gallery */}
         {(() => {
@@ -389,13 +404,6 @@ export default function ProductPage() {
       <div className="product-page__info" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
         <div className="pp-title-row">
           <span className="product-page__brand">{product.brand}</span>
-          <button
-            className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
-            onClick={handleShare}
-            aria-label="Поделиться"
-          >
-            {copied ? 'Скопировано' : 'Поделиться'}
-          </button>
         </div>
         <h1 className="product-page__name">{stripBrandFromName(product)}</h1>
         <p className="product-page__price">
@@ -412,15 +420,26 @@ export default function ProductPage() {
 
         {/* Trust block */}
         <div className="pp-trust">
-          <span>✓ В наличии</span>
-          <span>Доставка: Россия / Беларусь</span>
+          <span>Оригинальные фото</span>
+          <span>Проверка перед отправкой</span>
+          <span>РФ / РБ</span>
         </div>
 
         {/* Size buttons */}
         <div className={`pp-sizes ${sizeShake ? 'pp-sizes--shake' : ''}`}>
-          <span className="pp-sizes__label">
-            {selectedSize ? `Размер: ${selectedSize}` : 'Выберите размер'}
-          </span>
+          <div className="pp-sizes__head">
+            <span className="pp-sizes__label">Размер</span>
+            <button
+              type="button"
+              className="pp-size-help"
+              onClick={() => {
+                setSizeShake(true);
+                setTimeout(() => setSizeShake(false), 600);
+              }}
+            >
+              Помочь выбрать
+            </button>
+          </div>
           <div className="pp-sizes__grid">
             {sortSizes(product.sizes).map((size) => (
               <button
@@ -434,48 +453,45 @@ export default function ProductPage() {
           </div>
         </div>
 
-        <button
-          className={`btn-add-to-cart ${added ? 'btn-add-to-cart--added' : ''}`}
-          onClick={handleAddToCart}
-        >
-          {added ? '✓ ДОБАВЛЕНО В КОРЗИНУ' : 'ДОБАВИТЬ В КОРЗИНУ'}
-        </button>
+        <div className="pp-purchase-note">
+          Подтвердим наличие и размер перед оплатой.
+        </div>
 
-        <button
-          className="btn-buy-now"
-          onClick={() => {
-            if (!selectedSize) {
-              setSizeShake(true);
-              setTimeout(() => setSizeShake(false), 600);
-              return;
-            }
-            track('buy_now', { productId: product.id, size: selectedSize, price: product.price, brand: product.brand });
-            const productUrl = `${window.location.origin}/product/${makeProductSlug(product)}`;
-            const text = [
-              'Здравствуйте!',
-              '',
-              'Хочу заказать:',
-              '',
-              `${productDisplayName(product)} — ${selectedSize}`,
-              '',
-              `Цена: ₽${product.price.toLocaleString('ru-RU')}`,
-              '',
-              'Товар:',
-              productUrl,
-            ].join('\n');
-            window.open(`https://t.me/IWAKm?text=${encodeURIComponent(text)}`, '_blank');
-          }}
-        >
-          КУПИТЬ СЕЙЧАС
-        </button>
+        <div className="pp-actions">
+          <button
+            className="btn-buy-now"
+            onClick={() => {
+              if (!selectedSize) {
+                setSizeShake(true);
+                setTimeout(() => setSizeShake(false), 600);
+                return;
+              }
+              track('buy_now', { productId: product.id, size: selectedSize, price: product.price, brand: product.brand });
+              const productUrl = `${window.location.origin}/product/${makeProductSlug(product)}`;
+              const text = [
+                'Здравствуйте!',
+                '',
+                'Хочу заказать:',
+                '',
+                `${productDisplayName(product)} — ${selectedSize}`,
+                '',
+                `Цена: ₽${product.price.toLocaleString('ru-RU')}`,
+                '',
+                'Товар:',
+                productUrl,
+              ].join('\n');
+              window.open(`https://t.me/IWAKm?text=${encodeURIComponent(text)}`, '_blank');
+            }}
+          >
+            КУПИТЬ СЕЙЧАС
+          </button>
 
-        <div className="product-page__details">
-          <p>Цвет: <strong>{product.color}</strong></p>
-          <p>Пол: <strong>
-            {product.gender === 'mens' ? 'Мужское' :
-             product.gender === 'womens' ? 'Женское' :
-             product.gender === 'kids' ? 'Детское' : 'Унисекс'}
-          </strong></p>
+          <button
+            className={`btn-add-to-cart ${added ? 'btn-add-to-cart--added' : ''}`}
+            onClick={handleAddToCart}
+          >
+            {added ? 'Добавлено' : 'В корзину'}
+          </button>
         </div>
 
         {saleItems.length >= 2 && (
@@ -498,6 +514,15 @@ export default function ProductPage() {
             </div>
           </div>
         )}
+
+        <div className="product-page__details">
+          <p>Цвет: <strong>{product.color}</strong></p>
+          <p>Пол: <strong>
+            {product.gender === 'mens' ? 'Мужское' :
+             product.gender === 'womens' ? 'Женское' :
+             product.gender === 'kids' ? 'Детское' : 'Унисекс'}
+          </strong></p>
+        </div>
       </div>
     </div>
 
