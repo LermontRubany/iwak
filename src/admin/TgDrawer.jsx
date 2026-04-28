@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import authFetch from './authFetch';
+import authFetch, { getToken } from './authFetch';
 import ButtonConstructor from './ButtonConstructor';
 
 // Fallback buttons used before templates load from server
@@ -77,6 +77,8 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
   const [withBadge, setWithBadge] = useState(false);
   const [buttons, setButtons] = useState(FALLBACK_PRODUCT_BUTTONS);
   const [tplMap, setTplMap] = useState(null); // { basic: {defaultButtons}, ... }
+  const [customPhotos, setCustomPhotos] = useState([]);
+  const [customUploading, setCustomUploading] = useState(false);
   const pollRef = useRef(null);
 
   // Load templates config from server
@@ -141,9 +143,8 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
   const handleSend = useCallback(async () => {
     if (sending) return;
 
-    // Custom mode: text + buttons only
+    // Custom mode: text/photos/buttons without product
     if (mode === 'custom') {
-      if (!editText.trim()) return;
       setSending(true);
       setResult(null);
       setSendProgress({ current: 1, total: 1 });
@@ -151,7 +152,12 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
         const res = await authFetch('/api/tg/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode: 'custom', text: editText, buttons }),
+          body: JSON.stringify({
+            mode: 'custom',
+            text: editText,
+            buttons,
+            photos: customPhotos.map(p => p.path),
+          }),
         });
         const json = await res.json();
         setSending(false);
@@ -252,14 +258,16 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
       setSending(false);
       setResult({ type: 'error', text: 'Ошибка запуска отправки' });
     }
-  }, [previews, sending, editText, template, selectedPhoto, withBadge, buttons, mode, onSent]);
+  }, [previews, sending, editText, template, selectedPhoto, withBadge, buttons, mode, onSent, customPhotos]);
 
   const current = previews[activeIdx];
   const isSingle = mode === 'custom' || previews.length === 1;
-  const customLimit = 4096;
+  const customLimit = customPhotos.length > 0 ? 1024 : 4096;
   const limit = mode === 'custom' ? customLimit : (current && current.photos.length > 0 ? 1024 : 4096);
   const charLen = editText.length;
   const overLimit = charLen > limit;
+  const hasCustomButton = mode === 'custom' && (buttons || []).some(row => (row || []).some(btn => btn?.text));
+  const canSendCustom = editText.trim() || customPhotos.length > 0 || hasCustomButton;
 
   const handleModeSwitch = (m) => {
     if (m === mode) return;
@@ -279,6 +287,40 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
       const currentText = prev.trim();
       return currentText ? `${currentText}\n\n${text}` : text;
     });
+  };
+
+  const uploadCustomPhotos = async (files) => {
+    const selected = Array.from(files || []).slice(0, Math.max(0, 10 - customPhotos.length));
+    if (selected.length === 0) return;
+    setCustomUploading(true);
+    setResult(null);
+    try {
+      const uploaded = [];
+      for (const file of selected) {
+        const formData = new FormData();
+        formData.append('image', file);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${getToken()}` },
+          body: formData,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Ошибка загрузки фото');
+        uploaded.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          path: json.path,
+        });
+      }
+      setCustomPhotos(prev => [...prev, ...uploaded].slice(0, 10));
+    } catch (err) {
+      setResult({ type: 'error', text: err.message || 'Ошибка загрузки фото' });
+    } finally {
+      setCustomUploading(false);
+    }
+  };
+
+  const removeCustomPhoto = (id) => {
+    setCustomPhotos(prev => prev.filter(photo => photo.id !== id));
   };
 
   return (
@@ -329,6 +371,23 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
             <div className="tg-drawer__text-preview">
               {editText.trim() ? renderTgHtml(editText) : <span className="tg-drawer__placeholder">Введите текст поста...</span>}
             </div>
+            {customPhotos.length > 0 && (
+              <div className="tg-drawer__photos">
+                {customPhotos.map((photo) => (
+                  <div key={photo.id} className="tg-drawer__photo-wrap tg-drawer__photo-wrap--selected">
+                    <img src={photo.path} alt="" className="tg-drawer__photo" />
+                    <button
+                      type="button"
+                      className="tg-drawer__photo-remove"
+                      onClick={() => removeCustomPhoto(photo.id)}
+                      title="Убрать фото"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="tg-drawer__button-preview">
               {(buttons || EMPTY_BUTTONS).map((row, ri) => (
                 <div key={ri} className="tg-drawer__btn-row">
@@ -346,6 +405,19 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
             />
 
             <div className="tg-drawer__editor">
+              <label className="tg-custom-upload">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={e => {
+                    uploadCustomPhotos(e.target.files);
+                    e.target.value = '';
+                  }}
+                  disabled={customUploading || customPhotos.length >= 10}
+                />
+                <span>{customUploading ? 'Загрузка фото...' : customPhotos.length > 0 ? `Фото: ${customPhotos.length} / 10` : 'Добавить фото'}</span>
+              </label>
               <label className="tg-label">Текст поста</label>
               <textarea
                 className="adm-input tg-textarea"
@@ -363,7 +435,7 @@ export default function TgDrawer({ productIds, onClose, onSent, filterOptions, i
               <button
                 className="adm-btn adm-btn--primary tg-drawer__send"
                 onClick={handleSend}
-                disabled={sending || overLimit || !editText.trim()}
+                disabled={sending || customUploading || overLimit || !canSendCustom}
               >
                 {sending ? 'Отправка...' : '📤 Отправить в Telegram'}
               </button>

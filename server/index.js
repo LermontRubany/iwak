@@ -2248,6 +2248,24 @@ async function tgSendOne({ botToken, chatId, text, photos, keyboard, productId, 
     }
   }
 
+  if (result && result.ok !== false && photos.length > 1) {
+    for (const extraPhotoPath of photos.slice(1, 10)) {
+      try {
+        const extraImgPath = path.join(__dirname, '..', extraPhotoPath);
+        const buffer = await sharp(extraImgPath).jpeg({ quality: 85 }).toBuffer();
+        await tgApiCallMultipart(`${TG}/sendPhoto`, {
+          chatId,
+          photoBuffer: buffer,
+          caption: '',
+          parseMode: null,
+          replyMarkup: null,
+        });
+      } catch (err) {
+        logger.warn({ err, productId, photoPath: extraPhotoPath }, 'Extra TG photo send failed');
+      }
+    }
+  }
+
   const status = result.ok === false ? 'error' : 'success';
   logger.info({ tgSend: true, productId, status, description: result.description || null }, `TG send ${status}`);
 
@@ -2311,21 +2329,29 @@ app.get('/api/tg/preview/:id', requireAuth, async (req, res) => {
 
 // ── Send post to Telegram (via queue) ──
 app.post('/api/tg/send', requireAuth, async (req, res) => {
-  const { productId, text: customText, template, imageIndex, withBadge, buttons, mode } = req.body;
+  const { productId, text: customText, template, imageIndex, withBadge, buttons, mode, photos: customPhotos } = req.body;
 
-  // Custom mode: text-only post without product
+  // Custom mode: optional text/photos/buttons without product
   if (mode === 'custom') {
-    if (!customText?.trim()) return res.status(400).json({ error: 'Текст обязателен для custom-поста' });
     try {
       const cfg = await pool.query('SELECT bot_token, chat_id FROM tg_config WHERE id = 1');
       if (cfg.rows.length === 0 || !cfg.rows[0].bot_token || !cfg.rows[0].chat_id) {
         return res.status(400).json({ error: 'Telegram не настроен' });
       }
       const { bot_token, chat_id } = cfg.rows[0];
-      const safeText = escapeHtml(customText);
+      const photos = Array.isArray(customPhotos)
+        ? customPhotos
+            .filter(p => typeof p === 'string' && /^\/uploads\/[^/]+$/.test(p))
+            .slice(0, 10)
+        : [];
       const effectiveButtons = (buttons && Array.isArray(buttons) && buttons.length > 0) ? buttons : getDefaultButtons('custom');
       const keyboard = resolveKeyboard(effectiveButtons, null);
-      const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text: safeText, photos: [], keyboard, productId: null, badges: null });
+      const hasButtons = !!keyboard?.inline_keyboard?.some(row => row.length > 0);
+      if (!customText?.trim() && photos.length === 0 && !hasButtons) {
+        return res.status(400).json({ error: 'Добавьте текст, фото или кнопку' });
+      }
+      const safeText = customText?.trim() ? escapeHtml(customText) : (photos.length > 0 ? '' : '\u2060');
+      const tgResult = await tgEnqueue({ botToken: bot_token, chatId: chat_id, text: safeText, photos, keyboard, productId: null, badges: null });
       if (tgResult.ok === false) {
         logger.warn({ tgResult }, 'Telegram API rejected custom post');
         return res.status(502).json({ error: 'Telegram отклонил запрос', details: tgResult.description });
