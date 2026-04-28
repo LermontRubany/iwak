@@ -2760,7 +2760,7 @@ app.delete('/api/tg/schedule/:id', requireAuth, async (req, res) => {
 app.get('/api/tg/autoplan/today', requireAuth, async (_req, res) => {
   try {
     const r = await pool.query(
-      `SELECT s.scheduled_at, s.custom_text, p.name, p.brand, p.price, p.image
+      `SELECT s.scheduled_at, s.product_id, s.custom_text, p.name, p.brand, p.price, p.image
        FROM tg_scheduled s
        LEFT JOIN products p ON p.id = s.product_id
        WHERE s.status = 'done'
@@ -2769,7 +2769,7 @@ app.get('/api/tg/autoplan/today', requireAuth, async (_req, res) => {
     );
     res.json(r.rows.map(row => ({
       time: row.scheduled_at,
-      name: row.product_id ? [row.brand, row.name].filter(Boolean).join(' ') : '📝 Свой пост',
+      name: row.product_id ? ([row.brand, row.name].filter(Boolean).join(' ') || `Товар #${row.product_id}`) : '📝 Свой пост',
       price: row.price ? parseFloat(row.price) : null,
       image: row.image,
     })));
