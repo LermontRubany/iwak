@@ -3425,6 +3425,169 @@ img {
   place-items: center;
 }
 
+@media (max-width: 520px) {
+  .cart-page {
+    padding: 18px 12px 28px;
+    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+  }
+
+  .cart-receipt {
+    padding: 22px 18px 0;
+  }
+
+  .cart-title {
+    font-size: 28px;
+  }
+
+  .cart-shared-chip {
+    margin-top: 8px;
+    font-size: 18px;
+  }
+
+  .cart-receipt__marks {
+    gap: 10px;
+  }
+
+  .cart-receipt__barcode {
+    width: 92px;
+    height: 42px;
+  }
+
+  .cart-receipt__star {
+    width: 42px;
+    height: 42px;
+  }
+
+  .cart-receipt__wave {
+    margin: 28px 0 22px;
+  }
+
+  .cart-receipt__meta {
+    font-size: 15px;
+  }
+
+  .cart-receipt__dash {
+    margin-top: 22px;
+  }
+
+  .cart-item {
+    grid-template-columns: 42px 38% minmax(0, 1fr);
+    gap: 12px;
+    padding: 28px 0;
+  }
+
+  .cart-item__index {
+    font-size: 42px;
+  }
+
+  .cart-item__image {
+    min-width: 132px;
+    aspect-ratio: 1 / 1.2;
+  }
+
+  .cart-item__badge {
+    top: 12px;
+    left: 12px;
+    font-size: 15px;
+    padding: 7px 10px;
+  }
+
+  .cart-item__brand {
+    font-size: 15px;
+  }
+
+  .cart-item__name {
+    margin-top: 14px;
+    font-size: 25px;
+    line-height: 1.12;
+  }
+
+  .cart-item__meta {
+    margin-top: 14px;
+    font-size: 16px;
+  }
+
+  .cart-item__qty {
+    gap: 9px;
+    margin-top: 18px;
+    font-size: 15px;
+  }
+
+  .qty-btn {
+    width: 34px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  .cart-item__qty .qty-value {
+    min-width: 46px;
+    height: 32px;
+    margin: 0 -9px;
+    font-size: 18px;
+  }
+
+  .cart-item__right {
+    margin-top: 22px;
+  }
+
+  .cart-item__prices {
+    gap: 16px;
+  }
+
+  .cart-item__price {
+    font-size: 30px;
+  }
+
+  .cart-item__price--old {
+    font-size: 18px;
+  }
+
+  .cart-summary {
+    padding: 30px 0 34px;
+    gap: 24px;
+  }
+
+  .cart-summary__row {
+    font-size: 20px;
+  }
+
+  .cart-summary__row--saving {
+    padding-bottom: 24px;
+  }
+
+  .cart-summary__row:not(.cart-summary__row--saving) > span:first-child {
+    font-size: 28px;
+  }
+
+  .cart-summary__total {
+    font-size: 44px;
+  }
+
+  .cart-summary__total--old {
+    font-size: 22px;
+  }
+
+  .cart-actions {
+    padding-top: 42px;
+  }
+
+  .btn-telegram--cart {
+    min-height: 66px;
+    font-size: 16px;
+    letter-spacing: 0.32em;
+  }
+
+  .cart-actions__secondary {
+    margin-top: 34px;
+  }
+
+  .cart-actions__secondary .share-btn,
+  .cart-actions__secondary .btn-continue {
+    font-size: 17px;
+    gap: 10px;
+  }
+}
+
 .cart-drawer {
   max-width: 560px;
   background: #fff;
