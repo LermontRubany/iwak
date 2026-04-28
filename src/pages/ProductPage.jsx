@@ -176,7 +176,7 @@ export default function ProductPage() {
     const el = saleTrackRef.current;
     if (!el || saleItems.length < 3) return undefined;
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const stepSize = prefersReducedMotion ? 0.45 : 1.15;
+    const speed = prefersReducedMotion ? 0.012 : 0.045;
 
     const pause = (ms = 2800) => {
       saleAutoPauseUntilRef.current = Date.now() + ms;
@@ -191,8 +191,15 @@ export default function ProductPage() {
     el.addEventListener('touchstart', onPointerDown, { passive: true });
     el.addEventListener('wheel', onWheel, { passive: true });
 
-    saleAutoFrameRef.current = window.setInterval(() => {
-      if (document.hidden) return;
+    const step = (ts) => {
+      const lastTs = saleAutoLastTsRef.current ?? ts;
+      saleAutoLastTsRef.current = ts;
+
+      if (document.hidden) {
+        saleAutoFrameRef.current = requestAnimationFrame(step);
+        return;
+      }
+
       if (Date.now() >= saleAutoPauseUntilRef.current) {
         const maxScroll = el.scrollWidth - el.clientWidth;
         if (maxScroll > 10) {
@@ -200,14 +207,19 @@ export default function ProductPage() {
             el.scrollTo({ left: 0, behavior: 'instant' });
             pause(1400);
           } else {
-            el.scrollLeft = Math.min(maxScroll, el.scrollLeft + stepSize);
+            const delta = Math.min(48, ts - lastTs) * speed;
+            el.scrollLeft = Math.min(maxScroll, el.scrollLeft + delta);
           }
         }
       }
-    }, 50);
+
+      saleAutoFrameRef.current = requestAnimationFrame(step);
+    };
+
+    saleAutoFrameRef.current = requestAnimationFrame(step);
 
     return () => {
-      if (saleAutoFrameRef.current) window.clearInterval(saleAutoFrameRef.current);
+      if (saleAutoFrameRef.current) cancelAnimationFrame(saleAutoFrameRef.current);
       saleAutoFrameRef.current = null;
       saleAutoLastTsRef.current = null;
       el.removeEventListener('pointerdown', onPointerDown);
