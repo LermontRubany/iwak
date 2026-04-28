@@ -286,6 +286,10 @@ export default function CartDrawer({ isOpen, onClose }) {
               ОФОРМИТЬ ЗАКАЗ
             </button>
             <div className="cart-drawer__actions-secondary">
+              <button className="cart-drawer__continue" onClick={handleCatalog}>
+                Продолжить покупки
+                <span aria-hidden="true">›</span>
+              </button>
               <button
                 className={`share-btn${copied ? ' share-btn--copied' : ''}`}
                 onClick={handleShare}
@@ -299,10 +303,6 @@ export default function CartDrawer({ isOpen, onClose }) {
                   </svg>
                 </span>
                 {copied ? 'Скопировано' : 'Поделиться'}
-              </button>
-              <button className="cart-drawer__continue" onClick={handleCatalog}>
-                Продолжить покупки
-                <span aria-hidden="true">›</span>
               </button>
             </div>
           </div>

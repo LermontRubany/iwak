@@ -3434,8 +3434,11 @@ img {
   white-space: nowrap;
 }
 
-.cart-actions__secondary .share-btn {
+.cart-actions__secondary .btn-continue {
   border-right: 1px solid #d6d6d6;
+}
+
+.cart-actions__secondary .share-btn {
   border-radius: 0;
   background: transparent;
 }
@@ -3844,8 +3847,11 @@ img {
   padding: 0;
 }
 
-.cart-drawer__actions-secondary .share-btn {
+.cart-drawer__actions-secondary .cart-drawer__continue {
   border-right: 1px solid #d6d6d6;
+}
+
+.cart-drawer__actions-secondary .share-btn {
   border-radius: 0;
   background: transparent;
 }

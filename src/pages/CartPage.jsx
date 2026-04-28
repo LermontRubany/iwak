@@ -318,6 +318,10 @@ export default function CartPage() {
           ОФОРМИТЬ ЗАКАЗ
         </button>
         <div className="cart-actions__secondary">
+          <button className="btn-continue" onClick={handleClose}>
+            Продолжить покупки
+            <span aria-hidden="true">›</span>
+          </button>
           <button
             className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
             onClick={handleShare}
@@ -331,10 +335,6 @@ export default function CartPage() {
               </svg>
             </span>
             {copied ? 'Скопировано' : 'Поделиться'}
-          </button>
-          <button className="btn-continue" onClick={handleClose}>
-            Продолжить покупки
-            <span aria-hidden="true">›</span>
           </button>
         </div>
       </div>
