@@ -175,7 +175,8 @@ export default function ProductPage() {
   useEffect(() => {
     const el = saleTrackRef.current;
     if (!el || saleItems.length < 3) return undefined;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const speed = prefersReducedMotion ? 0.008 : 0.028;
 
     const pause = (ms = 2800) => {
       saleAutoPauseUntilRef.current = Date.now() + ms;
@@ -201,7 +202,7 @@ export default function ProductPage() {
       if (Date.now() >= saleAutoPauseUntilRef.current) {
         const maxScroll = el.scrollWidth - el.clientWidth;
         if (maxScroll > 10) {
-          const delta = Math.min(32, ts - lastTs) * 0.018;
+          const delta = Math.min(32, ts - lastTs) * speed;
           if (el.scrollLeft >= maxScroll - 1) {
             el.scrollTo({ left: 0, behavior: 'instant' });
             pause(1400);
