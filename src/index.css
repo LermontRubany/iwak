@@ -2524,15 +2524,41 @@ img {
 }
 
 .pp-sale-track {
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+  max-width: 100%;
+}
+
+.pp-sale-track__inner {
   display: flex;
-  overflow-x: auto;
-  scroll-snap-type: none;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x pan-y pinch-zoom;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
   gap: 10px;
+  width: max-content;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.pp-sale-track__group {
+  display: flex;
+  gap: 10px;
+}
+
+.pp-sale-track--marquee .pp-sale-track__inner {
+  animation: ppSaleMarquee 42s linear infinite;
+}
+
+.pp-sale-track:active .pp-sale-track__inner {
+  animation-play-state: paused;
+}
+
+@keyframes ppSaleMarquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-sale-track--marquee .pp-sale-track__inner {
+    animation-duration: 90s;
+  }
 }
 
 .pp-sale-track::-webkit-scrollbar {
@@ -2540,9 +2566,8 @@ img {
 }
 
 .pp-sale-card {
-  flex: 0 0 37%;
+  flex: 0 0 clamp(124px, 34vw, 156px);
   min-width: 0;
-  scroll-snap-align: start;
 }
 
 @media (min-width: 768px) {
@@ -2598,9 +2623,8 @@ img {
 }
 
 .pp-sale-more {
-  flex: 0 0 36%;
+  flex: 0 0 clamp(124px, 34vw, 156px);
   min-width: 0;
-  scroll-snap-align: start;
   align-self: stretch;
   display: flex;
   align-items: center;
