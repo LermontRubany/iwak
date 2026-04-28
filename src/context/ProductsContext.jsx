@@ -4,6 +4,7 @@ import imageCompression from 'browser-image-compression';
 import { notifyGlobal } from './NotificationsContext';
 import { friendlyErrorMessage, logError } from '../utils/errorLogger';
 import { getToken, logout, resetAuthGuard } from '../admin/authFetch';
+import { demoProducts, isDemoProductsEnabled } from '../data/demoProducts';
 
 const ProductsContext = createContext(null);
 
@@ -57,6 +58,12 @@ async function apiFetch(url, options = {}) {
   return res.json();
 }
 
+async function apiFetchQuiet(url, options = {}) {
+  const res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
+  if (!res.ok) throw new Error(`Ошибка сервера (${res.status})`);
+  return res.json();
+}
+
 // ── sessionStorage cache helpers ──
 const CACHE_KEY = 'iwak_products';
 
@@ -98,14 +105,16 @@ export function ProductsProvider({ children }) {
   const fetchProducts = useCallback(async () => {
     try {
       if (!readCache()) setLoading(true);
-      const data = await apiFetch('/api/products?limit=2000');
+      const data = isDemoProductsEnabled()
+        ? await apiFetchQuiet('/api/products?limit=2000').catch(() => ({ items: demoProducts }))
+        : await apiFetch('/api/products?limit=2000');
       const raw = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
       // Фильтруем невалидные элементы (защита от краша рендера)
       const items = raw.filter((p) => p && typeof p === 'object' && p.id != null);
-      setProducts(items);
+      setProducts(isDemoProductsEnabled() && items.length === 0 ? demoProducts : items);
     } catch (err) {
       // apiFetch уже вызвал notifyGlobal — здесь только fallback на кеш
-      if (!readCache()) setProducts([]);
+      if (!readCache()) setProducts(isDemoProductsEnabled() ? demoProducts : []);
     } finally {
       setLoading(false);
     }
