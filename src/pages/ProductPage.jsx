@@ -36,6 +36,10 @@ export default function ProductPage() {
 
   // Gallery scroll-snap ref
   const galleryRef = useRef(null);
+  const saleTrackRef = useRef(null);
+  const saleAutoFrameRef = useRef(null);
+  const saleAutoLastTsRef = useRef(null);
+  const saleAutoPauseUntilRef = useRef(0);
 
   // Track whether this is the initial mount (skip scroll on first open)
   const overlayRef = useRef(null);
@@ -166,6 +170,63 @@ export default function ProductPage() {
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, [product]);
+
+  // Slow, touch-friendly auto-scroll for the sale carousel.
+  useEffect(() => {
+    const el = saleTrackRef.current;
+    if (!el || saleItems.length < 3) return undefined;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+
+    const pause = (ms = 2800) => {
+      saleAutoPauseUntilRef.current = Date.now() + ms;
+    };
+
+    pause(1800);
+
+    const onPointerDown = () => pause(4200);
+    const onWheel = () => pause(4200);
+    const onMouseEnter = () => pause(4200);
+    const onMouseLeave = () => pause(1200);
+
+    el.addEventListener('pointerdown', onPointerDown, { passive: true });
+    el.addEventListener('touchstart', onPointerDown, { passive: true });
+    el.addEventListener('wheel', onWheel, { passive: true });
+    el.addEventListener('mouseenter', onMouseEnter);
+    el.addEventListener('mouseleave', onMouseLeave);
+
+    const step = (ts) => {
+      const lastTs = saleAutoLastTsRef.current ?? ts;
+      saleAutoLastTsRef.current = ts;
+
+      if (Date.now() >= saleAutoPauseUntilRef.current) {
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        if (maxScroll > 10) {
+          const delta = Math.min(32, ts - lastTs) * 0.018;
+          if (el.scrollLeft >= maxScroll - 1) {
+            el.scrollTo({ left: 0, behavior: 'instant' });
+            pause(1400);
+          } else {
+            el.scrollLeft = Math.min(maxScroll, el.scrollLeft + delta);
+          }
+        }
+      }
+
+      saleAutoFrameRef.current = requestAnimationFrame(step);
+    };
+
+    saleAutoFrameRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (saleAutoFrameRef.current) cancelAnimationFrame(saleAutoFrameRef.current);
+      saleAutoFrameRef.current = null;
+      saleAutoLastTsRef.current = null;
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('touchstart', onPointerDown);
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('mouseenter', onMouseEnter);
+      el.removeEventListener('mouseleave', onMouseLeave);
+    };
+  }, [saleItems.length, product?.id]);
 
   const handleBack = useCallback(() => {
     if (window.history.length > 1) {
@@ -504,7 +565,7 @@ export default function ProductPage() {
                 Все&nbsp;›
               </Link>
             </div>
-            <div className="pp-sale-track">
+            <div className="pp-sale-track" ref={saleTrackRef}>
               {saleItems.map((p) => (
                 <div key={p.id} className="pp-sale-card">
                   <ProductCard product={p} />
