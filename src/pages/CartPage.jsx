@@ -6,6 +6,9 @@ import { makeProductSlug } from '../utils/slug';
 import { track } from '../utils/tracker';
 import { stripBrandFromName } from '../utils/productDisplay';
 
+const RECEIPT_DATE = '24.05.2024';
+const RECEIPT_TIME = '16:42';
+
 function useHandleClose() {
   const navigate = useNavigate();
   const [closing, setClosing] = useState(false);
@@ -168,16 +171,33 @@ export default function CartPage() {
   return (
     <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
     <div className="cart-page">
-      <div className="cart-header-row">
-        <div className="cart-header-left">
-          <span className="cart-title">IWAK SELECT</span>
-          <span className="cart-shared-chip">
-            {enrichedItems.length} {enrichedItems.length === 1 ? 'позиция' : 'позиции'}
-            {isSharedCart ? ' · Мой выбор' : ''}
-          </span>
+      <div className="cart-receipt">
+        <div className="cart-receipt__top">
+          <div className="cart-header-left">
+            <span className="cart-title">IWAK SELECT</span>
+            <span className="cart-shared-chip">
+              {enrichedItems.length} {enrichedItems.length === 1 ? 'позиция' : 'позиции'}
+              {isSharedCart ? ' · Мой выбор' : ''}
+            </span>
+          </div>
+          <div className="cart-receipt__marks" aria-hidden="true">
+            <span className="cart-receipt__barcode" />
+            <span className="cart-receipt__star">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path d="M12 2.8 14.7 9.3 21.2 12 14.7 14.7 12 21.2 9.3 14.7 2.8 12 9.3 9.3 12 2.8Z" fill="currentColor" />
+              </svg>
+            </span>
+          </div>
         </div>
-        <Link to="/catalog" className="cart-header-browse">ПОДОБРАТЬ ТОВАРЫ +</Link>
-      </div>
+
+        <div className="cart-receipt__wave" aria-hidden="true" />
+
+        <div className="cart-receipt__meta">
+          <span>DROP RECEIPT</span>
+          <span>{RECEIPT_DATE} {RECEIPT_TIME}</span>
+        </div>
+
+        <div className="cart-receipt__dash" aria-hidden="true" />
 
       <ul className="cart-list">
         {enrichedItems.map((item, index) => {
@@ -249,16 +269,6 @@ export default function CartPage() {
         })}
       </ul>
 
-      <div className="cart-share-row">
-        <button
-          className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
-          onClick={handleShare}
-          aria-label="Поделиться корзиной"
-        >
-          {copied ? 'Скопировано' : 'Поделиться'}
-        </button>
-      </div>
-
       <div className="cart-summary">
         {hasTotalDiscount && (
           <div className="cart-summary__row cart-summary__row--saving">
@@ -279,6 +289,12 @@ export default function CartPage() {
             </span>
           </div>
         </div>
+      </div>
+
+      <div className="cart-receipt__tear" aria-hidden="true" />
+      </div>
+
+      <div className="cart-actions">
         <button
           className="btn-telegram btn-telegram--cart"
           onClick={() => {
@@ -301,9 +317,26 @@ export default function CartPage() {
         >
           ОФОРМИТЬ ЗАКАЗ
         </button>
-        <button className="btn-continue" onClick={handleClose}>
-          ПРОДОЛЖИТЬ ПОКУПКИ
-        </button>
+        <div className="cart-actions__secondary">
+          <button
+            className={`share-btn ${copied ? 'share-btn--copied' : ''}`}
+            onClick={handleShare}
+            aria-label="Поделиться корзиной"
+          >
+            <span className="cart-share-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22">
+                <path d="M12 4v11" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                <path d="m8.5 7.5 3.5-3.5 3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M6 11v8h12v-8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            {copied ? 'Скопировано' : 'Поделиться'}
+          </button>
+          <button className="btn-continue" onClick={handleClose}>
+            ПРОДОЛЖИТЬ ПОКУПКИ
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
       </div>
     </div>
     </div>
