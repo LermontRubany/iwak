@@ -148,6 +148,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
     const val = form.brand.trim();
     if (!val) return null;
     const normVal = normalizeBrand(val);
+    if (initial && normalizeBrand(initial.brand) === normVal) return null;
     // Skip check for the product being edited
     const otherProducts = initial ? products.filter((p) => p.id !== initial.id) : products;
     const match = otherProducts.find((p) => normalizeBrand(p?.brand) === normVal);
@@ -157,13 +158,8 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   }, [form.brand, products, initial]);
 
   const categoryWarn = useMemo(() => {
-    const val = form.category?.trim();
-    if (!val) return null;
-    const normVal = val.toLowerCase();
-    const otherProducts = initial ? products.filter((p) => p.id !== initial.id) : products;
-    const exists = otherProducts.some((p) => p?.category?.trim().toLowerCase() === normVal);
-    return exists ? val : null;
-  }, [form.category, products, initial]);
+    return null;
+  }, []);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
@@ -357,6 +353,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   const handleSubmit = async (e, { sendToTelegram = false } = {}) => {
     e.preventDefault();
+    if (saving) return;
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
     // Only use successfully uploaded images
     const doneImages = form.images.filter((img) => img.status === 'done');
@@ -742,16 +739,17 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <button type="button" className="adm-btn adm-btn--ghost" onClick={onCancel}>
           ОТМЕНА
         </button>
-        <button type="submit" className={`adm-btn${saving ? ' adm-btn--saving' : ''}`}>
-          СОХРАНИТЬ
+        <button type="submit" className={`adm-btn${saving ? ' adm-btn--saving' : ''}`} disabled={saving}>
+          {saving ? 'СОХРАНЯЕМ...' : 'СОХРАНИТЬ'}
         </button>
         {!initial && (
           <button
             type="button"
             className={`adm-btn adm-btn--primary${saving ? ' adm-btn--saving' : ''}`}
             onClick={(e) => handleSubmit(e, { sendToTelegram: true })}
+            disabled={saving}
           >
-            СОХРАНИТЬ И ОТПРАВИТЬ
+            {saving ? 'СОХРАНЯЕМ...' : 'СОХРАНИТЬ И ОТПРАВИТЬ'}
           </button>
         )}
       </div>
