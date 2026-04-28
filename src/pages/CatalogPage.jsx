@@ -300,25 +300,27 @@ export default function CatalogPage() {
         </div>
       )}
 
-      <div className={`catalog-toolbar${query ? ' catalog-toolbar--search' : ''}`}>
-        {activeCount > 0 && (
-          <button
-            className={`toolbar-share${copied ? ' toolbar-share--done' : ''}`}
-            onClick={handleCopyLink}
-            aria-label="Скопировать подборку"
-            title="Скопировать ссылку"
-          >
-            {copied ? (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 9.5 7.5 13 14 5"/></svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2v9"/><polyline points="5 5 9 1.5 13 5"/><path d="M3 11v4a1 1 0 001 1h10a1 1 0 001-1v-4"/></svg>
-            )}
+      {!query && (
+        <div className="catalog-toolbar">
+          {activeCount > 0 && (
+            <button
+              className={`toolbar-share${copied ? ' toolbar-share--done' : ''}`}
+              onClick={handleCopyLink}
+              aria-label="Скопировать подборку"
+              title="Скопировать ссылку"
+            >
+              {copied ? (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 9.5 7.5 13 14 5"/></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2v9"/><polyline points="5 5 9 1.5 13 5"/><path d="M3 11v4a1 1 0 001-1v-4"/></svg>
+              )}
+            </button>
+          )}
+          <button className={`toolbar-btn${activeCount > 0 ? ' toolbar-btn--active' : ''}`} onClick={() => setFilterOpen(true)}>
+            {activeCount > 0 ? `ПОДОБРАТЬ ТОВАРЫ (${activeCount})` : 'ПОДОБРАТЬ ТОВАРЫ +'}
           </button>
-        )}
-        <button className={`toolbar-btn${activeCount > 0 ? ' toolbar-btn--active' : ''}`} onClick={() => setFilterOpen(true)}>
-          {activeCount > 0 ? `ПОДОБРАТЬ ТОВАРЫ (${activeCount})` : 'ПОДОБРАТЬ ТОВАРЫ +'}
-        </button>
-      </div>
+        </div>
+      )}
 
       {chips.length > 0 && (
         <div className="filter-chips">

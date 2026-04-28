@@ -1406,7 +1406,7 @@ img {
 }
 
 .catalog-page--search {
-  padding-top: 108px;
+  padding-top: 60px;
 }
 
 .catalog-page--search::before {
@@ -1415,7 +1415,7 @@ img {
   top: 0;
   left: 0;
   right: 0;
-  height: calc(158px + env(safe-area-inset-top, 0px));
+  height: calc(118px + env(safe-area-inset-top, 0px));
   z-index: 580;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
@@ -1428,23 +1428,6 @@ img {
   justify-content: flex-end;
   gap: 10px;
   padding: 8px 16px 8px;
-}
-
-.catalog-toolbar--search {
-  position: fixed;
-  top: calc(112px + env(safe-area-inset-top, 0px));
-  left: 16px;
-  right: 16px;
-  z-index: 590;
-  justify-content: flex-end;
-  padding: 8px 0 12px;
-  background: #fff;
-}
-
-.catalog-toolbar--search .toolbar-btn {
-  min-height: 34px;
-  font-size: 10px;
-  letter-spacing: 0.12em;
 }
 
 .toolbar-btn {
@@ -1469,15 +1452,11 @@ img {
 
 @media (max-width: 767px) {
   .catalog-page--search {
-    padding-top: 112px;
+    padding-top: 64px;
   }
 
   .catalog-page--search::before {
-    height: calc(172px + env(safe-area-inset-top, 0px));
-  }
-
-  .catalog-toolbar--search {
-    top: calc(124px + env(safe-area-inset-top, 0px));
+    height: calc(124px + env(safe-area-inset-top, 0px));
   }
 
   .search-results-header {
