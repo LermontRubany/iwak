@@ -2456,6 +2456,14 @@ app.get('/api/tg/batch/:id', requireAuth, (req, res) => {
 // ════════════════════════════════════════════
 // AUTOPLAN — scheduled Telegram posting
 // ════════════════════════════════════════════
+const MAX_AUTOPLAN_POSTS = 100;
+
+function validateAutoplanSize(slots) {
+  if (slots.length > MAX_AUTOPLAN_POSTS) {
+    return `Максимум ${MAX_AUTOPLAN_POSTS} постов в одном плане`;
+  }
+  return null;
+}
 
 // ── Autoplan: generate preview (no DB write) ──
 app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
@@ -2474,6 +2482,8 @@ app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
       if (!customText?.trim()) return res.status(400).json({ error: 'Текст обязателен для custom-плана' });
       const dummyIds = [0]; // single dummy ID for slot generation
       const slots = generateAutoplanSlots(dummyIds, timeSlots, startDate, endDate);
+      const sizeError = validateAutoplanSize(slots);
+      if (sizeError) return res.status(400).json({ error: sizeError });
       const enriched = slots.map(s => ({
         date: s.date,
         time: s.time,
@@ -2536,6 +2546,8 @@ app.post('/api/tg/autoplan/preview', requireAuth, async (req, res) => {
 
     // Generate slots
     const slots = generateAutoplanSlots(ids, timeSlots, startDate, endDate);
+    const sizeError = validateAutoplanSize(slots);
+    if (sizeError) return res.status(400).json({ error: sizeError });
 
     // Enrich with product info
     const seenProducts = new Set();
@@ -2586,6 +2598,8 @@ app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
       const dummyIds = [0];
       const slots = generateAutoplanSlots(dummyIds, timeSlots, startDate, endDate);
       if (slots.length === 0) return res.status(400).json({ error: 'План пуст — проверьте даты и время' });
+      const sizeError = validateAutoplanSize(slots);
+      if (sizeError) return res.status(400).json({ error: sizeError });
 
       const tpl = template || 'basic';
       const badge = !!withBadge;
@@ -2648,6 +2662,8 @@ app.post('/api/tg/autoplan', requireAuth, async (req, res) => {
     // Generate slots
     const slots = generateAutoplanSlots(ids, timeSlots, startDate, endDate);
     if (slots.length === 0) return res.status(400).json({ error: 'План пуст — проверьте даты и время' });
+    const sizeError = validateAutoplanSize(slots);
+    if (sizeError) return res.status(400).json({ error: sizeError });
 
     // Insert plan
     const tpl = template || 'basic';

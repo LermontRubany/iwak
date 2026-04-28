@@ -7,6 +7,7 @@ const STRATEGY_LABELS = { newest: 'Сначала новые', priority: 'По �
 const TEMPLATE_LABELS = { basic: 'Базовый', new: 'Новинка', sale: 'Скидка', premium: 'Премиум' };
 const STATUS_LABELS = { active: 'Активен', paused: 'Пауза', completed: 'Завершён', cancelled: 'Отменён' };
 const STATUS_ICONS = { active: '●', paused: '⏸', completed: '✅', cancelled: '✕' };
+const MAX_AUTOPLAN_POSTS = 100;
 
 const FALLBACK_PRODUCT_BUTTONS = [
   [{ text: 'Смотреть товар', type: 'product', url: '', filter: { category: '', gender: [], brand: [], sale: false } }],
@@ -42,6 +43,13 @@ function fmtTime(d) {
   return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
+function nextSlotTime(slot) {
+  const [h = '12', m = '00'] = String(slot || '12:00').split(':');
+  const hours = Number.parseInt(h, 10);
+  const minutes = Number.parseInt(m, 10);
+  const total = ((Number.isFinite(hours) ? hours : 12) * 60 + (Number.isFinite(minutes) ? minutes : 0) + 30) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
 
 export default function AutoPlanSection({ products, onPlansChanged, preselectedIds, onPreselectedClear }) {
   const [plans, setPlans] = useState([]);
@@ -292,7 +300,15 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
   // ── Time slots management ──
   const updateSlot = (i, val) => setFormTimeSlots(prev => prev.map((s, j) => j === i ? val : s));
   const removeSlot = (i) => setFormTimeSlots(prev => prev.filter((_, j) => j !== i));
-  const addSlot = () => setFormTimeSlots(prev => [...prev, '12:00']);
+  const addSlots = (count = 1) => setFormTimeSlots(prev => {
+    const next = [...prev];
+    while (next.length < MAX_AUTOPLAN_POSTS && count > 0) {
+      next.push(nextSlotTime(next[next.length - 1]));
+      count--;
+    }
+    return next;
+  });
+  const addSlot = () => addSlots(1);
 
   // ── Preview grouping by date ──
   const previewByDate = useMemo(() => {
@@ -569,6 +585,7 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                 </div>
 
                 <label className="tg-label">Время постов</label>
+                <div className="autoplan-slots__hint">Слотов: {formTimeSlots.length} / {MAX_AUTOPLAN_POSTS}</div>
                 <div className="autoplan-slots">
                   {formTimeSlots.map((slot, i) => (
                     <div key={i} className="autoplan-slot">
@@ -576,7 +593,13 @@ export default function AutoPlanSection({ products, onPlansChanged, preselectedI
                       {formTimeSlots.length > 1 && <button className="autoplan-slot__remove" onClick={() => removeSlot(i)}>✕</button>}
                     </div>
                   ))}
-                  {formTimeSlots.length < 10 && <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={addSlot}>+ слот</button>}
+                  {formTimeSlots.length < MAX_AUTOPLAN_POSTS && (
+                    <>
+                      <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={addSlot}>+ слот</button>
+                      <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => addSlots(5)}>+5</button>
+                      <button className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => addSlots(10)}>+10</button>
+                    </>
+                  )}
                 </div>
               </div>
 

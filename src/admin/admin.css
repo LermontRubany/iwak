@@ -3983,6 +3983,11 @@
   margin-bottom: 12px;
   align-items: center;
 }
+.autoplan-slots__hint {
+  color: var(--adm-text-muted);
+  font-size: 11px;
+  margin: -2px 0 8px;
+}
 .autoplan-slot {
   display: flex;
   align-items: center;
