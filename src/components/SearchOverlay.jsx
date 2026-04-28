@@ -5,6 +5,8 @@ import ProductCard from './ProductCard';
 import { lockScroll, unlockScroll } from '../utils/scrollLock';
 
 const MAX_SUGGESTIONS = 6;
+const SEARCH_DEBOUNCE_MS = 180;
+const CLOSE_ANIMATION_MS = 240;
 
 export default function SearchOverlay({ isOpen, onClose }) {
   const { products } = useProducts();
@@ -20,13 +22,13 @@ export default function SearchOverlay({ isOpen, onClose }) {
     setTimeout(() => {
       onClose();
       setClosing(false);
-    }, 300);
+    }, CLOSE_ANIMATION_MS);
   };
 
   useEffect(() => {
     if (isOpen) {
       setClosing(false);
-      setTimeout(() => inputRef.current?.focus(), 80);
+      setTimeout(() => inputRef.current?.focus(), 40);
       lockScroll();
     } else {
       unlockScroll();
@@ -39,7 +41,7 @@ export default function SearchOverlay({ isOpen, onClose }) {
   }, [isOpen]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
 
