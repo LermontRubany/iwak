@@ -2063,7 +2063,7 @@ img {
 .pp-gallery-slide {
   flex: 0 0 100%;
   width: 100%;
-  aspect-ratio: 3/4;
+  aspect-ratio: 1/1.16;
   overflow: hidden;
   background: #fff;
   position: relative;
@@ -2071,6 +2071,12 @@ img {
   scroll-snap-align: start;
   -webkit-user-select: none;
   user-select: none;
+}
+
+@media (min-width: 768px) {
+  .pp-gallery-slide {
+    aspect-ratio: 3/4;
+  }
 }
 
 .pp-main-img {
@@ -2209,10 +2215,10 @@ img {
 }
 
 .product-page__info {
-  padding: 28px 28px 34px;
+  padding: 22px 28px 34px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
   min-width: 0;
   overflow-x: hidden;
 }
@@ -2265,14 +2271,14 @@ img {
 }
 
 .product-page__name {
-  font-size: 24px;
+  font-size: 23px;
   font-weight: 300;
   letter-spacing: 0.01em;
   line-height: 1.18;
 }
 
 .product-page__price {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 400;
   margin: 0;
 }
@@ -2322,7 +2328,7 @@ img {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
   color: #777;
   letter-spacing: 0.01em;
   margin-top: 2px;
@@ -2339,8 +2345,8 @@ img {
 .pp-sizes {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 8px;
 }
 
 .pp-sizes--shake {
@@ -2394,7 +2400,7 @@ img {
 .pp-size-btn {
   flex: 1 1 0;
   min-width: 0;
-  height: 50px;
+  height: 48px;
   padding: 0 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -2431,7 +2437,7 @@ img {
 .pp-purchase-note {
   position: relative;
   color: #777;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.35;
   padding-left: 20px;
 }
@@ -2448,7 +2454,7 @@ img {
 .pp-actions {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr);
-  gap: 10px;
+  gap: 9px;
 }
 
 @keyframes ctaPulse {
@@ -2988,7 +2994,7 @@ img {
 .btn-buy-now {
   background: #050505;
   color: #fff;
-  min-height: 56px;
+  min-height: 54px;
   padding: 0 14px;
   font-size: 11px;
   font-weight: 700;
@@ -3006,7 +3012,7 @@ img {
 .btn-add-to-cart {
   background: #fff;
   color: #111;
-  min-height: 56px;
+  min-height: 54px;
   padding: 0 12px;
   font-size: 13px;
   font-weight: 500;
