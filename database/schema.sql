@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS products (
     badge           JSONB,                           -- {enabled, text, borderColor, textColor, shape, type, position, size}
     badge2          JSONB,                           -- второй бейдж (та же структура)
     priority        INTEGER NOT NULL DEFAULT 50,     -- приоритет сортировки (100/80/50/10)
+    deleted_at      TIMESTAMPTZ,                     -- soft-delete: товар в корзине
+    delete_after    TIMESTAMPTZ,                     -- когда можно физически удалить
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -73,6 +75,8 @@ CREATE INDEX IF NOT EXISTS idx_products_featured   ON products (featured) WHERE 
 CREATE INDEX IF NOT EXISTS idx_products_price      ON products (price);
 CREATE INDEX IF NOT EXISTS idx_products_created    ON products (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_products_priority_desc ON products (priority DESC);
+CREATE INDEX IF NOT EXISTS idx_products_deleted_at ON products (deleted_at);
+CREATE INDEX IF NOT EXISTS idx_products_delete_after ON products (delete_after) WHERE deleted_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_products_sizes      ON products USING GIN (sizes);
 

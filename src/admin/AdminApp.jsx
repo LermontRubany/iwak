@@ -35,6 +35,9 @@ export default function AdminApp() {
   const [genderFilter, setGenderFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [selected, setSelected] = useState(new Set());
+  const [trashMode, setTrashMode] = useState(false);
+  const [trashProducts, setTrashProducts] = useState([]);
+  const [trashLoading, setTrashLoading] = useState(false);
   const [showPricePanel, setShowPricePanel] = useState(false);
   const [priceMode, setPriceMode] = useState('discount'); // 'discount' | 'markup' | 'fixed'
   const [priceValue, setPriceValue] = useState('');
@@ -79,6 +82,25 @@ export default function AdminApp() {
   }, []);
   useEffect(() => { loadCategories(); }, [loadCategories]);
 
+  const loadTrashProducts = useCallback(async () => {
+    setTrashLoading(true);
+    try {
+      const res = await authFetch('/api/products?deleted=true&limit=2000');
+      if (!res.ok) return;
+      const data = await res.json();
+      const raw = Array.isArray(data.items) ? data.items : [];
+      setTrashProducts(raw.filter((p) => p && p.id != null));
+    } catch {
+      // authFetch уже показал ошибку
+    } finally {
+      setTrashLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (trashMode) loadTrashProducts();
+  }, [trashMode, loadTrashProducts]);
+
   const handleAddCat = async () => {
     const val = newCatName.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
     if (!val) return;
@@ -116,14 +138,16 @@ export default function AdminApp() {
 
   // Derive gender filter chips from product data
   const genderFilterOptions = useMemo(() => {
-    const gs = [...new Set((Array.isArray(products) ? products : []).map((p) => p?.gender).filter(Boolean))].sort();
+    const source = trashMode ? trashProducts : products;
+    const gs = [...new Set((Array.isArray(source) ? source : []).map((p) => p?.gender).filter(Boolean))].sort();
     return [{ id: '', label: 'Все' }, ...gs.map((g) => ({ id: g, label: GENDER_LABELS[g] || g }))];
-  }, [products]);
+  }, [products, trashMode, trashProducts]);
 
   const brandFilterOptions = useMemo(() => {
-    const brands = getUniqueBrands(Array.isArray(products) ? products : []);
+    const source = trashMode ? trashProducts : products;
+    const brands = getUniqueBrands(Array.isArray(source) ? source : []);
     return [{ id: '', label: 'Все', count: null }, ...brands.map((b) => ({ id: b.key, label: b.label, count: b.count }))];
-  }, [products]);
+  }, [products, trashMode, trashProducts]);
 
   // Live-превью итоговой цены для bulk-изменения
   const pricePreview = useMemo(() => {
@@ -169,12 +193,63 @@ export default function AdminApp() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Удалить товар?')) {
+    if (window.confirm('Перенести товар в корзину на 30 дней?')) {
       try {
         await deleteProduct(id);
         setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
-        notify('success', 'Товар удалён');
+        notify('success', 'Товар перенесён в корзину');
       } catch {} // apiFetch уже уведомил
+    }
+  };
+
+  const handleRestore = async (id) => {
+    try {
+      const res = await authFetch(`/api/products/${id}/restore`, { method: 'POST' });
+      if (!res.ok) return;
+      const restored = await res.json();
+      setTrashProducts((prev) => prev.filter((p) => p.id !== id));
+      setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      await reloadProducts();
+      notify('success', `Восстановлено: ${restored.brand ? `${restored.brand} ` : ''}${restored.name || `#${id}`}`);
+    } catch {} // authFetch уже уведомил
+  };
+
+  const handleBulkRestore = async () => {
+    const ids = [...selected];
+    if (ids.length === 0 || bulkActionLoading) return;
+    setBulkActionLoading(true);
+    try {
+      const apiRes = await authFetch('/api/products/bulk-restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!apiRes.ok) return;
+      const res = await apiRes.json();
+      const restoredIds = new Set((res.updated || []).map((p) => p.id));
+      setTrashProducts((prev) => prev.filter((p) => !restoredIds.has(p.id)));
+      setSelected(new Set());
+      await reloadProducts();
+      notify('success', `Восстановлено: ${res.restored || ids.length} товар(ов)`);
+    } catch {} finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleRestoreAll = async () => {
+    if (trashProducts.length === 0 || bulkActionLoading) return;
+    if (!window.confirm(`Восстановить все товары из корзины (${trashProducts.length})?`)) return;
+    setBulkActionLoading(true);
+    try {
+      const apiRes = await authFetch('/api/products/restore-all', { method: 'POST' });
+      if (!apiRes.ok) return;
+      const res = await apiRes.json();
+      setTrashProducts([]);
+      setSelected(new Set());
+      await reloadProducts();
+      notify('success', `Восстановлено: ${res.restored || 0} товар(ов)`);
+    } catch {} finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -193,11 +268,11 @@ export default function AdminApp() {
       setPinError(false);
       return;
     }
-    if (!window.confirm(`Удалить ${selected.size} товар(ов)?`)) return;
+    if (!window.confirm(`Перенести ${selected.size} товар(ов) в корзину на 30 дней?`)) return;
     setBulkActionLoading(true);
     try {
       await bulkDelete([...selected]);
-      notify('success', `Удалено: ${selected.size} товар(ов)`);
+      notify('success', `Перенесено в корзину: ${selected.size} товар(ов)`);
       setSelected(new Set());
     } catch {} // apiFetch уже уведомил
     setBulkActionLoading(false);
@@ -219,7 +294,7 @@ export default function AdminApp() {
     const count = selected.size;
     try {
       await bulkDelete([...selected]);
-      notify('success', `Удалено: ${count} товар(ов)`);
+      notify('success', `Перенесено в корзину: ${count} товар(ов)`);
       setSelected(new Set());
     } catch {} // apiFetch уже уведомил
     setBulkActionLoading(false);
@@ -422,14 +497,26 @@ export default function AdminApp() {
 
   // Categories from API table — single source of truth
   const categoryFilterOptions = useMemo(() => {
+    if (trashMode) {
+      const counts = new Map();
+      for (const p of trashProducts) {
+        if (!p?.category) continue;
+        counts.set(p.category, (counts.get(p.category) || 0) + 1);
+      }
+      return [
+        { id: '', label: 'Все', count: null },
+        ...[...counts.entries()].sort().map(([id, count]) => ({ id, label: id, count })),
+      ];
+    }
     const items = (Array.isArray(catList) ? catList : []).map((c) =>
       typeof c === 'string' ? { id: c, label: c, count: null } : { id: c.name, label: c.name, count: c.count }
     );
     return [{ id: '', label: 'Все', count: null }, ...items];
-  }, [catList]);
+  }, [catList, trashMode, trashProducts]);
 
   const filtered = useMemo(() => {
-    let list = (Array.isArray(products) ? products : []).filter((p) => p && p.id != null);
+    const source = trashMode ? trashProducts : products;
+    let list = (Array.isArray(source) ? source : []).filter((p) => p && p.id != null);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((p) =>
@@ -446,7 +533,16 @@ export default function AdminApp() {
       list = list.filter((p) => normalizeBrand(p?.brand) === brandFilter);
     }
     return list;
-  }, [products, search, catFilter, genderFilter, brandFilter]);
+  }, [products, trashMode, trashProducts, search, catFilter, genderFilter, brandFilter]);
+
+  const switchTrashMode = () => {
+    setTrashMode((v) => !v);
+    setSelected(new Set());
+    setCatFilter('');
+    setGenderFilter('');
+    setBrandFilter('');
+    setSearch('');
+  };
 
   const selectAll = () => {
     if (selected.size === filtered.length) {
@@ -567,9 +663,19 @@ export default function AdminApp() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="adm-btn adm-btn--primary adm-add-btn" onClick={() => setView('add')}>
-          + ДОБАВИТЬ
+        {!trashMode && (
+          <button className="adm-btn adm-btn--primary adm-add-btn" onClick={() => setView('add')}>
+            + ДОБАВИТЬ
+          </button>
+        )}
+        <button className="adm-btn adm-btn--ghost adm-add-btn" onClick={switchTrashMode}>
+          {trashMode ? '← ТОВАРЫ' : `КОРЗИНА${trashProducts.length ? ` (${trashProducts.length})` : ''}`}
         </button>
+        {trashMode && trashProducts.length > 0 && (
+          <button className="adm-btn adm-btn--accent adm-add-btn" disabled={bulkActionLoading} onClick={handleRestoreAll}>
+            ВОССТАНОВИТЬ ВСЁ
+          </button>
+        )}
       </div>
 
       {/* Category + Gender + Brand filter chips */}
@@ -582,7 +688,7 @@ export default function AdminApp() {
               onClick={() => setCatFilter(c.id)}
             >
               {c.label}{c.count != null && c.id ? ` (${c.count})` : ''}
-              {c.id && (
+              {c.id && !trashMode && (
                 <span
                   className="adm-filter-chip__del"
                   onClick={(e) => { e.stopPropagation(); handleDeleteCat(c.id); }}
@@ -637,7 +743,7 @@ export default function AdminApp() {
       </div>
 
       <div className="adm-stats">
-        <span>Товаров: {products.length} · Показано: {filtered.length}</span>
+        <span>{trashMode ? 'В корзине' : 'Товаров'}: {trashMode ? trashProducts.length : products.length} · Показано: {filtered.length}</span>
         <button className="adm-select-all" onClick={selectAll}>
           {selected.size === filtered.length && filtered.length > 0 ? 'Снять всё' : 'Выбрать все'}
         </button>
@@ -657,11 +763,11 @@ export default function AdminApp() {
           <div className="adm-empty">Ничего не найдено</div>
         )}
         {filtered.filter(Boolean).map((product) => (
-          <div
-            key={product.id}
-            className={`adm-card adm-card--clickable${selected.has(product.id) ? ' adm-card--selected' : ''}`}
-            onClick={() => handleEdit(product)}
-          >
+	          <div
+	            key={product.id}
+	            className={`adm-card adm-card--clickable${selected.has(product.id) ? ' adm-card--selected' : ''}`}
+	            onClick={() => { if (!trashMode) handleEdit(product); }}
+	          >
             <button
               className={`adm-checkbox${selected.has(product.id) ? ' adm-checkbox--on' : ''}`}
               onClick={(e) => toggleSelect(product.id, e)}
@@ -711,9 +817,13 @@ export default function AdminApp() {
                 </div>
               )}
             </div>
-            <div className="adm-card__actions">
-              <button className="adm-action-btn adm-action-btn--del" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>✕</button>
-            </div>
+	            <div className="adm-card__actions">
+	              {trashMode ? (
+	                <button className="adm-action-btn" title="Восстановить" onClick={(e) => { e.stopPropagation(); handleRestore(product.id); }}>↩</button>
+	              ) : (
+	                <button className="adm-action-btn adm-action-btn--del" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>✕</button>
+	              )}
+	            </div>
           </div>
         ))}
       </div>
@@ -726,7 +836,11 @@ export default function AdminApp() {
             <button className="adm-selection-bar__close" onClick={() => setSelected(new Set())}>✕</button>
           </div>
 
-          {showPricePanel ? (
+	          {trashMode ? (
+	            <div className="adm-selection-bar__actions">
+	              <button className="adm-btn adm-btn--accent adm-btn--sm" disabled={bulkActionLoading} onClick={handleBulkRestore}>ВОССТАНОВИТЬ</button>
+	            </div>
+	          ) : showPricePanel ? (
             <div className="adm-price-panel">
               <div className="adm-price-panel__modes">
                 <button className={`adm-filter-chip${priceMode === 'discount' ? ' adm-filter-chip--active' : ''}`} onClick={() => setPriceMode('discount')}>Скидка %</button>
@@ -856,11 +970,11 @@ export default function AdminApp() {
         </div>
       )}
 
-      <div className="adm-footer">
-        <button className="adm-btn adm-btn--ghost adm-reset-btn" onClick={handleReset}>
-          Перезагрузить товары
-        </button>
-      </div>
+	      <div className="adm-footer">
+	        <button className="adm-btn adm-btn--ghost adm-reset-btn" onClick={trashMode ? loadTrashProducts : handleReset}>
+	          {trashMode ? (trashLoading ? 'Загрузка корзины...' : 'Перезагрузить корзину') : 'Перезагрузить товары'}
+	        </button>
+	      </div>
 
       {bulkConfirmPending && (
         <div className="adm-bulk-confirm-overlay" onClick={handleBulkCancel}>
@@ -877,10 +991,10 @@ export default function AdminApp() {
       {showDeleteModal && (
         <div className="adm-bulk-confirm-overlay" onClick={() => { setShowDeleteModal(false); setPinInput(''); setPinError(false); }}>
           <div className="adm-delete-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="adm-delete-modal__title">⚠️ Подтверждение удаления</div>
-            <p className="adm-delete-modal__text">
-              Вы собираетесь удалить <strong>{selected.size}</strong> товаров<br/>
-              Это действие необратимо
+	            <div className="adm-delete-modal__title">⚠️ Перенос в корзину</div>
+	            <p className="adm-delete-modal__text">
+	              Вы собираетесь перенести <strong>{selected.size}</strong> товаров в корзину<br/>
+	              Их можно будет восстановить в течение 30 дней
             </p>
             <label className="adm-delete-modal__label">Введите PIN-код:</label>
             <input
@@ -897,7 +1011,7 @@ export default function AdminApp() {
             {pinError && <span className="adm-delete-modal__error">Неверный PIN-код</span>}
             <div className="adm-delete-modal__actions">
               <button className="adm-btn adm-btn--ghost" onClick={() => { setShowDeleteModal(false); setPinInput(''); setPinError(false); }}>Отмена</button>
-              <button className="adm-btn adm-btn--danger" disabled={!pinInput} onClick={handleConfirmPinDelete}>Удалить</button>
+	              <button className="adm-btn adm-btn--danger" disabled={!pinInput} onClick={handleConfirmPinDelete}>В корзину</button>
             </div>
           </div>
         </div>

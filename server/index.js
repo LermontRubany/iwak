@@ -72,6 +72,8 @@ const SNAKE_TO_CAMEL = {
   updated_at: 'updatedAt',
   password_hash: 'passwordHash',
   tg_sent_at: 'tgSentAt',
+  deleted_at: 'deletedAt',
+  delete_after: 'deleteAfter',
 };
 
 const CAMEL_TO_SNAKE = Object.fromEntries(
@@ -343,6 +345,10 @@ app.post('/api/admin/verify-pin', requireAuth, pinLimiter, (req, res) => {
 // Query: q, category, gender, brand, sizes, sale, featured, sort, limit, offset
 app.get('/api/products', async (req, res) => {
   try {
+    const showDeleted = req.query.deleted === 'true';
+    if (showDeleted && !hasValidToken(req)) {
+      return res.status(401).json({ error: 'Требуется авторизация', reason: 'missing_token' });
+    }
     const cacheKey = 'products:' + JSON.stringify(req.query);
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
@@ -351,6 +357,8 @@ app.get('/api/products', async (req, res) => {
     const params = [];
     let paramIdx = 0;
     const addParam = (val) => { paramIdx++; params.push(val); return `$${paramIdx}`; };
+
+    conditions.push(showDeleted ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL');
 
     if (req.query.q) {
       const q = req.query.q.trim();
@@ -452,7 +460,7 @@ app.get('/api/products/:id', async (req, res) => {
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
 
-    const result = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM products WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Товар не найден' });
     const product = rowToCamel(result.rows[0]);
     cacheSet(cacheKey, product);
@@ -541,18 +549,16 @@ app.put('/api/products/:id', requireAuth, async (req, res) => {
 
 app.delete('/api/products/:id', requireAuth, async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING image, images', [req.params.id]);
+    const result = await pool.query(
+      `UPDATE products
+       SET deleted_at = COALESCE(deleted_at, now()),
+           delete_after = COALESCE(delete_after, now() + interval '30 days')
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Товар не найден' });
-    // Очистка загруженных файлов
-    const row = result.rows[0];
-    const paths = [...(row.images || []), row.image].filter(Boolean);
-    for (const p of paths) {
-      if (p.startsWith('/uploads/')) {
-        const filePath = path.join(uploadDir, path.basename(p));
-        fs.unlink(filePath, () => {});
-      }
-    }
-    res.json({ success: true });
+    res.json({ success: true, product: rowToCamel(result.rows[0]) });
     cacheInvalidate();
   } catch (err) {
     logger.error({ err }, 'DELETE /api/products/:id error');
@@ -569,21 +575,80 @@ app.post('/api/products/bulk-delete', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Максимально 100 товаров в одной операции' });
   }
   try {
-    const result = await pool.query('DELETE FROM products WHERE id = ANY($1) RETURNING image, images', [ids]);
-    // Очистка загруженных файлов
-    for (const row of result.rows) {
-      const filePaths = [...(row.images || []), row.image].filter(Boolean);
-      for (const p of filePaths) {
-        if (p.startsWith('/uploads/')) {
-          fs.unlink(path.join(uploadDir, path.basename(p)), () => {});
-        }
-      }
-    }
+    const result = await pool.query(
+      `UPDATE products
+       SET deleted_at = COALESCE(deleted_at, now()),
+           delete_after = COALESCE(delete_after, now() + interval '30 days')
+       WHERE id = ANY($1)
+       RETURNING id`,
+      [ids]
+    );
     res.json({ deleted: result.rowCount });
     cacheInvalidate();
   } catch (err) {
     logger.error({ err }, 'POST /api/products/bulk-delete error');
     res.status(500).json({ success: false, error: 'Ошибка массового удаления' });
+  }
+});
+
+app.post('/api/products/:id/restore', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE products
+       SET deleted_at = NULL,
+           delete_after = NULL
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Товар не найден' });
+    cacheInvalidate();
+    res.json(rowToCamel(result.rows[0]));
+  } catch (err) {
+    logger.error({ err }, 'POST /api/products/:id/restore error');
+    res.status(500).json({ success: false, error: 'Ошибка восстановления товара' });
+  }
+});
+
+app.post('/api/products/bulk-restore', requireAuth, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids обязателен (массив)' });
+  }
+  if (ids.length > 100) {
+    return res.status(400).json({ error: 'Максимально 100 товаров в одной операции' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE products
+       SET deleted_at = NULL,
+           delete_after = NULL
+       WHERE id = ANY($1)
+       RETURNING *`,
+      [ids]
+    );
+    cacheInvalidate();
+    res.json({ restored: result.rowCount, updated: result.rows.map(rowToCamel) });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/products/bulk-restore error');
+    res.status(500).json({ success: false, error: 'Ошибка восстановления товаров' });
+  }
+});
+
+app.post('/api/products/restore-all', requireAuth, async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE products
+       SET deleted_at = NULL,
+           delete_after = NULL
+       WHERE deleted_at IS NOT NULL
+       RETURNING id`
+    );
+    cacheInvalidate();
+    res.json({ restored: result.rowCount });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/products/restore-all error');
+    res.status(500).json({ success: false, error: 'Ошибка восстановления товаров' });
   }
 });
 
@@ -1305,15 +1370,15 @@ app.get('/api/analytics/export-report', requireAuth, async (req, res) => {
 
 app.get('/api/filters', async (_req, res) => {
   try {
-    const [categories, brands, genders, sizes] = await Promise.all([
-      pool.query(`SELECT c.name, count(p.id)::int AS cnt
-                  FROM categories c
-                  LEFT JOIN products p ON p.category = c.name
-                  GROUP BY c.name ORDER BY c.name`),
-      pool.query("SELECT DISTINCT brand FROM products WHERE brand <> '' ORDER BY brand"),
-      pool.query('SELECT DISTINCT gender FROM products ORDER BY gender'),
-      pool.query('SELECT DISTINCT unnest(sizes) AS size FROM products ORDER BY size'),
-    ]);
+	    const [categories, brands, genders, sizes] = await Promise.all([
+	      pool.query(`SELECT c.name, count(p.id)::int AS cnt
+	                  FROM categories c
+	                  LEFT JOIN products p ON p.category = c.name AND p.deleted_at IS NULL
+	                  GROUP BY c.name ORDER BY c.name`),
+	      pool.query("SELECT DISTINCT brand FROM products WHERE brand <> '' AND deleted_at IS NULL ORDER BY brand"),
+	      pool.query('SELECT DISTINCT gender FROM products WHERE deleted_at IS NULL ORDER BY gender'),
+	      pool.query('SELECT DISTINCT unnest(sizes) AS size FROM products WHERE deleted_at IS NULL ORDER BY size'),
+	    ]);
     res.json({
       categories: categories.rows.map(r => ({ name: r.name, count: r.cnt })),
       brands: brands.rows.map(r => r.brand),
@@ -1354,7 +1419,7 @@ app.delete('/api/categories/:name', requireAuth, async (req, res) => {
     const name = decodeURIComponent(req.params.name);
     if (!name) return res.status(400).json({ success: false, error: 'Не указана категория' });
     // Refuse deletion when products reference this category
-    const { rows } = await pool.query('SELECT count(*)::int AS cnt FROM products WHERE category = $1', [name]);
+    const { rows } = await pool.query('SELECT count(*)::int AS cnt FROM products WHERE category = $1 AND deleted_at IS NULL', [name]);
     if (rows[0].cnt > 0) {
       return res.status(409).json({
         success: false,
