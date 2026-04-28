@@ -12,6 +12,6 @@ echo "[deploy] Building frontend..."
 npm run build
 
 echo "[deploy] Restarting server..."
-pm2 restart iwak
+pm2 restart fashion-store
 
 echo "[deploy] Done! Site is live."
