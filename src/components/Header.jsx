@@ -53,8 +53,8 @@ export default function Header() {
         <div className="header-left">
           <button
             className="header-icon-btn menu-btn"
-            onClick={() => { setSearchOpen(false); setNavOpen(true); }}
-            aria-label="Меню"
+            onClick={() => { setSearchOpen(false); setNavOpen((open) => !open); }}
+            aria-label={navOpen ? 'Закрыть меню' : 'Меню'}
           >
             <svg width="20" height="9" viewBox="0 0 20 9" fill="none">
               <line x1="0" y1="0.5" x2="20" y2="0.5" stroke="currentColor" strokeWidth="1"/>

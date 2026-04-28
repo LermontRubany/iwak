@@ -6,6 +6,7 @@ const NAV_CATEGORIES = [
   { label: 'МУЖСКОЕ', search: '?gender=mens' },
   { label: 'ЖЕНСКОЕ', search: '?gender=womens' },
   { label: 'АКСЕССУАРЫ', search: '?category=аксессуары' },
+  { label: 'СКИДКИ', search: '?sale=true' },
 ];
 
 const secondaryLinks = [];
@@ -21,7 +22,7 @@ export default function Navigation({ isOpen, onClose }) {
     setTimeout(() => {
       onClose();
       setClosing(false);
-    }, 300);
+    }, 220);
   };
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function Navigation({ isOpen, onClose }) {
 
   return (
     <>
-      {isOpen && <div className="nav-overlay" onClick={handleClose} />}
+      {isOpen && <div className={`nav-overlay ${closing ? 'nav-overlay--closing' : ''}`} onClick={handleClose} />}
       <nav
         ref={drawerRef}
         className={`nav-drawer ${isOpen && !closing ? 'nav-drawer--open' : ''}`}
@@ -90,13 +91,6 @@ export default function Navigation({ isOpen, onClose }) {
         aria-modal="true"
         aria-label="Навигация"
       >
-        <button className="nav-close" onClick={handleClose} aria-label="Закрыть меню">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <line x1="1" y1="1" x2="17" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="17" y1="1" x2="1" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-          </svg>
-        </button>
-
         <ul className="nav-main-links">
           {NAV_CATEGORIES.map((section) => (
             <li key={section.label} className="nav-section">
@@ -104,32 +98,28 @@ export default function Navigation({ isOpen, onClose }) {
                 className="nav-link nav-link--main"
                 onClick={() => handleCatalog(section.search)}
               >
-                {section.label}
+                <span className="nav-link__label">{section.label}</span>
+                <span className="nav-link__arrow" aria-hidden="true">›</span>
               </button>
             </li>
           ))}
-          <li className="nav-section">
-            <button
-              className="nav-link nav-link--main"
-              onClick={() => handleCatalog('?sale=true')}
-            >
-              СКИДКИ
-            </button>
-          </li>
         </ul>
 
-        <ul className="nav-secondary-links">
-          {secondaryLinks.map((link) => (
-            <li key={link.label}>
-              <button
-                className="nav-link nav-link--secondary"
-                onClick={() => link.search ? handleCatalog(link.search) : handleLink(link.to)}
-              >
-                {link.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+        {secondaryLinks.length > 0 && (
+          <ul className="nav-secondary-links">
+            {secondaryLinks.map((link) => (
+              <li key={link.label}>
+                <button
+                  className="nav-link nav-link--secondary"
+                  onClick={() => link.search ? handleCatalog(link.search) : handleLink(link.to)}
+                >
+                  {link.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
       </nav>
     </>
   );
