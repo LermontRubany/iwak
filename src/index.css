@@ -3914,6 +3914,30 @@ img {
   .cart-item {
     grid-template-columns: 64px 1fr auto;
   }
+
+  .cart-page .cart-item {
+    grid-template-columns: 28px 96px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .cart-page .cart-item__image {
+    width: 96px;
+    min-width: 96px;
+    height: 106px;
+    aspect-ratio: auto;
+  }
+
+  .cart-page .cart-item__index {
+    font-size: 28px;
+  }
+
+  .cart-page .cart-item__name {
+    font-size: 16px;
+  }
+
+  .cart-page .cart-item__price {
+    font-size: 20px;
+  }
 }
 
 /* =============================================
