@@ -1884,6 +1884,8 @@ img {
   transition: transform 0.34s cubic-bezier(0.2, 0.86, 0.2, 1);
   box-shadow: 0 -18px 48px rgba(0, 0, 0, 0.12);
   overflow: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
 
 @media (min-width: 768px) {
@@ -1941,13 +1943,18 @@ img {
 .filter-panel__body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
   padding: 0 0 12px;
 }
 
 .filter-section {
   padding: 15px 24px 16px;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .filter-section--primary {
@@ -1991,6 +1998,13 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.filter-options > li {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .filter-options--consult {
@@ -2163,6 +2177,9 @@ img {
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .filter-chip-btn:active {
