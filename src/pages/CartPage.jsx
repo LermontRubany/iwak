@@ -112,6 +112,7 @@ export default function CartPage() {
   );
 
   const hasTotalDiscount = totalOriginalPrice > totalPrice;
+  const savings = totalOriginalPrice - totalPrice;
 
   const handleShare = useCallback(() => {
     const src = isSharedCart ? sharedItems : items;
@@ -143,7 +144,7 @@ export default function CartPage() {
     return (
       <div className="overlay overlay--open">
         <div className="cart-empty">
-          <h2 className="cart-title">КОРЗИНА</h2>
+          <h2 className="cart-title">IWAK SELECT</h2>
           <p className="cart-empty__text">Загрузка корзины...</p>
         </div>
       </div>
@@ -154,7 +155,7 @@ export default function CartPage() {
     return (
       <div className={`overlay ${closing ? 'overlay--closing' : 'overlay--open'}`}>
         <div className="cart-empty">
-          <h2 className="cart-title">КОРЗИНА</h2>
+          <h2 className="cart-title">IWAK SELECT</h2>
           <p className="cart-empty__text">{isSharedCart ? 'Товары не найдены' : 'Ваша корзина пуста'}</p>
           <button className="btn-primary" onClick={handleClose}>
             ПРОДОЛЖИТЬ ПОКУПКИ
@@ -169,20 +170,22 @@ export default function CartPage() {
     <div className="cart-page">
       <div className="cart-header-row">
         <div className="cart-header-left">
-          <h2 className="cart-title">КОРЗИНА</h2>
-          {isSharedCart && (
-            <span className="cart-shared-chip">Мой выбор{enrichedItems.length > 0 ? ` · ${enrichedItems.length}` : ''}</span>
-          )}
+          <span className="cart-title">IWAK SELECT</span>
+          <span className="cart-shared-chip">
+            {enrichedItems.length} {enrichedItems.length === 1 ? 'позиция' : 'позиции'}
+            {isSharedCart ? ' · Мой выбор' : ''}
+          </span>
         </div>
         <Link to="/catalog" className="cart-header-browse">ПОДОБРАТЬ ТОВАРЫ +</Link>
       </div>
 
       <ul className="cart-list">
-        {enrichedItems.map((item) => {
+        {enrichedItems.map((item, index) => {
           const hasDiscount = item.originalPrice && item.originalPrice > item.price;
           const discountPct = hasDiscount ? Math.round((1 - item.price / item.originalPrice) * 100) : 0;
           return (
           <li key={`${item.id}-${item.size}`} className="cart-item">
+            <span className="cart-item__index">{String(index + 1).padStart(2, '0')}</span>
             <Link
               to={`/product/${makeProductSlug(item)}`}
               state={{ backgroundLocation: bgLocation }}
@@ -257,6 +260,12 @@ export default function CartPage() {
       </div>
 
       <div className="cart-summary">
+        {hasTotalDiscount && (
+          <div className="cart-summary__row cart-summary__row--saving">
+            <span>Экономия</span>
+            <span>₽{savings.toLocaleString('ru-RU')}</span>
+          </div>
+        )}
         <div className="cart-summary__row">
           <span>ИТОГО</span>
           <div className="cart-summary__prices">

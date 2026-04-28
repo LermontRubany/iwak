@@ -27,6 +27,7 @@ export default function CartDrawer({ isOpen, onClose }) {
   );
 
   const hasTotalDiscount = totalOriginalPrice > totalPrice;
+  const savings = totalOriginalPrice - totalPrice;
   const drawerRef = useRef(null);
   const [closing, setClosing] = useState(false);
   const navigate = useNavigate();
@@ -145,7 +146,14 @@ export default function CartDrawer({ isOpen, onClose }) {
         aria-label="Корзина"
       >
         <div className="cart-drawer__header">
-          <span className="cart-drawer__title">КОРЗИНА</span>
+          <div className="cart-drawer__heading">
+            <span className="cart-drawer__title">IWAK SELECT</span>
+            <span className="cart-drawer__count">
+              {enrichedItems.length > 0
+                ? `${enrichedItems.length} ${enrichedItems.length === 1 ? 'позиция' : 'позиции'}`
+                : 'выбор пуст'}
+            </span>
+          </div>
           <button className="cart-drawer__close" onClick={handleClose} aria-label="Закрыть">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <line x1="1" y1="1" x2="17" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
@@ -165,11 +173,12 @@ export default function CartDrawer({ isOpen, onClose }) {
           ) : (
             <>
               <ul className="cart-drawer__list">
-                {enrichedItems.map((item) => {
+                {enrichedItems.map((item, index) => {
                   const hasDiscount = item.originalPrice && item.originalPrice > item.price;
                   const discountPct = hasDiscount ? Math.round((1 - item.price / item.originalPrice) * 100) : 0;
                   return (
                   <li key={`${item.id}-${item.size}`} className="cart-drawer__item">
+                    <span className="cart-drawer__item-index">{String(index + 1).padStart(2, '0')}</span>
                     <button
                       className="cart-drawer__item-img cart-drawer__item-img--btn"
                       onClick={() => handleItemClick(item)}
@@ -255,6 +264,12 @@ export default function CartDrawer({ isOpen, onClose }) {
                 </span>
               </div>
             </div>
+            {hasTotalDiscount && (
+              <div className="cart-drawer__saving-row">
+                <span>Экономия</span>
+                <span>₽{savings.toLocaleString('ru-RU')}</span>
+              </div>
+            )}
             <button className="cart-drawer__checkout" onClick={handleCheckout}>
               ОФОРМИТЬ ЗАКАЗ
             </button>
