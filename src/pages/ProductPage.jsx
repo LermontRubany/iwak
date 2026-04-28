@@ -425,6 +425,15 @@ export default function ProductPage() {
           <span>РФ / РБ</span>
         </div>
 
+        <div className="product-page__details product-page__details--compact">
+          {product.color ? <span>Цвет: <strong>{product.color}</strong></span> : null}
+          <span>Пол: <strong>
+            {product.gender === 'mens' ? 'Мужское' :
+             product.gender === 'womens' ? 'Женское' :
+             product.gender === 'kids' ? 'Детское' : 'Унисекс'}
+          </strong></span>
+        </div>
+
         {/* Size buttons */}
         <div className={`pp-sizes ${sizeShake ? 'pp-sizes--shake' : ''}`}>
           <div className="pp-sizes__head">
@@ -515,14 +524,6 @@ export default function ProductPage() {
           </div>
         )}
 
-        <div className="product-page__details">
-          <p>Цвет: <strong>{product.color}</strong></p>
-          <p>Пол: <strong>
-            {product.gender === 'mens' ? 'Мужское' :
-             product.gender === 'womens' ? 'Женское' :
-             product.gender === 'kids' ? 'Детское' : 'Унисекс'}
-          </strong></p>
-        </div>
       </div>
     </div>
 

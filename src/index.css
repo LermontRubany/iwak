@@ -2346,7 +2346,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .pp-sizes--shake {
@@ -2393,15 +2393,15 @@ img {
 }
 
 .pp-sizes__grid {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+  gap: 8px;
 }
 
 .pp-size-btn {
-  flex: 1 1 0;
   min-width: 0;
-  height: 48px;
-  padding: 0 12px;
+  height: 46px;
+  padding: 0 8px;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 16px;
@@ -2508,15 +2508,19 @@ img {
 }
 
 .product-page__details {
-  margin-top: 4px;
-  padding-top: 14px;
-  border-top: 1px solid #e8e8e8;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 6px 14px;
   font-size: 12px;
   opacity: 0.58;
   line-height: 1.5;
+}
+
+.product-page__details--compact {
+  margin-top: -1px;
+  padding: 0;
+  border: none;
+  font-size: 11px;
 }
 
 /* ── Sale carousel inside ProductPage (WB-pattern) ── */
