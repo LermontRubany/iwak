@@ -919,7 +919,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         `SELECT COALESCE(city, 'Неизвестно') AS city, COUNT(DISTINCT session_id) AS visits
          FROM events
          WHERE type = 'page_view' AND created_at >= ${sinceExpr}
-         GROUP BY city
+         GROUP BY COALESCE(city, 'Неизвестно')
          ORDER BY visits DESC
          LIMIT 15`
       ),
@@ -927,7 +927,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         `SELECT COALESCE(country, 'Неизвестно') AS country, COUNT(DISTINCT session_id) AS visits
          FROM events
          WHERE type = 'page_view' AND created_at >= ${sinceExpr}
-         GROUP BY country
+         GROUP BY COALESCE(country, 'Неизвестно')
          ORDER BY visits DESC
          LIMIT 15`
       ),
@@ -935,7 +935,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         `SELECT COALESCE(device, 'Other') AS device, COUNT(DISTINCT session_id) AS visits
          FROM events
          WHERE type = 'page_view' AND created_at >= ${sinceExpr}
-         GROUP BY device
+         GROUP BY COALESCE(device, 'Other')
          ORDER BY visits DESC`
       ),
       pool.query(
