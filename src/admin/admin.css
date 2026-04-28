@@ -2188,12 +2188,24 @@
 }
 
 /* ─── ANALYTICS TAB ─── */
-.anl { padding: 16px; }
+.anl {
+  padding: 16px;
+  background: #f6f6f4;
+}
+
+.anl-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
 
 .anl-periods {
   display: flex;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
 }
 
 .anl-loading,
@@ -2212,11 +2224,12 @@
 .anl-modes {
   display: flex;
   gap: 0;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   border: 1px solid var(--adm-border);
-  border-radius: var(--adm-radius);
+  border-radius: 10px;
   overflow: hidden;
   width: fit-content;
+  flex-shrink: 0;
 }
 
 .anl-mode-btn {
@@ -2243,8 +2256,8 @@
 .anl-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .anl-cards--overview {
@@ -2252,14 +2265,15 @@
 }
 
 .anl-card {
-  background: var(--adm-surface);
-  border: 1px solid var(--adm-border);
-  border-radius: var(--adm-radius);
-  padding: 16px 12px;
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
+  padding: 18px 14px;
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.035);
 }
 
 .anl-card__value {
@@ -2305,16 +2319,16 @@
 }
 
 .anl-section {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .anl-section__title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--adm-text-muted);
-  margin: 0 0 10px;
+  color: #8b8b86;
+  margin: 0 0 9px;
 }
 
 .anl-table-wrap {
@@ -2326,10 +2340,11 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  background: var(--adm-surface);
-  border-radius: var(--adm-radius);
+  background: #fff;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid var(--adm-border);
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.03);
 }
 
 .anl-table th {
@@ -2339,14 +2354,14 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--adm-text-muted);
-  background: var(--adm-bg);
-  border-bottom: 1px solid var(--adm-border);
+  color: #8b8b86;
+  background: #fafaf8;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.08);
 }
 
 .anl-table td {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--adm-border);
+  border-bottom: 1px solid rgba(17, 17, 17, 0.06);
 }
 
 .anl-table tr:last-child td { border-bottom: none; }
@@ -2386,10 +2401,11 @@
 
 /* ─── ACTIVITY — COMPACT PEAK ─── */
 .anl-activity {
-  background: var(--adm-surface);
-  border: 1px solid var(--adm-border);
-  border-radius: var(--adm-radius);
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
   padding: 14px 16px;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.03);
 }
 
 .anl-peak {
@@ -2415,7 +2431,7 @@
   gap: 16px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--adm-border);
+  border-top: 1px solid rgba(17, 17, 17, 0.08);
 }
 
 .anl-peak-item {
@@ -2436,9 +2452,10 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid rgba(231, 76, 60, 0.22);
-  border-radius: var(--adm-radius);
-  background: #fffafa;
+  border: 1px solid rgba(120, 71, 58, 0.18);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.035);
 }
 
 .anl-attention-card__main {
@@ -2454,7 +2471,7 @@
 }
 
 .anl-attention-card__reason {
-  color: #c0392b;
+  color: #9f3f32;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -2498,10 +2515,11 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--adm-surface);
-  border: 1px solid var(--adm-border);
-  border-radius: var(--adm-radius);
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
   margin-bottom: 14px;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.025);
 }
 
 .anl-online__dot {
@@ -2563,12 +2581,39 @@
 
 .anl-geo-empty {
   padding: 18px 10px;
-  border: 1px solid var(--adm-border);
-  border-radius: var(--adm-radius);
-  background: var(--adm-surface);
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
+  background: #fff;
   color: var(--adm-text-muted);
   font-size: 12px;
   text-align: center;
+}
+
+.anl-section--export {
+  opacity: 0.82;
+}
+
+.anl-cards--money {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .anl-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .anl-modes {
+    width: 100%;
+  }
+
+  .anl-mode-btn {
+    flex: 1;
+  }
+
+  .anl-cards--money {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {

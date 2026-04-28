@@ -18,11 +18,6 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 
 function fmtHour(h) { return `${pad2(h)}:00`; }
 
-function fmtDate(dateStr) {
-  const d = new Date(dateStr);
-  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
-}
-
 const COUNTRY_LABELS = {
   RU: 'Россия',
   BY: 'Беларусь',
@@ -159,33 +154,33 @@ export default function AnalyticsTab() {
 
   return (
     <div className="anl">
-      {/* Period selector */}
-      <div className="anl-periods">
-        {PERIODS.map((p) => (
-          <button
-            key={p.id}
-            className={`adm-filter-chip${period === p.id ? ' adm-filter-chip--active' : ''}`}
-            onClick={() => setPeriod(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <div className="anl-topbar">
+        <div className="anl-periods">
+          {PERIODS.map((p) => (
+            <button
+              key={p.id}
+              className={`adm-filter-chip${period === p.id ? ' adm-filter-chip--active' : ''}`}
+              onClick={() => setPeriod(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Mode toggle */}
-      <div className="anl-modes">
-        <button
-          className={`anl-mode-btn${mode === 'data' ? ' anl-mode-btn--active' : ''}`}
-          onClick={() => setMode('data')}
-        >
-          Данные
-        </button>
-        <button
-          className={`anl-mode-btn${mode === 'analysis' ? ' anl-mode-btn--active' : ''}`}
-          onClick={() => setMode('analysis')}
-        >
-          Сравнение
-        </button>
+        <div className="anl-modes">
+          <button
+            className={`anl-mode-btn${mode === 'data' ? ' anl-mode-btn--active' : ''}`}
+            onClick={() => setMode('data')}
+          >
+            Данные
+          </button>
+          <button
+            className={`anl-mode-btn${mode === 'analysis' ? ' anl-mode-btn--active' : ''}`}
+            onClick={() => setMode('analysis')}
+          >
+            Сравнение
+          </button>
+        </div>
       </div>
 
       {loading && <div className="anl-loading">Загрузка...</div>}
@@ -238,40 +233,37 @@ export default function AnalyticsTab() {
           {/* Activity — compact */}
           {data.funnel && (
             <>
-              {/* ── Funnel KPI cards ── */}
               <div className="anl-section">
-                <h3 className="anl-section__title">🛒 Воронка</h3>
+                <h3 className="anl-section__title">Воронка продаж</h3>
 
-                {/* Funnel bar */}
                 <div className="anl-funnel">
                   <div className="anl-funnel__row">
-                    <span className="anl-funnel__label">👁 Просмотры</span>
+                    <span className="anl-funnel__label">Просмотры</span>
                     <div className="anl-funnel__bar" style={{ width: '100%' }} />
                     <span className="anl-funnel__val">{data.productViews}</span>
                   </div>
                   <div className="anl-funnel__row">
-                    <span className="anl-funnel__label">🛒 В корзину</span>
+                    <span className="anl-funnel__label">В корзину</span>
                     <div className="anl-funnel__bar anl-funnel__bar--cart" style={{ width: `${Math.min(data.funnel.viewToCart * 3, 100)}%` }} />
                     <span className="anl-funnel__val">{data.funnel.cartAdds} ({data.funnel.viewToCart}%)</span>
                   </div>
                   <div className="anl-funnel__row">
-                    <span className="anl-funnel__label">⚡ Купить</span>
+                    <span className="anl-funnel__label">Купить</span>
                     <div className="anl-funnel__bar anl-funnel__bar--buy" style={{ width: `${Math.min(data.funnel.viewToBuyNow * 3, 100)}%` }} />
                     <span className="anl-funnel__val">{data.funnel.buyNows} ({data.funnel.viewToBuyNow}%)</span>
                   </div>
                   <div className="anl-funnel__row">
-                    <span className="anl-funnel__label">💳 Оформить</span>
+                    <span className="anl-funnel__label">Оформить</span>
                     <div className="anl-funnel__bar anl-funnel__bar--checkout" style={{ width: `${Math.min(data.funnel.cartToCheckout * 3, 100)}%` }} />
                     <span className="anl-funnel__val">{data.funnel.checkoutClicks} ({data.funnel.cartToCheckout}%)</span>
                   </div>
                 </div>
               </div>
 
-              {/* ── Losses ── */}
               {data.funnel.cartValue > 0 && (
                 <div className="anl-section">
-                  <h3 className="anl-section__title">💔 Потери</h3>
-                  <div className="anl-cards" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                  <h3 className="anl-section__title">Потенциал корзин</h3>
+                  <div className="anl-cards anl-cards--money">
                     <div className="anl-card">
                       <span className="anl-card__value">₽{Math.round(data.funnel.cartValue).toLocaleString('ru-RU')}</span>
                       <span className="anl-card__label">Положили в корзину</span>
@@ -312,10 +304,9 @@ export default function AnalyticsTab() {
                 </div>
               )}
 
-              {/* ── Top cart products (demand + abandon) ── */}
               {data.funnel.topCartProducts.length > 0 && (
                 <div className="anl-section">
-                  <h3 className="anl-section__title">🔥 Спрос и потери по товарам</h3>
+                  <h3 className="anl-section__title">Топ спроса</h3>
                   <div className="anl-table-wrap">
                     <table className="anl-table">
                       <thead>
@@ -325,7 +316,7 @@ export default function AnalyticsTab() {
                           <th>🛒</th>
                           <th>⚡</th>
                           <th>💳</th>
-                          <th>Abandon</th>
+                          <th>Потеря</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -351,10 +342,9 @@ export default function AnalyticsTab() {
                 </div>
               )}
 
-              {/* ── Top sizes ── */}
               {data.funnel.topSizes.length > 0 && (
                 <div className="anl-section">
-                  <h3 className="anl-section__title">📏 Популярные размеры</h3>
+                  <h3 className="anl-section__title">Популярные размеры</h3>
                   <div className="anl-peak-list" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {data.funnel.topSizes.map(s => (
                       <span key={s.size} className="anl-peak-item">
@@ -367,15 +357,13 @@ export default function AnalyticsTab() {
             </>
           )}
 
-          {/* Activity — compact */}
           <div className="anl-section">
-            <h3 className="anl-section__title">Активность</h3>
+            <h3 className="anl-section__title">Пик активности</h3>
             {!peakHour ? (
               <div className="anl-empty">Нет данных</div>
             ) : (
               <div className="anl-activity">
                 <div className="anl-peak">
-                  <span className="anl-peak__icon">🔥</span>
                   <span className="anl-peak__text">Пик: <strong>{fmtHour(peakHour.hour)}</strong> — {peakHour.count}</span>
                 </div>
                 {topHours.length > 1 && (
@@ -391,75 +379,6 @@ export default function AnalyticsTab() {
             )}
           </div>
 
-          {/* Top products with peak hour */}
-          <div className="anl-section">
-            <h3 className="anl-section__title">Топ товаров</h3>
-            {data.topProducts.length === 0 ? (
-              <div className="anl-empty">Нет данных</div>
-            ) : (
-              <div className="anl-table-wrap">
-                <table className="anl-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Товар</th>
-                      <th>👀</th>
-                      <th>⏰</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.topProducts.map((p, i) => (
-                      <tr key={p.productId}>
-                        <td className="anl-table__rank">{i + 1}</td>
-                        <td>
-                          <span className="anl-table__brand">{p.brand}</span>
-                          {' '}
-                          <span>{p.name || `#${p.productId}`}</span>
-                        </td>
-                        <td className="anl-table__num">{p.views}
-                          {mode === 'analysis' && p.delta != null && <DeltaBadge delta={p.delta} isNew={p.isNew} />}
-                        </td>
-                        <td className="anl-table__num anl-table__peak">
-                          {p.peakHour != null ? fmtHour(p.peakHour) : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Activity by day */}
-          <div className="anl-section">
-            <h3 className="anl-section__title">По дням</h3>
-            {(!data.activityByDay || data.activityByDay.length === 0) ? (
-              <div className="anl-empty">Нет данных</div>
-            ) : (
-              <div className="anl-table-wrap">
-                <table className="anl-table">
-                  <thead>
-                    <tr>
-                      <th>Дата</th>
-                      <th>События</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.activityByDay.map((d) => (
-                      <tr key={d.date}>
-                        <td>{fmtDate(d.date)}</td>
-                        <td className="anl-table__num">{d.count}
-                          {mode === 'analysis' && d.delta != null && <DeltaBadge delta={d.delta} />}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Top cities */}
           <div className="anl-section">
             <h3 className="anl-section__title">География</h3>
             {data.topCities.length === 0 && (!data.topCountries || data.topCountries.length === 0) && (!data.topDevices || data.topDevices.length === 0) ? (
@@ -473,9 +392,8 @@ export default function AnalyticsTab() {
             )}
           </div>
 
-          {/* Export */}
-          <div className="anl-section">
-            <h3 className="anl-section__title">📥 Экспорт</h3>
+          <div className="anl-section anl-section--export">
+            <h3 className="anl-section__title">Экспорт</h3>
             <div className="anl-export">
               {EXPORT_PERIODS.map((p) => (
                 <button
@@ -487,7 +405,7 @@ export default function AnalyticsTab() {
                 </button>
               ))}
             </div>
-            <h3 className="anl-section__title" style={{ marginTop: 14 }}>📊 Отчёт</h3>
+            <h3 className="anl-section__title" style={{ marginTop: 14 }}>Отчёт</h3>
             <div className="anl-export">
               {EXPORT_PERIODS.map((p) => (
                 <button
