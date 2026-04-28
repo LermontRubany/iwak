@@ -484,16 +484,6 @@ export default function ProductPage() {
         <div className={`pp-sizes ${sizeShake ? 'pp-sizes--shake' : ''}`}>
           <div className="pp-sizes__head">
             <span className="pp-sizes__label">Размер</span>
-            <button
-              type="button"
-              className="pp-size-help"
-              onClick={() => {
-                setSizeShake(true);
-                setTimeout(() => setSizeShake(false), 600);
-              }}
-            >
-              Помочь выбрать
-            </button>
           </div>
           <div className={`pp-sizes__grid${sortSizes(product.sizes).length > 5 ? ' pp-sizes__grid--many' : ''}`}>
             {sortSizes(product.sizes).map((size) => (
