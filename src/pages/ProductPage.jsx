@@ -459,10 +459,6 @@ export default function ProductPage() {
           </div>
         </div>
 
-        <div className="pp-purchase-note">
-          Подтвердим наличие и размер перед оплатой.
-        </div>
-
         <div className="pp-actions">
           <button
             className="btn-buy-now"
