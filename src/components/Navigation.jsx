@@ -5,7 +5,7 @@ import { lockScroll, unlockScroll } from '../utils/scrollLock';
 const NAV_CATEGORIES = [
   { label: 'МУЖСКОЕ', search: '?gender=mens' },
   { label: 'ЖЕНСКОЕ', search: '?gender=womens' },
-  { label: 'АКСЕССУАРЫ', search: '?category=accessories' },
+  { label: 'АКСЕССУАРЫ', search: '?category=аксессуары' },
 ];
 
 const secondaryLinks = [];
