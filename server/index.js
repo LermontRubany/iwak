@@ -1087,12 +1087,14 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       totalConversion: curViews > 0 ? +((checkoutClicks + buyNows) / curViews * 100).toFixed(1) : 0,
       cartValue: parseFloat(funnelQueries[8].rows[0].total),
       checkoutValue: parseFloat(funnelQueries[9].rows[0].total),
-      lostValue: parseFloat(funnelQueries[8].rows[0].total) - parseFloat(funnelQueries[9].rows[0].total),
+      lostValue: Math.max(0, parseFloat(funnelQueries[8].rows[0].total) - parseFloat(funnelQueries[9].rows[0].total)),
       topCartProducts: funnelQueries[5].rows.map(r => {
         const pid = r.product_id;
         const adds = parseInt(r.adds);
         const ch = checkoutMap[pid] || 0;
         const bn = buyNowMap[pid] || 0;
+        const abandoned = Math.max(0, adds - ch);
+        const abandonRate = adds > 0 ? +((abandoned / adds) * 100).toFixed(1) : 0;
         return {
           productId: pid,
           name: cartProductNames[pid]?.name || null,
@@ -1101,7 +1103,7 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
           adds,
           buyNows: bn,
           checkouts: ch,
-          abandonRate: adds > 0 ? +(((adds - ch) / adds) * 100).toFixed(1) : 0,
+          abandonRate,
           intentScore: adds + bn * 2 + ch * 5,
         };
       }),
