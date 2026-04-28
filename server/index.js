@@ -43,6 +43,7 @@ const logger = pino({
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Критичная проверка: JWT_SECRET обязателен — нет fallback
 if (!process.env.JWT_SECRET) {
@@ -3050,6 +3051,7 @@ app.get('/api/diag', requireAuth, async (_req, res) => {
       nodeVersion: process.version,
       hasDbUrl: !!process.env.DATABASE_URL,
       hasJwtSecret: !!process.env.JWT_SECRET,
+      host: HOST,
       port: PORT,
       siteOrigin: process.env.SITE_ORIGIN || '(not set)',
     };
@@ -3082,8 +3084,8 @@ app.use((err, _req, res, _next) => {
 // START
 // ════════════════════════════════════════════
 
-app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`IWAK API server running on http://0.0.0.0:${PORT}`);
+app.listen(PORT, HOST, () => {
+  logger.info(`IWAK API server running on http://${HOST}:${PORT}`);
   if (JWT_SECRET === 'change-me-in-production') {
     logger.warn('⚠️  JWT_SECRET is set to the default value — change it in server/.env before going live!');
     console.warn('[SECURITY] JWT_SECRET is default — update server/.env immediately!');
