@@ -420,7 +420,6 @@ export default function ProductPage() {
 
         {/* Trust block */}
         <div className="pp-trust">
-          <span>Оригинальные фото</span>
           <span>Проверка перед отправкой</span>
           <span>РФ / РБ</span>
         </div>
