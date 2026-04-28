@@ -72,13 +72,13 @@ export default function Navigation({ isOpen, onClose }) {
   }, [isOpen]);
 
   const handleCatalog = (search) => {
-    navigate({ pathname: '/catalog', search }, { replace: true });
     onClose();
+    navigate({ pathname: '/catalog', search }, { replace: true });
   };
 
   const handleLink = (to) => {
-    navigate(to);
     onClose();
+    navigate(to);
   };
 
   return (

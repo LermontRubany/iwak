@@ -11,12 +11,40 @@ export default function Header() {
   const [onDark, setOnDark] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const menuParam = searchParams.get('menu') === '1';
 
   // Закрываем все drawer при смене маршрута
   useEffect(() => {
-    setNavOpen(false);
+    setNavOpen(menuParam && location.pathname.startsWith('/catalog'));
     setSearchOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search, menuParam]);
+
+  const openMenu = () => {
+    setSearchOpen(false);
+    if (!location.pathname.startsWith('/catalog')) {
+      navigate({ pathname: '/catalog', search: '?menu=1' });
+      return;
+    }
+    const next = new URLSearchParams(location.search);
+    next.set('menu', '1');
+    navigate({ pathname: location.pathname, search: `?${next.toString()}` }, { replace: true });
+    setNavOpen(true);
+  };
+
+  const closeMenu = () => {
+    setNavOpen(false);
+    if (!menuParam) return;
+    const next = new URLSearchParams(location.search);
+    next.delete('menu');
+    const search = next.toString();
+    navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true });
+  };
+
+  const toggleMenu = () => {
+    if (navOpen) closeMenu();
+    else openMenu();
+  };
 
   const handleLogoClick = () => {
     if (location.pathname.startsWith('/catalog')) return;
@@ -53,7 +81,7 @@ export default function Header() {
         <div className="header-left">
           <button
             className="header-icon-btn menu-btn"
-            onClick={() => { setSearchOpen(false); setNavOpen((open) => !open); }}
+            onClick={toggleMenu}
             aria-label={navOpen ? 'Закрыть меню' : 'Меню'}
           >
             <svg width="20" height="9" viewBox="0 0 20 9" fill="none">
@@ -69,7 +97,7 @@ export default function Header() {
           <button
             className="header-icon-btn"
             aria-label="Поиск"
-            onClick={() => { setNavOpen(false); setSearchOpen(true); }}
+            onClick={() => { closeMenu(); setSearchOpen(true); }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <circle cx="10" cy="10" r="6" stroke="currentColor" strokeWidth="1.2"/>
@@ -80,7 +108,7 @@ export default function Header() {
             className="header-icon-btn cart-btn"
             aria-label="Корзина"
             onClick={() => {
-              setNavOpen(false);
+              closeMenu();
               setSearchOpen(false);
               navigate('/cart', {
                 state: { backgroundLocation: { pathname: location.pathname, search: location.search } },
@@ -96,7 +124,7 @@ export default function Header() {
         </div>
       </header>
 
-      <Navigation isOpen={navOpen} onClose={() => setNavOpen(false)} />
+      <Navigation isOpen={navOpen} onClose={closeMenu} />
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );

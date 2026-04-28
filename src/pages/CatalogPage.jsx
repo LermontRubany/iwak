@@ -101,7 +101,7 @@ export default function CatalogPage() {
   const didRedirect = useRef(false);
   useEffect(() => {
     if (didRedirect.current) return;
-    if (searchParams.get('catalogPlus') === '1') return;
+    if (searchParams.get('catalogPlus') === '1' || searchParams.get('menu') === '1') return;
     if (needsCanonicalRedirect(searchParams)) {
       didRedirect.current = true;
       const { filters: parsed, sortBy: parsedSort } = parseFiltersFromURL(searchParams);
@@ -115,6 +115,7 @@ export default function CatalogPage() {
   const query = searchParams.get('q') || '';
   const saleParam = searchParams.get('sale') === 'true';
   const catalogPlusParam = searchParams.get('catalogPlus') === '1';
+  const menuParam = searchParams.get('menu') === '1';
 
   // ── URL → State ──
   const [filters, setFilters] = useState(() => parseFiltersFromURL(searchParams).filters);
@@ -134,7 +135,7 @@ export default function CatalogPage() {
 
   // ── State → URL (debounced) ──
   useEffect(() => {
-    if (catalogPlusParam) return;
+    if (catalogPlusParam || menuParam) return;
     const timer = setTimeout(() => {
       const nextParams = buildFilterParams(filters, sortBy, searchParams);
       if (nextParams.toString() !== searchParams.toString()) {
@@ -143,7 +144,7 @@ export default function CatalogPage() {
       }
     }, URL_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [filters, sortBy, catalogPlusParam]);
+  }, [filters, sortBy, catalogPlusParam, menuParam]);
 
   useEffect(() => {
     if (catalogPlusParam && !query) setFilterOpen(true);
