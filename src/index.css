@@ -1428,13 +1428,25 @@ img {
 }
 
 .search-results-header {
+  position: sticky;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   margin: 24px 16px 4px;
-  padding: 0 0 10px;
+  padding: 10px 0;
+  background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid #f0f0f0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (max-width: 767px) {
+  .search-results-header {
+    top: calc(70px + env(safe-area-inset-top, 0px));
+  }
 }
 
 .search-results-main {
