@@ -142,15 +142,12 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   }, []);
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
   const existingCategories = apiCategories;
-  const [showAddCat, setShowAddCat] = useState(false);
-  const [newCatValue, setNewCatValue] = useState('');
 
   // ── Duplicate detection ──
   const brandWarn = useMemo(() => {
     const val = form.brand.trim();
     if (!val) return null;
     const normVal = normalizeBrand(val);
-    if (initial && normalizeBrand(initial.brand) === normVal) return null;
     // Skip check for the product being edited
     const otherProducts = initial ? products.filter((p) => p.id !== initial.id) : products;
     const match = otherProducts.find((p) => normalizeBrand(p?.brand) === normVal);
@@ -160,16 +157,18 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   }, [form.brand, products, initial]);
 
   const categoryWarn = useMemo(() => {
-    if (!showAddCat) return null;
-    const val = newCatValue.trim();
+    const val = form.category?.trim();
     if (!val) return null;
-    const normVal = val.toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-|-$/g, '');
-    const exists = existingCategories.some((c) => c.trim().toLowerCase() === normVal);
-    return exists ? normVal : null;
-  }, [newCatValue, existingCategories, showAddCat]);
+    const normVal = val.toLowerCase();
+    const otherProducts = initial ? products.filter((p) => p.id !== initial.id) : products;
+    const exists = otherProducts.some((p) => p?.category?.trim().toLowerCase() === normVal);
+    return exists ? val : null;
+  }, [form.category, products, initial]);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [newCatValue, setNewCatValue] = useState('');
   // Track if user manually edited sizes — prevents auto-overwrite
   const [sizesTouched, setSizesTouched] = useState(!!initial);
 
@@ -358,7 +357,6 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
 
   const handleSubmit = async (e, { sendToTelegram = false } = {}) => {
     e.preventDefault();
-    if (saving) return;
     if (!form.name.trim() || !form.brand.trim() || !form.price) return;
     // Only use successfully uploaded images
     const doneImages = form.images.filter((img) => img.status === 'done');
@@ -440,7 +438,7 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
   };
 
   return (
-    <form className="adm-form" onSubmit={handleSubmit} aria-busy={saving}>
+    <form className="adm-form" onSubmit={handleSubmit}>
 
       {/* ── СЕКЦИЯ: Фото ── */}
       <div className="adm-section">
@@ -541,11 +539,11 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
                 autoFocus
               />
               <button type="button" className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCategory}>Добавить</button>
-              {categoryWarn && (
-                <div className="adm-field-warn">
-                  ⚠️ Категория <strong>{categoryWarn}</strong> уже существует
-                </div>
-              )}
+            </div>
+          )}
+          {categoryWarn && (
+            <div className="adm-field-warn">
+              ⚠️ Категория <strong>{categoryWarn}</strong> уже существует
             </div>
           )}
         </div>
@@ -744,17 +742,16 @@ export default function AdminProductForm({ initial, onSave, onCancel }) {
         <button type="button" className="adm-btn adm-btn--ghost" onClick={onCancel}>
           ОТМЕНА
         </button>
-        <button type="submit" className={`adm-btn${saving ? ' adm-btn--saving' : ''}`} disabled={saving}>
-          {saving ? 'СОХРАНЯЕМ...' : 'СОХРАНИТЬ'}
+        <button type="submit" className={`adm-btn${saving ? ' adm-btn--saving' : ''}`}>
+          СОХРАНИТЬ
         </button>
         {!initial && (
           <button
             type="button"
             className={`adm-btn adm-btn--primary${saving ? ' adm-btn--saving' : ''}`}
             onClick={(e) => handleSubmit(e, { sendToTelegram: true })}
-            disabled={saving}
           >
-            {saving ? 'СОХРАНЯЕМ...' : 'СОХРАНИТЬ И ОТПРАВИТЬ'}
+            СОХРАНИТЬ И ОТПРАВИТЬ
           </button>
         )}
       </div>
