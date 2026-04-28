@@ -449,7 +449,7 @@ export default function ProductPage() {
               Помочь выбрать
             </button>
           </div>
-          <div className="pp-sizes__grid">
+          <div className={`pp-sizes__grid${sortSizes(product.sizes).length > 5 ? ' pp-sizes__grid--many' : ''}`}>
             {sortSizes(product.sizes).map((size) => (
               <button
                 key={size}

@@ -2398,6 +2398,10 @@ img {
   gap: 8px;
 }
 
+.pp-sizes__grid--many {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .pp-size-btn {
   min-width: 0;
   height: 46px;
