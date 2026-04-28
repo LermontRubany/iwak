@@ -67,6 +67,7 @@ export default function AdminApp() {
   // Category management
   const [catList, setCatList] = useState([]);
   const [showAddCatInput, setShowAddCatInput] = useState(false);
+  const [showCatManager, setShowCatManager] = useState(false);
   const [newCatName, setNewCatName] = useState('');
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
@@ -568,6 +569,7 @@ export default function AdminApp() {
     setBrandFilter('');
     setBrandSearch('');
     setFilterPanel(null);
+    setShowCatManager(false);
     setSearch('');
   };
 
@@ -751,9 +753,14 @@ export default function AdminApp() {
             <div className="adm-filter-panel__head">
               <span>Категории</span>
               {!trashMode && (
-                <button type="button" className="adm-filter-panel__link" onClick={() => setShowAddCatInput((v) => !v)}>
-                  {showAddCatInput ? 'Скрыть добавление' : '+ категория'}
-                </button>
+                <div className="adm-filter-panel__actions">
+                  <button type="button" className="adm-filter-panel__link" onClick={() => setShowAddCatInput((v) => !v)}>
+                    {showAddCatInput ? 'Скрыть добавление' : '+ категория'}
+                  </button>
+                  <button type="button" className="adm-filter-panel__link" onClick={() => setShowCatManager((v) => !v)}>
+                    {showCatManager ? 'Скрыть управление' : 'Управление'}
+                  </button>
+                </div>
               )}
             </div>
             {showAddCatInput && !trashMode && (
@@ -768,6 +775,31 @@ export default function AdminApp() {
                   autoFocus
                 />
                 <button className="adm-btn adm-btn--primary adm-btn--sm" onClick={handleAddCat}>Добавить</button>
+              </div>
+            )}
+            {showCatManager && !trashMode && (
+              <div className="adm-cat-manager">
+                {categoryFilterOptions.filter((c) => c.id).map((c) => {
+                  const count = Number.isFinite(c.count) ? c.count : 0;
+                  const canDelete = count === 0;
+                  return (
+                    <div key={c.id} className="adm-cat-manager__row">
+                      <div className="adm-cat-manager__info">
+                        <strong>{c.label}</strong>
+                        <span>{count} товар(ов)</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="adm-cat-manager__delete"
+                        disabled={!canDelete}
+                        title={canDelete ? 'Удалить пустую категорию' : 'Нельзя удалить категорию с товарами'}
+                        onClick={() => handleDeleteCat(c.id)}
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
             <div className="adm-filter-row">
