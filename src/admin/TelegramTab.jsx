@@ -9,6 +9,12 @@ import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 
 const GENDER_LABELS = { mens: 'М', womens: 'Ж', kids: 'Дети', unisex: 'U' };
 const GENDER_DISPLAY = { mens: 'Мужское', womens: 'Женское', kids: 'Детское', unisex: 'Унисекс' };
+const TG_STATUS_OPTIONS = [
+  { id: '', label: 'Все' },
+  { id: 'unsent', label: 'Не отправлены' },
+  { id: 'sent', label: 'Отправлены' },
+  { id: 'scheduled', label: 'Запланированы' },
+];
 
 function formatDate(dateStr) {
   if (!dateStr) return null;
@@ -365,9 +371,9 @@ export default function TelegramTab() {
       {/* ── Posting ── */}
       <div className="tg-section">
         <div className="tg-section__header">
-          <h3 className="tg-section__title">📤 Постинг в Telegram</h3>
+          <h3 className="tg-section__title">Постинг в Telegram</h3>
           {configured && (
-            <button className="adm-btn adm-btn--sm adm-btn--accent" onClick={() => { setDrawerMode('custom'); setDrawerOpen(true); }}>📝 Свой пост</button>
+            <button className="adm-btn adm-btn--sm adm-btn--accent" onClick={() => { setDrawerMode('custom'); setDrawerOpen(true); }}>Свой пост</button>
           )}
         </div>
         {!configured && (
@@ -375,66 +381,71 @@ export default function TelegramTab() {
         )}
         {configured && (
           <>
-            <div className="adm-toolbar">
-              <input
-                className="adm-input adm-search"
-                type="text"
-                placeholder="Поиск товара..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
+            <div className="tg-posting-filter">
+              <div className="tg-posting-filter__search">
+                <input
+                  className="adm-input tg-posting-filter__input"
+                  type="text"
+                  placeholder="Поиск товара..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
 
-            {/* Category + Gender + Brand filter chips */}
-            <div className="adm-filters">
-              <div className="adm-filter-row">
-                {categoryOptions.map((c) => (
-                  <button
-                    key={c.id}
-                    className={`adm-filter-chip${catFilter === c.id ? ' adm-filter-chip--active' : ''}`}
-                    onClick={() => setCatFilter(c.id)}
-                  >
-                    {c.label}
-                  </button>
-                ))}
+              <div className="tg-posting-filter__selects">
+                <label className="tg-posting-filter__field">
+                  <span>Категория</span>
+                  <select className="adm-input" value={catFilter} onChange={e => setCatFilter(e.target.value)}>
+                    {categoryOptions.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                </label>
+
+                <label className="tg-posting-filter__field">
+                  <span>Пол</span>
+                  <select className="adm-input" value={genderFilter} onChange={e => setGenderFilter(e.target.value)}>
+                    {genderOptions.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                  </select>
+                </label>
+
+                <label className="tg-posting-filter__field">
+                  <span>Бренд</span>
+                  <select className="adm-input" value={brandFilter} onChange={e => setBrandFilter(e.target.value)}>
+                    {brandOptions.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}{b.count !== null ? ` (${b.count})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-              <div className="adm-filter-row">
-                {genderOptions.map((g) => (
-                  <button
-                    key={g.id}
-                    className={`adm-filter-chip${genderFilter === g.id ? ' adm-filter-chip--active' : ''}`}
-                    onClick={() => setGenderFilter(g.id)}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-              {brandOptions.length > 1 && (
-                <div className="adm-filter-row adm-filter-row--scroll">
-                  {brandOptions.map((b) => (
+
+              <div className="tg-posting-filter__bottom">
+                <div className="tg-posting-filter__status">
+                  {TG_STATUS_OPTIONS.map((s) => (
                     <button
-                      key={b.id}
-                      className={`adm-filter-chip${brandFilter === b.id ? ' adm-filter-chip--active' : ''}`}
-                      onClick={() => setBrandFilter(b.id)}
+                      key={s.id}
+                      className={`tg-posting-filter__chip${sentFilter === s.id ? ' tg-posting-filter__chip--active' : ''}`}
+                      onClick={() => setSentFilter(s.id)}
                     >
-                      {b.label}{b.count !== null ? ` (${b.count})` : ''}
+                      {s.label}
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* TG status filter */}
-            <div className="adm-filter-row">
-              {[{ id: '', label: 'Все' }, { id: 'unsent', label: '📤 Не отправлены' }, { id: 'sent', label: '✅ Отправлены' }, { id: 'scheduled', label: '📅 Запланированы' }].map((s) => (
-                <button
-                  key={s.id}
-                  className={`adm-filter-chip${sentFilter === s.id ? ' adm-filter-chip--active' : ''}`}
-                  onClick={() => setSentFilter(s.id)}
-                >
-                  {s.label}
-                </button>
-              ))}
+                {(search || catFilter || genderFilter || brandFilter || sentFilter) && (
+                  <button
+                    className="tg-posting-filter__clear"
+                    onClick={() => {
+                      setSearch('');
+                      setCatFilter('');
+                      setGenderFilter('');
+                      setBrandFilter('');
+                      setSentFilter('');
+                    }}
+                  >
+                    Сбросить
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="adm-stats">

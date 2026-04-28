@@ -2816,6 +2816,117 @@
   gap: 14px;
 }
 
+.tg-posting-filter {
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+}
+
+.tg-posting-filter__search {
+  display: flex;
+}
+
+.tg-posting-filter__input {
+  width: 100%;
+}
+
+.tg-posting-filter__selects {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(110px, 0.65fr) minmax(0, 1.2fr);
+  gap: 10px;
+}
+
+.tg-posting-filter__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tg-posting-filter__field span {
+  color: var(--adm-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tg-posting-filter__field select {
+  width: 100%;
+}
+
+.tg-posting-filter__bottom {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.tg-posting-filter__status {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  scrollbar-width: none;
+}
+
+.tg-posting-filter__status::-webkit-scrollbar {
+  display: none;
+}
+
+.tg-posting-filter__chip,
+.tg-posting-filter__clear {
+  border: 1px solid var(--adm-border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  min-height: 30px;
+  padding: 6px 11px;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.tg-posting-filter__chip {
+  background: #fafaf8;
+  color: var(--adm-text);
+}
+
+.tg-posting-filter__chip--active {
+  background: var(--adm-accent);
+  border-color: var(--adm-accent);
+  color: #fff;
+}
+
+.tg-posting-filter__clear {
+  background: transparent;
+  color: var(--adm-accent);
+  flex-shrink: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 760px) {
+  .tg-posting-filter__selects {
+    grid-template-columns: 1fr;
+  }
+
+  .tg-posting-filter__bottom {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tg-posting-filter__clear {
+    width: fit-content;
+  }
+}
+
 .tg-send__row {
   display: flex;
   gap: 8px;
