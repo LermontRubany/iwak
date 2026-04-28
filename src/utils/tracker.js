@@ -8,8 +8,8 @@ let timer = null;
 function getSessionId() {
   let sid = sessionStorage.getItem(SESSION_KEY);
   if (!sid) {
-    sid = crypto?.randomUUID
-      ? crypto.randomUUID()
+    sid = globalThis.crypto?.randomUUID
+      ? globalThis.crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     sessionStorage.setItem(SESSION_KEY, sid);
   }
