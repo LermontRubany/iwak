@@ -1,6 +1,8 @@
-const CACHE_VERSION = 'iwak-static-v3';
+const CACHE_VERSION = 'iwak-static-v4';
 const CATALOG_IMAGE_CACHE = 'iwak-catalog-images-v1';
+const PRODUCT_IMAGE_CACHE = 'iwak-product-images-v1';
 const MAX_CATALOG_IMAGES = 360;
+const MAX_PRODUCT_IMAGES = 120;
 const APP_SHELL = '/catalog';
 const OFFLINE_PAGE = '/offline.html';
 const STATIC_PATHS = [
@@ -23,12 +25,23 @@ function shouldBypass(requestUrl) {
     requestUrl.pathname.startsWith('/api') ||
     requestUrl.pathname.startsWith('/admin') ||
     requestUrl.pathname.startsWith('/adminpanel') ||
-    (requestUrl.pathname.startsWith('/uploads') && !requestUrl.pathname.startsWith('/uploads/catalog/'))
+    (requestUrl.pathname.startsWith('/uploads') &&
+      !requestUrl.pathname.startsWith('/uploads/catalog/') &&
+      request.destination !== 'image')
   );
 }
 
 function isCatalogImage(request, requestUrl) {
   return request.destination === 'image' && requestUrl.pathname.startsWith('/uploads/catalog/');
+}
+
+function isProductImage(request, requestUrl) {
+  return (
+    request.destination === 'image' &&
+    requestUrl.pathname.startsWith('/uploads/') &&
+    !requestUrl.pathname.startsWith('/uploads/catalog/') &&
+    !requestUrl.pathname.startsWith('/uploads/og/')
+  );
 }
 
 function isStaticAsset(request, requestUrl) {
@@ -75,6 +88,18 @@ async function cacheFirstCatalogImage(request) {
   return response;
 }
 
+async function cacheFirstProductImage(request) {
+  const cache = await caches.open(PRODUCT_IMAGE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response && response.ok) {
+    cache.put(request, response.clone()).then(() => trimCache(PRODUCT_IMAGE_CACHE, MAX_PRODUCT_IMAGES));
+  }
+  return response;
+}
+
 async function networkFirstPage(request) {
   const cache = await caches.open(CACHE_VERSION);
   try {
@@ -103,6 +128,7 @@ self.addEventListener('activate', (event) => {
         keys
           .filter((key) => key !== CACHE_VERSION)
           .filter((key) => key !== CATALOG_IMAGE_CACHE)
+          .filter((key) => key !== PRODUCT_IMAGE_CACHE)
           .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
@@ -118,6 +144,11 @@ self.addEventListener('fetch', (event) => {
 
   if (isCatalogImage(request, requestUrl)) {
     event.respondWith(cacheFirstCatalogImage(request));
+    return;
+  }
+
+  if (isProductImage(request, requestUrl)) {
+    event.respondWith(cacheFirstProductImage(request));
     return;
   }
 

@@ -2640,6 +2640,17 @@ img {
   object-fit: cover;
 }
 
+.pp-main-img--preview {
+  filter: blur(5px);
+  transform: scale(1.015);
+}
+
+.pp-main-img--ready {
+  filter: blur(0);
+  transform: scale(1);
+  transition: filter 0.22s ease, transform 0.22s ease;
+}
+
 /* ── Dots indicator ── */
 .pp-dots {
   position: absolute;

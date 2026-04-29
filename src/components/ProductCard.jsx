@@ -4,22 +4,17 @@ import { makeProductSlug } from '../utils/slug';
 import { stripBrandFromName } from '../utils/productDisplay';
 import sortSizes from '../utils/sortSizes';
 import { useCart } from '../context/CartContext';
+import { getCatalogImage, preloadImage } from '../utils/catalogImages';
 import { preloadProductPage } from '../utils/preloadRoutes';
 import { track } from '../utils/tracker';
 
 const prefetched = new Set();
-const USE_CATALOG_THUMBNAILS = true;
 
-function getCatalogImage(src) {
-  if (!USE_CATALOG_THUMBNAILS || !src?.startsWith('/uploads/') || src.startsWith('/uploads/catalog/')) {
-    return src;
-  }
-  return src.replace('/uploads/', '/uploads/catalog/').replace(/\.(jpe?g|png|webp|avif)$/i, '.webp');
-}
-
-function prefetchProduct(id) {
+function prefetchProduct(product) {
+  if (prefetched.has(product.id)) return;
   preloadProductPage();
-  prefetched.add(id);
+  preloadImage(product.image);
+  prefetched.add(product.id);
 }
 
 function handleImgError(e, colorHex) {
@@ -121,10 +116,10 @@ export default memo(function ProductCard({ product, priority }) {
         if (e.key === 'Enter') handleCardClick();
       }}
       onMouseEnter={() => {
-        prefetchProduct(product.id);
+        prefetchProduct(product);
       }}
       onTouchStart={() => {
-        prefetchProduct(product.id);
+        prefetchProduct(product);
       }}
     >
       <div className="product-card__image-wrap">

@@ -7,6 +7,7 @@ import { idFromSlug, makeProductSlug } from '../utils/slug';
 import sortSizes from '../utils/sortSizes';
 import { track } from '../utils/tracker';
 import { productDisplayName, stripBrandFromName } from '../utils/productDisplay';
+import { getCatalogImage, preloadImage } from '../utils/catalogImages';
 
 function setMetaTag(attr, name, value) {
   const selector = `meta[${attr}="${name}"]`;
@@ -17,6 +18,49 @@ function setMetaTag(attr, name, value) {
     document.head.appendChild(el);
   }
   el.setAttribute('content', value);
+}
+
+function ProgressiveProductImage({ src, alt, priority }) {
+  const previewSrc = getCatalogImage(src);
+  const [currentSrc, setCurrentSrc] = useState(priority ? previewSrc : src);
+  const [loadedOriginal, setLoadedOriginal] = useState(!priority || previewSrc === src);
+
+  useEffect(() => {
+    if (!priority || previewSrc === src) {
+      setCurrentSrc(src);
+      setLoadedOriginal(true);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setCurrentSrc(previewSrc);
+    setLoadedOriginal(false);
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      if (!cancelled) {
+        setCurrentSrc(src);
+        setLoadedOriginal(true);
+      }
+    };
+    img.onerror = () => {
+      if (!cancelled) setLoadedOriginal(true);
+    };
+    img.src = src;
+    return () => { cancelled = true; };
+  }, [previewSrc, priority, src]);
+
+  return (
+    <img
+      src={currentSrc}
+      alt={alt}
+      className={`pp-main-img${loadedOriginal ? ' pp-main-img--ready' : ' pp-main-img--preview'}`}
+      draggable={false}
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : undefined}
+      decoding="async"
+    />
+  );
 }
 
 export default function ProductPage() {
@@ -275,7 +319,17 @@ export default function ProductPage() {
     );
   }
 
-  const allImages = product.images?.length > 0 ? product.images : [product.image];
+  const allImages = useMemo(() => (
+    product.images?.length > 0 ? product.images : [product.image]
+  ), [product.image, product.images]);
+
+  useEffect(() => {
+    if (!allImages[0]) return undefined;
+    const timer = window.setTimeout(() => {
+      allImages.slice(1, 4).forEach(preloadImage);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [allImages]);
 
   const goToSlide = (index) => {
     galleryRef.current?.scrollTo({ left: index * galleryRef.current.clientWidth, behavior: 'instant' });
@@ -334,13 +388,10 @@ export default function ProductPage() {
               className="pp-gallery-slide"
               onClick={() => setLightboxIdx(i)}
             >
-              <img
+              <ProgressiveProductImage
                 src={img}
                 alt={`${product.name} ${i + 1}`}
-                className="pp-main-img"
-                draggable={false}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                decoding="async"
+                priority={i === 0}
               />
             </div>
           ))}
