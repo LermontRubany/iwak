@@ -410,6 +410,7 @@ export default function ProductPage() {
             onClick={() => track('brand_click', { productId: product.id, brand: product.brand })}
           >
             <strong>{product.brand}</strong>
+            <i aria-hidden="true">·</i>
             <span>другие товары</span>
             <b aria-hidden="true">›</b>
           </Link>

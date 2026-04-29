@@ -2625,6 +2625,13 @@ img {
   text-transform: lowercase;
 }
 
+.product-page__brand i {
+  color: #999;
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0;
+}
+
 .product-page__brand b {
   margin-top: -1px;
   font-size: 13px;
