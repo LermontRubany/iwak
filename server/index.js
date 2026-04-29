@@ -429,6 +429,45 @@ app.post('/api/admin/verify-pin', requireAuth, pinLimiter, (req, res) => {
 // PRODUCTS — PUBLIC
 // ════════════════════════════════════════════
 
+// GET /api/catalog-products — легкий список для витрины
+app.get('/api/catalog-products', async (req, res) => {
+  try {
+    const cacheKey = 'catalog-products:' + JSON.stringify(req.query);
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 2000, 1), 2000);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+
+    const [dataResult, countResult] = await Promise.all([
+      pool.query(
+        `SELECT id, name, brand, category, gender, price, original_price,
+                color, color_hex, sizes, image, featured, badge, badge2,
+                priority, created_at
+         FROM products
+         WHERE deleted_at IS NULL
+         ORDER BY priority DESC, created_at DESC, id DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      pool.query('SELECT count(*) FROM products WHERE deleted_at IS NULL'),
+    ]);
+
+    const result = {
+      items: dataResult.rows.map(rowToCamel),
+      total: parseInt(countResult.rows[0].count),
+      limit,
+      offset,
+      lightweight: true,
+    };
+    cacheSet(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    logger.error({ err, endpoint: 'GET /api/catalog-products' }, 'Catalog products list error');
+    res.status(500).json({ success: false, error: 'Ошибка получения каталога' });
+  }
+});
+
 // GET /api/products  — список с серверными фильтрами, поиском, пагинацией
 // Query: q, category, gender, brand, sizes, sale, featured, sort, limit, offset
 app.get('/api/products', async (req, res) => {

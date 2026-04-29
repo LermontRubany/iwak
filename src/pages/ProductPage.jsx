@@ -96,17 +96,22 @@ export default function ProductPage() {
     ? products.find((p) => String(p.id) === String(productId))
     : undefined;
 
-  // ── Fallback: прямой запрос по ID если товар не найден в списке ──
+  // ── Detail fetch: легкий каталог открывает карточку сразу, полные фото догружаются в фоне ──
   const [fallbackProduct, setFallbackProduct] = useState(null);
   const [fallbackLoading, setFallbackLoading] = useState(false);
 
   useEffect(() => {
-    if (productFromList || loading || !productId) {
+    if (!productId || loading) {
+      if (!productId) setFallbackProduct(null);
+      return;
+    }
+    const hasFullImages = Array.isArray(productFromList?.images) && productFromList.images.length > 0;
+    if (hasFullImages) {
       setFallbackProduct(null);
       return;
     }
     let cancelled = false;
-    setFallbackLoading(true);
+    setFallbackLoading(!productFromList);
     fetch(`/api/products/${productId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -117,7 +122,7 @@ export default function ProductPage() {
     return () => { cancelled = true; };
   }, [productFromList, loading, productId]);
 
-  const product = productFromList || fallbackProduct;
+  const product = fallbackProduct || productFromList;
   const sortedSizes = useMemo(() => sortSizes(product?.sizes || []), [product?.sizes]);
   const sizeRequired = sortedSizes.length > 0;
   const cartSize = sizeRequired ? selectedSize : 'OS';

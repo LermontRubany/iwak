@@ -80,16 +80,18 @@ async function apiFetchQuiet(url, options = {}) {
 
 // ── sessionStorage cache helpers ──
 const CACHE_KEY = 'iwak_products';
+const CATALOG_CACHE_KEY = 'iwak_catalog_products_v1';
 
 function readCache() {
   try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
+    const key = window.location.pathname.startsWith('/adminpanel') ? CACHE_KEY : CATALOG_CACHE_KEY;
+    const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr) || arr.length === 0) return null;
     // Валидация: все элементы должны быть объектами с id
     if (arr.some((p) => !p || typeof p !== 'object' || p.id == null)) {
-      sessionStorage.removeItem(CACHE_KEY); // сбрасываем испорченный кэш
+      sessionStorage.removeItem(key); // сбрасываем испорченный кэш
       return null;
     }
     return arr;
@@ -97,7 +99,10 @@ function readCache() {
 }
 
 function writeCache(items) {
-  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(items)); } catch {}
+  try {
+    const key = window.location.pathname.startsWith('/adminpanel') ? CACHE_KEY : CATALOG_CACHE_KEY;
+    sessionStorage.setItem(key, JSON.stringify(items));
+  } catch {}
 }
 
 export function ProductsProvider({ children }) {
@@ -126,9 +131,12 @@ export function ProductsProvider({ children }) {
         return;
       }
       if (!readCache() && !demoMode) setLoading(true);
+      const endpoint = window.location.pathname.startsWith('/adminpanel')
+        ? '/api/products?limit=2000'
+        : '/api/catalog-products?limit=2000';
       const data = demoMode
-        ? await apiFetchQuiet('/api/products?limit=2000', { timeoutMs: 900 }).catch(() => ({ items: demoProducts }))
-        : await apiFetch('/api/products?limit=2000');
+        ? await apiFetchQuiet(endpoint, { timeoutMs: 900 }).catch(() => ({ items: demoProducts }))
+        : await apiFetch(endpoint);
       const raw = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
       // Фильтруем невалидные элементы (защита от краша рендера)
       const items = raw.filter((p) => p && typeof p === 'object' && p.id != null);
