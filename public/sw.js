@@ -1,4 +1,6 @@
-const CACHE_VERSION = 'iwak-static-v2';
+const CACHE_VERSION = 'iwak-static-v3';
+const CATALOG_IMAGE_CACHE = 'iwak-catalog-images-v1';
+const MAX_CATALOG_IMAGES = 360;
 const APP_SHELL = '/catalog';
 const OFFLINE_PAGE = '/offline.html';
 const STATIC_PATHS = [
@@ -21,8 +23,12 @@ function shouldBypass(requestUrl) {
     requestUrl.pathname.startsWith('/api') ||
     requestUrl.pathname.startsWith('/admin') ||
     requestUrl.pathname.startsWith('/adminpanel') ||
-    requestUrl.pathname.startsWith('/uploads')
+    (requestUrl.pathname.startsWith('/uploads') && !requestUrl.pathname.startsWith('/uploads/catalog/'))
   );
+}
+
+function isCatalogImage(request, requestUrl) {
+  return request.destination === 'image' && requestUrl.pathname.startsWith('/uploads/catalog/');
 }
 
 function isStaticAsset(request, requestUrl) {
@@ -48,6 +54,25 @@ async function staleWhileRevalidate(request) {
     return cached;
   }
   return fresh;
+}
+
+async function trimCache(cacheName, maxItems) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= maxItems) return;
+  await Promise.all(keys.slice(0, keys.length - maxItems).map((key) => cache.delete(key)));
+}
+
+async function cacheFirstCatalogImage(request) {
+  const cache = await caches.open(CATALOG_IMAGE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response && response.ok) {
+    cache.put(request, response.clone()).then(() => trimCache(CATALOG_IMAGE_CACHE, MAX_CATALOG_IMAGES));
+  }
+  return response;
 }
 
 async function networkFirstPage(request) {
@@ -77,6 +102,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(
         keys
           .filter((key) => key !== CACHE_VERSION)
+          .filter((key) => key !== CATALOG_IMAGE_CACHE)
           .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
@@ -89,6 +115,11 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(request.url);
   if (!isSameOrigin(requestUrl) || shouldBypass(requestUrl)) return;
+
+  if (isCatalogImage(request, requestUrl)) {
+    event.respondWith(cacheFirstCatalogImage(request));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstPage(request));
