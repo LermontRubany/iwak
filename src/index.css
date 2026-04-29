@@ -2722,18 +2722,46 @@ img {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11px;
-  color: #777;
+  gap: 7px;
+  font-size: 10.5px;
+  color: #555;
   letter-spacing: 0.01em;
-  margin-top: 2px;
+  margin-top: 6px;
   line-height: 1.4;
 }
 
-.pp-trust span:not(:last-child)::after {
-  content: '·';
-  margin-left: 6px;
-  color: #b6b6b6;
+.pp-trust__item {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 999px;
+  background: #fafafa;
+  white-space: nowrap;
+}
+
+.pp-trust__item svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #111;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 380px) {
+  .pp-trust {
+    gap: 5px;
+  }
+
+  .pp-trust__item {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
 }
 
 /* Size buttons */

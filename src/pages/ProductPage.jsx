@@ -425,8 +425,31 @@ export default function ProductPage() {
 
         {/* Trust block */}
         <div className="pp-trust">
-          <span>Отправка из Москвы</span>
-          <span>Доставка РФ / РБ</span>
+          <span className="pp-trust__item">
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M9 16s5-4.5 5-9a5 5 0 0 0-10 0c0 4.5 5 9 5 9Z" />
+              <circle cx="9" cy="7" r="1.8" />
+            </svg>
+            Отправка из Москвы
+          </span>
+          <span className="pp-trust__item">
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M3 11.5h7.4c1.9 0 3.4-1.5 3.4-3.4V6.5" />
+              <path d="M11.7 4.2h3.1v3.1" />
+              <path d="M4 14.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
+              <path d="M13.7 14.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
+              <path d="M5.3 12.9h7.1" />
+            </svg>
+            Курьер по Москве в день заказа
+          </span>
+          <span className="pp-trust__item">
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M2.7 6.8h12.6" />
+              <path d="M4 4.4h10a1.3 1.3 0 0 1 1.3 1.3v6.6A1.3 1.3 0 0 1 14 13.6H4a1.3 1.3 0 0 1-1.3-1.3V5.7A1.3 1.3 0 0 1 4 4.4Z" />
+              <path d="M5.2 10.6h3" />
+            </svg>
+            Доставка РФ / РБ
+          </span>
         </div>
 
         <div className="product-page__details product-page__details--compact">
