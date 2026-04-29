@@ -446,10 +446,11 @@ export default function ProductPage() {
               <span>
                 <strong>РФ / Беларусь</strong>
                 <small>из Москвы · курьер сегодня</small>
+                <em>CDEK · Почта · Яндекс · Ozon</em>
               </span>
             </span>
             <a
-              className="pp-service-panel__item pp-service-panel__link"
+              className="pp-service-panel__question"
               href={managerQuestionHref}
               target="_blank"
               rel="noreferrer"
@@ -460,13 +461,10 @@ export default function ProductPage() {
                 <path d="M6.5 8.4h5" />
                 <path d="M6.5 10.7h3.4" />
               </svg>
-              <span>
-                <strong>Вопрос 24/7</strong>
-                <small>менеджеру</small>
-              </span>
+              <span>Вопрос 24/7</span>
+              <b aria-hidden="true">›</b>
             </a>
           </div>
-          <div className="pp-service-panel__services">CDEK · Почта · Яндекс · Ozon</div>
         </div>
 
         <div className="product-page__details product-page__details--compact">

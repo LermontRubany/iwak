@@ -2728,25 +2728,27 @@ img {
 
 .pp-service-panel__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
 }
 
 .pp-service-panel__item {
-  min-height: 43px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 7px 10px;
+  padding: 8px 10px;
   color: #111;
   text-decoration: none;
 }
 
-.pp-service-panel__item + .pp-service-panel__item {
+.pp-service-panel__question {
   border-left: 1px solid rgba(17, 17, 17, 0.07);
 }
 
-.pp-service-panel__item svg {
+.pp-service-panel__item svg,
+.pp-service-panel__question svg {
   width: 15px;
   height: 15px;
   flex: 0 0 auto;
@@ -2760,12 +2762,12 @@ img {
 .pp-service-panel__item span {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .pp-service-panel__item strong,
 .pp-service-panel__item small,
-.pp-service-panel__services {
+.pp-service-panel__item em {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2784,23 +2786,41 @@ img {
   line-height: 1.2;
 }
 
-.pp-service-panel__link {
-  background: #fff;
+.pp-service-panel__item em {
+  color: #777;
+  font-size: 9.4px;
+  font-style: normal;
+  line-height: 1.2;
 }
 
-.pp-service-panel__services {
-  border-top: 1px solid rgba(17, 17, 17, 0.06);
-  padding: 5px 10px 6px;
-  color: #777;
-  font-size: 9.8px;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
-  text-align: center;
+.pp-service-panel__question {
+  min-width: 118px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 7px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.pp-service-panel__question b {
+  margin-top: -1px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1;
 }
 
 @media (max-width: 380px) {
   .pp-service-panel__row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .pp-service-panel__item {
@@ -2814,8 +2834,17 @@ img {
   }
 
   .pp-service-panel__item small,
-  .pp-service-panel__services {
+  .pp-service-panel__item em {
     font-size: 9.2px;
+  }
+
+  .pp-service-panel__question {
+    min-width: 105px;
+    gap: 5px;
+    margin: 7px 7px 7px 0;
+    padding: 0 9px;
+    font-size: 9.6px;
+    letter-spacing: 0.035em;
   }
 }
 
