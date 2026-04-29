@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { preloadCartPage } from '../utils/preloadRoutes';
 import Navigation from './Navigation';
 import SearchOverlay from './SearchOverlay';
 
@@ -132,7 +133,10 @@ export default function Header() {
           <button
             className={`header-icon-btn cart-btn${cartPulse ? ' cart-btn--pulse' : ''}`}
             aria-label="Корзина"
+            onMouseEnter={preloadCartPage}
+            onTouchStart={preloadCartPage}
             onClick={() => {
+              preloadCartPage();
               closeMenu();
               setSearchOpen(false);
               navigate('/cart', {

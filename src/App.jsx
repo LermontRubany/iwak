@@ -9,12 +9,13 @@ import PromoBanner from './components/PromoBanner';
 import PwaInstallHint from './components/PwaInstallHint';
 import PwaPushPrompt from './components/PwaPushPrompt';
 import CatalogPage from './pages/CatalogPage';
+import { preloadAdminApp, preloadAdminLogin, preloadCartPage, preloadProductPage } from './utils/preloadRoutes';
 import './index.css';
 
-const AdminApp = lazy(() => import('./admin/AdminApp'));
-const AdminLogin = lazy(() => import('./admin/AdminLogin'));
-const ProductPage = lazy(() => import('./pages/ProductPage'));
-const CartPage = lazy(() => import('./pages/CartPage'));
+const AdminApp = lazy(preloadAdminApp);
+const AdminLogin = lazy(preloadAdminLogin);
+const ProductPage = lazy(preloadProductPage);
+const CartPage = lazy(preloadCartPage);
 
 function AppRoutes() {
   const location = useLocation();
@@ -25,6 +26,15 @@ function AppRoutes() {
   const baseLocation = backgroundLocation || (isOverlayRoute
     ? { ...location, pathname: '/catalog', search: '' }
     : location);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/catalog')) return undefined;
+    const timer = window.setTimeout(() => {
+      preloadProductPage();
+      preloadCartPage();
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname]);
 
   return (
     <>

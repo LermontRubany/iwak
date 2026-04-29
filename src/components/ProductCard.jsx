@@ -4,6 +4,7 @@ import { makeProductSlug } from '../utils/slug';
 import { stripBrandFromName } from '../utils/productDisplay';
 import sortSizes from '../utils/sortSizes';
 import { useCart } from '../context/CartContext';
+import { preloadProductPage } from '../utils/preloadRoutes';
 import { track } from '../utils/tracker';
 
 const prefetched = new Set();
@@ -17,7 +18,7 @@ function getCatalogImage(src) {
 }
 
 function prefetchProduct(id) {
-  // No-op: ProductPage is statically imported in App.jsx and always in the bundle.
+  preloadProductPage();
   prefetched.add(id);
 }
 
@@ -120,6 +121,9 @@ export default memo(function ProductCard({ product, priority }) {
         if (e.key === 'Enter') handleCardClick();
       }}
       onMouseEnter={() => {
+        prefetchProduct(product.id);
+      }}
+      onTouchStart={() => {
         prefetchProduct(product.id);
       }}
     >
