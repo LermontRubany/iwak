@@ -82,6 +82,7 @@ export default memo(function ProductCard({ product, priority }) {
       addQuickItem(sizes[0]);
       return;
     }
+    window.dispatchEvent(new CustomEvent('iwak:quick-add-open', { detail: { productId: product.id } }));
     setQuickOpen(true);
   };
 
@@ -110,6 +111,16 @@ export default memo(function ProductCard({ product, priority }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, [product]);
+
+  useEffect(() => {
+    const handleOtherQuickOpen = (event) => {
+      if (event.detail?.productId === product.id) return;
+      setQuickOpen(false);
+      setQuickSelectedSize('');
+    };
+    window.addEventListener('iwak:quick-add-open', handleOtherQuickOpen);
+    return () => window.removeEventListener('iwak:quick-add-open', handleOtherQuickOpen);
+  }, [product.id]);
 
   const quickRowsClass = sizes.length > 5 ? ' product-card--quick-two-rows' : ' product-card--quick-one-row';
 
