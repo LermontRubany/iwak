@@ -9,12 +9,12 @@ import PromoBanner from './components/PromoBanner';
 import PwaInstallHint from './components/PwaInstallHint';
 import PwaPushPrompt from './components/PwaPushPrompt';
 import CatalogPage from './pages/CatalogPage';
-import ProductPage from './pages/ProductPage';
-import CartPage from './pages/CartPage';
 import './index.css';
 
 const AdminApp = lazy(() => import('./admin/AdminApp'));
 const AdminLogin = lazy(() => import('./admin/AdminLogin'));
+const ProductPage = lazy(() => import('./pages/ProductPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
 
 function AppRoutes() {
   const location = useLocation();
@@ -40,13 +40,19 @@ function AppRoutes() {
 
       {/* ProductPage: manages its own .overlay wrapper */}
       {isProduct && (
-        <Routes>
-          <Route path="/product/:slug" element={<ProductPage />} />
-        </Routes>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/product/:slug" element={<ProductPage />} />
+          </Routes>
+        </Suspense>
       )}
 
       {/* CartPage: manages its own .overlay wrapper */}
-      {isCart && <CartPage />}
+      {isCart && (
+        <Suspense fallback={null}>
+          <CartPage />
+        </Suspense>
+      )}
 
       <PromoBanner position="bottom" />
       <PwaInstallHint />
