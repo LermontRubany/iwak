@@ -209,8 +209,9 @@ export default memo(function ProductCard({ product, priority }) {
             </svg>
           ) : (
             <svg viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M5.2 6.4h8l-.6 6.8a1.3 1.3 0 0 1-1.3 1.2H7.1a1.3 1.3 0 0 1-1.3-1.2L5.2 6.4Z" />
-              <path d="M7.1 6.4a2.1 2.1 0 0 1 4.2 0" />
+              <path d="M4.8 7h8.4l-.5 6.1a1.5 1.5 0 0 1-1.5 1.4H6.8a1.5 1.5 0 0 1-1.5-1.4L4.8 7Z" />
+              <path d="M6.9 7a2.1 2.1 0 0 1 4.2 0" />
+              <path d="M7.2 10h3.6" />
             </svg>
           )}
         </button>

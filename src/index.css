@@ -1375,7 +1375,7 @@ img {
 .product-card__info {
   position: relative;
   height: 96px;
-  padding: 12px 46px 12px 12px;
+  padding: 12px 54px 12px 12px;
   background: #fff;
   overflow: hidden;
 }
@@ -1383,7 +1383,7 @@ img {
 .product-card__details,
 .product-card__quick {
   position: absolute;
-  inset: 12px 46px 12px 12px;
+  inset: 12px 54px 12px 12px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1508,32 +1508,33 @@ img {
 
 .product-card__quick-btn {
   position: absolute;
-  right: 10px;
-  bottom: 12px;
+  right: 12px;
+  bottom: 14px;
   z-index: 2;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(17, 17, 17, 0.1);
+  border: 1px solid rgba(17, 17, 17, 0.14);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  background: #fff;
   color: #111;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
   cursor: pointer;
   transition:
+    border-color 0.18s ease,
     background 0.18s ease,
     color 0.18s ease,
     transform 0.18s ease;
 }
 
 .product-card__quick-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.5;
+  stroke-width: 1.45;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
