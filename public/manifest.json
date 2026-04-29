@@ -1,8 +1,11 @@
 {
   "name": "IWAK",
   "short_name": "IWAK",
+  "id": "/catalog",
   "start_url": "/catalog",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#000000",
   "icons": [
