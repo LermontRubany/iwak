@@ -2,6 +2,13 @@ export function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (import.meta.env.DEV) {
+    navigator.serviceWorker.getRegistrations?.()
+      .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+      .catch(() => {});
+    return;
+  }
+
   if (window.location.protocol !== 'https:' && !isLocalhost) return;
 
   window.addEventListener('load', () => {
