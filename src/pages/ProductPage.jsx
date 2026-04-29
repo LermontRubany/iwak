@@ -239,6 +239,17 @@ export default function ProductPage() {
     }
   }, [product]);
 
+  const managerQuestionHref = product
+    ? `https://t.me/IWAKm?text=${encodeURIComponent([
+        'Здравствуйте!',
+        '',
+        'Подскажите, пожалуйста, по товару:',
+        productDisplayName(product),
+        '',
+        `${window.location.origin}/product/${makeProductSlug(product)}`,
+      ].join('\n'))}`
+    : 'https://t.me/IWAKm';
+
   // Загрузка
   if (loading || fallbackLoading) {
     return (
@@ -423,33 +434,39 @@ export default function ProductPage() {
           )}
         </p>
 
-        {/* Trust block */}
-        <div className="pp-trust">
-          <span className="pp-trust__item">
-            <svg viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M9 16s5-4.5 5-9a5 5 0 0 0-10 0c0 4.5 5 9 5 9Z" />
-              <circle cx="9" cy="7" r="1.8" />
-            </svg>
-            Отправка из Москвы
-          </span>
-          <span className="pp-trust__item">
-            <svg viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M3 11.5h7.4c1.9 0 3.4-1.5 3.4-3.4V6.5" />
-              <path d="M11.7 4.2h3.1v3.1" />
-              <path d="M4 14.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
-              <path d="M13.7 14.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
-              <path d="M5.3 12.9h7.1" />
-            </svg>
-            Москва: курьер сегодня
-          </span>
-          <span className="pp-trust__item pp-trust__item--delivery">
-            <svg viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M9 2.8 14.6 6v6L9 15.2 3.4 12V6L9 2.8Z" />
-              <path d="M3.7 6.2 9 9.2l5.3-3" />
-              <path d="M9 9.2v5.6" />
-            </svg>
-            Россия: Яндекс, Ozon, CDEK, Почта
-          </span>
+        {/* Service panel */}
+        <div className="pp-service-panel">
+          <div className="pp-service-panel__row">
+            <span className="pp-service-panel__item">
+              <svg viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M9 2.8 14.6 6v6L9 15.2 3.4 12V6L9 2.8Z" />
+                <path d="M3.7 6.2 9 9.2l5.3-3" />
+                <path d="M9 9.2v5.6" />
+              </svg>
+              <span>
+                <strong>РФ / Беларусь</strong>
+                <small>из Москвы · курьер сегодня</small>
+              </span>
+            </span>
+            <a
+              className="pp-service-panel__item pp-service-panel__link"
+              href={managerQuestionHref}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => track('manager_question', { productId: product.id })}
+            >
+              <svg viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M4.4 13.1 3 15.2l2.7-.8a6.2 6.2 0 1 0-1.3-1.3Z" />
+                <path d="M6.5 8.4h5" />
+                <path d="M6.5 10.7h3.4" />
+              </svg>
+              <span>
+                <strong>Вопрос 24/7</strong>
+                <small>менеджеру</small>
+              </span>
+            </a>
+          </div>
+          <div className="pp-service-panel__services">CDEK · Почта · Яндекс · Ozon</div>
         </div>
 
         <div className="product-page__details product-page__details--compact">
