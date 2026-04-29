@@ -2602,20 +2602,33 @@ img {
 .product-page__brand {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   width: fit-content;
   color: inherit;
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-decoration: none;
-  opacity: 0.45;
+  opacity: 0.58;
   transition: opacity 0.18s ease;
 }
 
+.product-page__brand strong {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .product-page__brand span {
+  color: #777;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.product-page__brand b {
   margin-top: -1px;
   font-size: 13px;
+  font-weight: 400;
   letter-spacing: 0;
 }
 

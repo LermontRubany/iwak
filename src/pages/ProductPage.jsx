@@ -409,8 +409,9 @@ export default function ProductPage() {
             to={`/catalog?brand=${encodeURIComponent(String(product.brand || '').toLowerCase())}`}
             onClick={() => track('brand_click', { productId: product.id, brand: product.brand })}
           >
-            {product.brand}
-            <span aria-hidden="true">›</span>
+            <strong>{product.brand}</strong>
+            <span>другие товары</span>
+            <b aria-hidden="true">›</b>
           </Link>
           <button
             className={`pp-info-share ${copied ? 'pp-info-share--copied' : ''}`}
