@@ -7,23 +7,9 @@ import { useCart } from '../context/CartContext';
 import { track } from '../utils/tracker';
 
 const prefetched = new Set();
-const imagesPrefetched = new Set();
-
 function prefetchProduct(id) {
   // No-op: ProductPage is statically imported in App.jsx and always in the bundle.
-  // Intersection observer is kept only for image prefetching below.
   prefetched.add(id);
-}
-
-function prefetchImages(product) {
-  if (imagesPrefetched.has(product.id)) return;
-  imagesPrefetched.add(product.id);
-  const all = product.images?.length > 0 ? product.images : [product.image];
-  all.forEach((src) => {
-    if (!src) return;
-    const img = new Image();
-    img.src = src;
-  });
 }
 
 function handleImgError(e, colorHex) {
@@ -94,24 +80,6 @@ export default memo(function ProductCard({ product, priority }) {
     window.setTimeout(() => addQuickItem(size), 120);
   };
 
-  // Mobile: prefetch when card enters viewport
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          prefetchProduct(product.id);
-          prefetchImages(product);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '300px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [product]);
-
   useEffect(() => {
     if (!quickOpen) return undefined;
     const handleOtherQuickOpen = (event) => {
@@ -137,7 +105,6 @@ export default memo(function ProductCard({ product, priority }) {
       }}
       onMouseEnter={() => {
         prefetchProduct(product.id);
-        prefetchImages(product);
       }}
     >
       <div className="product-card__image-wrap">

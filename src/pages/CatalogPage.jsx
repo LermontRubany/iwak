@@ -13,6 +13,8 @@ import {
 
 const SEARCH_FIELDS = ['name', 'brand', 'category'];
 const URL_DEBOUNCE_MS = 300;
+const INITIAL_VISIBLE_PRODUCTS = 32;
+const VISIBLE_PRODUCTS_STEP = 32;
 
 const SIZE_PATTERN = /^[a-z]{1,3}$|^\d{1,3}$/;
 
@@ -179,6 +181,33 @@ export default function CatalogPage() {
     applyFilters(products, filters, sortBy, query, saleParam),
     [products, filters, sortBy, query, saleParam]
   );
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_PRODUCTS);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_PRODUCTS);
+  }, [filtered]);
+
+  useEffect(() => {
+    if (loading || visibleCount >= filtered.length) return undefined;
+
+    const loadMoreNearBottom = () => {
+      const doc = document.documentElement;
+      const nearBottom = window.innerHeight + window.scrollY >= doc.scrollHeight - 1400;
+      if (nearBottom) {
+        setVisibleCount((count) => Math.min(count + VISIBLE_PRODUCTS_STEP, filtered.length));
+      }
+    };
+
+    loadMoreNearBottom();
+    window.addEventListener('scroll', loadMoreNearBottom, { passive: true });
+    window.addEventListener('resize', loadMoreNearBottom);
+    return () => {
+      window.removeEventListener('scroll', loadMoreNearBottom);
+      window.removeEventListener('resize', loadMoreNearBottom);
+    };
+  }, [filtered.length, loading, visibleCount]);
+
+  const visibleProducts = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   // ── Adapter: FilterPanel expects {categories[], genders[], brands[], sizes[]} ──
   const panelFilters = useMemo(() => ({
@@ -426,7 +455,7 @@ export default function CatalogPage() {
             </div>
           )
         ) : (
-          filtered.map((product, i) => (
+          visibleProducts.map((product, i) => (
             <ProductCard key={product.id} product={product} priority={i < 4} />
           ))
         )}
