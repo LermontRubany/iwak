@@ -113,6 +113,7 @@ export default memo(function ProductCard({ product, priority }) {
   }, [product]);
 
   useEffect(() => {
+    if (!quickOpen) return undefined;
     const handleOtherQuickOpen = (event) => {
       if (event.detail?.productId === product.id) return;
       setQuickOpen(false);
@@ -120,7 +121,7 @@ export default memo(function ProductCard({ product, priority }) {
     };
     window.addEventListener('iwak:quick-add-open', handleOtherQuickOpen);
     return () => window.removeEventListener('iwak:quick-add-open', handleOtherQuickOpen);
-  }, [product.id]);
+  }, [product.id, quickOpen]);
 
   const quickRowsClass = sizes.length > 5 ? ' product-card--quick-two-rows' : ' product-card--quick-one-row';
 
