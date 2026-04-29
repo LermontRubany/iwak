@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import './admin.css';
 import { useProducts } from '../context/ProductsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import AdminProductForm from './AdminProductForm';

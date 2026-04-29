@@ -1,10 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Component, useState, useEffect } from 'react';
+import { Component, Suspense, lazy, useState, useEffect } from 'react';
 import { CartProvider } from './context/CartContext';
 import { ProductsProvider } from './context/ProductsContext';
 import { NotificationsProvider, notifyGlobal } from './context/NotificationsContext';
-import AdminApp from './admin/AdminApp';
-import AdminLogin from './admin/AdminLogin';
 import { isTokenValid, tokenMinutesLeft, resetAuthGuard } from './admin/authFetch';
 import Header from './components/Header';
 import PromoBanner from './components/PromoBanner';
@@ -14,7 +12,9 @@ import CatalogPage from './pages/CatalogPage';
 import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
 import './index.css';
-import './admin/admin.css';
+
+const AdminApp = lazy(() => import('./admin/AdminApp'));
+const AdminLogin = lazy(() => import('./admin/AdminLogin'));
 
 function AppRoutes() {
   const location = useLocation();
@@ -113,13 +113,15 @@ function App() {
       <ErrorBoundary>
       <NotificationsProvider>
       <ProductsProvider>
-        {authed
-          ? <>
-              <SessionExpiryWarning />
-              <AdminApp />
-            </>
-          : <AdminLogin onAuth={handleAuth} />
-        }
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Загрузка...</div>}>
+          {authed
+            ? <>
+                <SessionExpiryWarning />
+                <AdminApp />
+              </>
+            : <AdminLogin onAuth={handleAuth} />
+          }
+        </Suspense>
       </ProductsProvider>
       </NotificationsProvider>
       </ErrorBoundary>

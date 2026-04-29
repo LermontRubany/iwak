@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './admin.css';
 import { resetSessionExpired } from '../context/ProductsContext';
 import { resetAuthGuard } from './authFetch';
 
