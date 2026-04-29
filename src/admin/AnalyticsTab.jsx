@@ -230,6 +230,33 @@ export default function AnalyticsTab() {
             )}
           </div>
 
+          {data.pwa && (
+            <div className="anl-section">
+              <div className="anl-section__head">
+                <h3 className="anl-section__title">PWA приложение</h3>
+                <span className="anl-section__hint">iPhone считает установку по открытию с экрана Домой</span>
+              </div>
+              <div className="anl-cards anl-cards--pwa">
+                <div className="anl-card">
+                  <span className="anl-card__value">{data.pwa.installUsers}</span>
+                  <span className="anl-card__label">Поставили</span>
+                </div>
+                <div className="anl-card">
+                  <span className="anl-card__value">{data.pwa.opened}</span>
+                  <span className="anl-card__label">Открытий как приложение</span>
+                </div>
+                <div className="anl-card">
+                  <span className="anl-card__value">{data.pwa.hintShown}</span>
+                  <span className="anl-card__label">Показов подсказки</span>
+                </div>
+                <div className="anl-card">
+                  <span className="anl-card__value">{data.pwa.hintClosed}</span>
+                  <span className="anl-card__label">Закрыли подсказку</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Activity — compact */}
           {data.funnel && (
             <>

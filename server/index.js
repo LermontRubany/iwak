@@ -800,6 +800,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   'page_view', 'product_view', 'share',
   'cart_add', 'cart_remove', 'buy_now', 'checkout_click',
   'size_select', 'filter_apply', 'promo_click',
+  'pwa_hint_shown', 'pwa_hint_closed', 'pwa_opened', 'pwa_install_detected',
 ]);
 
 function getClientIp(req) {
@@ -965,6 +966,18 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
         `SELECT COUNT(DISTINCT session_id) AS count FROM events
          WHERE created_at >= now() - interval '2 minutes'`
       ),
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE type = 'pwa_hint_shown') AS hint_shown,
+           COUNT(*) FILTER (WHERE type = 'pwa_hint_closed') AS hint_closed,
+           COUNT(*) FILTER (WHERE type = 'pwa_opened') AS opened,
+           COUNT(DISTINCT session_id) FILTER (WHERE type = 'pwa_opened') AS opened_users,
+           COUNT(*) FILTER (WHERE type = 'pwa_install_detected') AS installs,
+           COUNT(DISTINCT session_id) FILTER (WHERE type = 'pwa_install_detected') AS install_users
+         FROM events
+         WHERE created_at >= ${sinceExpr}
+           AND type IN ('pwa_hint_shown', 'pwa_hint_closed', 'pwa_opened', 'pwa_install_detected')`
+      ),
     ];
 
     // Previous-period queries only in analysis mode
@@ -992,9 +1005,9 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
     }
 
     const results = await Promise.all(baseQueries);
-    const [visits, views, shares, topProducts, topCities, topCountries, topDevices, byHour, byDay, productHours, online] = results;
-    const prevKpi = results[11] || null;
-    const prevTopProducts = results[12] || null;
+    const [visits, views, shares, topProducts, topCities, topCountries, topDevices, byHour, byDay, productHours, online, pwaStats] = results;
+    const prevKpi = results[12] || null;
+    const prevTopProducts = results[13] || null;
 
     // Enrich top products with names from products table
     const productIds = topProducts.rows
@@ -1053,6 +1066,14 @@ app.get('/api/analytics', requireAuth, async (req, res) => {
       visits: curVisits,
       productViews: curViews,
       shares: curShares,
+      pwa: {
+        hintShown: parseInt(pwaStats.rows[0]?.hint_shown) || 0,
+        hintClosed: parseInt(pwaStats.rows[0]?.hint_closed) || 0,
+        opened: parseInt(pwaStats.rows[0]?.opened) || 0,
+        openedUsers: parseInt(pwaStats.rows[0]?.opened_users) || 0,
+        installs: parseInt(pwaStats.rows[0]?.installs) || 0,
+        installUsers: parseInt(pwaStats.rows[0]?.install_users) || 0,
+      },
       topProducts: topProducts.rows.map(r => {
         const v = parseInt(r.views);
         const pid = r.product_id;

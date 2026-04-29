@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { track } from '../utils/tracker';
 
 const STORAGE_KEY = 'iwak_pwa_hint_dismissed';
+const OPENED_KEY = 'iwak_pwa_opened_tracked';
+const INSTALL_KEY = 'iwak_pwa_install_detected';
 
 function isIosDevice() {
   if (typeof navigator === 'undefined') return false;
@@ -20,16 +23,31 @@ export default function PwaInstallHint() {
   }, []);
 
   useEffect(() => {
+    if (isStandalone()) {
+      if (!sessionStorage.getItem(OPENED_KEY)) {
+        sessionStorage.setItem(OPENED_KEY, '1');
+        track('pwa_opened', { source: 'standalone' });
+      }
+      if (!window.localStorage.getItem(INSTALL_KEY)) {
+        window.localStorage.setItem(INSTALL_KEY, '1');
+        track('pwa_install_detected', { source: 'standalone' });
+      }
+    }
+
     if (isStandalone()) return;
     if (!forceVisible && !isIosDevice()) return;
     if (!forceVisible && window.localStorage.getItem(STORAGE_KEY) === '1') return;
 
-    const timer = window.setTimeout(() => setVisible(true), forceVisible ? 250 : 1400);
+    const timer = window.setTimeout(() => {
+      setVisible(true);
+      if (!forceVisible) track('pwa_hint_shown', { forced: false });
+    }, forceVisible ? 250 : 1400);
     return () => window.clearTimeout(timer);
   }, [forceVisible]);
 
   const handleClose = () => {
     window.localStorage.setItem(STORAGE_KEY, '1');
+    if (!forceVisible) track('pwa_hint_closed');
     setVisible(false);
   };
 
