@@ -7,6 +7,15 @@ import { useCart } from '../context/CartContext';
 import { track } from '../utils/tracker';
 
 const prefetched = new Set();
+const USE_CATALOG_THUMBNAILS = true;
+
+function getCatalogImage(src) {
+  if (!USE_CATALOG_THUMBNAILS || !src?.startsWith('/uploads/') || src.startsWith('/uploads/catalog/')) {
+    return src;
+  }
+  return src.replace('/uploads/', '/uploads/catalog/').replace(/\.(jpe?g|png|webp|avif)$/i, '.webp');
+}
+
 function prefetchProduct(id) {
   // No-op: ProductPage is statically imported in App.jsx and always in the bundle.
   prefetched.add(id);
@@ -14,6 +23,12 @@ function prefetchProduct(id) {
 
 function handleImgError(e, colorHex) {
   const img = e.target;
+  const fallbackSrc = img.dataset.fallbackSrc;
+  if (fallbackSrc && img.src !== new URL(fallbackSrc, window.location.origin).href) {
+    img.src = fallbackSrc;
+    img.removeAttribute('data-fallback-src');
+    return;
+  }
   img.style.display = 'none';
   const wrap = img.parentElement;
   wrap.style.background = colorHex || '#e8e6e1';
@@ -36,6 +51,7 @@ export default memo(function ProductCard({ product, priority }) {
   const [quickSelectedSize, setQuickSelectedSize] = useState('');
   const sizes = sortSizes(product.sizes || []);
   const productUrl = `/product/${makeProductSlug(product)}`;
+  const catalogImage = getCatalogImage(product.image);
 
   const addQuickItem = (size) => {
     addItem(product, size || 'OS');
@@ -109,7 +125,8 @@ export default memo(function ProductCard({ product, priority }) {
     >
       <div className="product-card__image-wrap">
         <img
-          src={product.image}
+          src={catalogImage}
+          data-fallback-src={catalogImage !== product.image ? product.image : undefined}
           alt={product.name}
           className="product-card__image"
           loading={priority ? 'eager' : 'lazy'}

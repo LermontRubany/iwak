@@ -295,7 +295,9 @@ function pushPromptFromConfig(cfg) {
 
 // Раздача загруженных изображений
 const uploadDir = path.join(__dirname, '../uploads');
+const catalogThumbDir = path.join(uploadDir, 'catalog');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(catalogThumbDir)) fs.mkdirSync(catalogThumbDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir, {
   maxAge: '30d',
   immutable: true,
@@ -817,6 +819,7 @@ app.post('/api/upload', requireAuth, uploadLimiter, upload.single('image'), asyn
   if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`;
   const outPath = path.join(uploadDir, filename);
+  const catalogOutPath = path.join(catalogThumbDir, filename);
   try {
     // Проверка magic bytes через sharp.metadata() — отклоняет не-изображения до обработки
     const meta = await sharp(req.file.buffer).metadata();
@@ -825,12 +828,19 @@ app.post('/api/upload', requireAuth, uploadLimiter, upload.single('image'), asyn
       logger.warn({ ip: req.ip, format: meta.format }, 'Upload rejected: invalid image format');
       return res.status(415).json({ success: false, error: 'Недопустимый формат файла' });
     }
-    await sharp(req.file.buffer)
-      .rotate()
-      .resize({ width: 1200, withoutEnlargement: true })
-      .webp({ quality: 78 })
-      .toFile(outPath);
-    res.json({ path: `/uploads/${filename}` });
+    await Promise.all([
+      sharp(req.file.buffer)
+        .rotate()
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 78 })
+        .toFile(outPath),
+      sharp(req.file.buffer)
+        .rotate()
+        .resize({ width: 720, withoutEnlargement: true })
+        .webp({ quality: 74 })
+        .toFile(catalogOutPath),
+    ]);
+    res.json({ path: `/uploads/${filename}`, catalogPath: `/uploads/catalog/${filename}` });
   } catch (err) {
     logger.error({ err, ip: req.ip }, 'Upload/Sharp error');
     // Если sharp не смог распознать — это не изображение
