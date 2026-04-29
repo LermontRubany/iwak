@@ -1556,6 +1556,14 @@ img {
   box-shadow: none;
 }
 
+.product-card--quick-open.product-card--quick-one-row .product-card__quick-btn {
+  top: 44px;
+}
+
+.product-card--quick-open.product-card--quick-two-rows .product-card__quick-btn {
+  top: 60px;
+}
+
 .product-card--quick-added .product-card__quick-btn {
   background: transparent;
   border-color: transparent;

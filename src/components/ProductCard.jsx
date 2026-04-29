@@ -106,9 +106,11 @@ export default memo(function ProductCard({ product, priority }) {
     return () => observer.disconnect();
   }, [product]);
 
+  const quickRowsClass = sizes.length > 5 ? ' product-card--quick-two-rows' : ' product-card--quick-one-row';
+
   return (
     <article
-      className={`product-card${quickOpen ? ' product-card--quick-open' : ''}${quickAdded ? ' product-card--quick-added' : ''}`}
+      className={`product-card${quickRowsClass}${quickOpen ? ' product-card--quick-open' : ''}${quickAdded ? ' product-card--quick-added' : ''}`}
       ref={cardRef}
       role="link"
       tabIndex={0}
