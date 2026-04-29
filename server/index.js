@@ -1876,7 +1876,7 @@ app.get('/product/:slug', async (req, res, next) => {
     const titleName = brandName && !productName.toLowerCase().startsWith(brandName.toLowerCase())
       ? `${brandName} ${productName}`
       : productName;
-    const imgUrl = `${SITE_ORIGIN}/og-image/${match[1]}`;
+    const imgUrl = p.image ? `${SITE_ORIGIN}${p.image}` : `${SITE_ORIGIN}/og-image/${match[1]}`;
 
     res.send(buildOgHtml({
       title: `${titleName} — IWAK`,
