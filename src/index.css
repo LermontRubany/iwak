@@ -1487,6 +1487,14 @@ img {
   justify-items: center;
 }
 
+.product-card--quick-one-row .product-card__quick {
+  justify-content: center;
+}
+
+.product-card--quick-one-row .product-card__quick-title {
+  display: none;
+}
+
 .product-card__quick-size {
   min-width: 0;
   width: 27px;
@@ -1557,7 +1565,7 @@ img {
 }
 
 .product-card--quick-one-row .product-card__quick-btn {
-  top: 44px;
+  top: 48px;
 }
 
 .product-card--quick-two-rows .product-card__quick-btn {
