@@ -440,15 +440,15 @@ export default function ProductPage() {
               <path d="M13.7 14.2a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
               <path d="M5.3 12.9h7.1" />
             </svg>
-            Курьер по Москве в день заказа
+            Москва: курьер сегодня
           </span>
-          <span className="pp-trust__item">
+          <span className="pp-trust__item pp-trust__item--delivery">
             <svg viewBox="0 0 18 18" aria-hidden="true">
-              <path d="M2.7 6.8h12.6" />
-              <path d="M4 4.4h10a1.3 1.3 0 0 1 1.3 1.3v6.6A1.3 1.3 0 0 1 14 13.6H4a1.3 1.3 0 0 1-1.3-1.3V5.7A1.3 1.3 0 0 1 4 4.4Z" />
-              <path d="M5.2 10.6h3" />
+              <path d="M9 2.8 14.6 6v6L9 15.2 3.4 12V6L9 2.8Z" />
+              <path d="M3.7 6.2 9 9.2l5.3-3" />
+              <path d="M9 9.2v5.6" />
             </svg>
-            Доставка РФ / РБ
+            Россия: Яндекс, Ozon, CDEK, Почта
           </span>
         </div>
 

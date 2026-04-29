@@ -2742,6 +2742,10 @@ img {
   white-space: nowrap;
 }
 
+.pp-trust__item--delivery {
+  white-space: normal;
+}
+
 .pp-trust__item svg {
   width: 14px;
   height: 14px;
