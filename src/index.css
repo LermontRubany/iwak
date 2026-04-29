@@ -1412,7 +1412,7 @@ img {
 .product-card__info {
   position: relative;
   height: 96px;
-  padding: 12px 50px 12px 12px;
+  padding: 12px 38px 12px 12px;
   background: #fff;
   overflow: hidden;
 }
@@ -1420,7 +1420,7 @@ img {
 .product-card__details,
 .product-card__quick {
   position: absolute;
-  inset: 12px 50px 12px 12px;
+  inset: 12px 38px 12px 12px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1561,10 +1561,10 @@ img {
 
 .product-card__quick-btn {
   position: absolute;
-  right: 8px;
+  right: 4px;
   top: 60px;
   z-index: 2;
-  width: 40px;
+  width: 36px;
   height: 40px;
   display: inline-flex;
   align-items: center;
