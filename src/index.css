@@ -1514,7 +1514,7 @@ img {
 .product-card__quick-btn {
   position: absolute;
   right: 8px;
-  top: 50%;
+  top: 60px;
   z-index: 2;
   width: 40px;
   height: 40px;
@@ -1556,11 +1556,11 @@ img {
   box-shadow: none;
 }
 
-.product-card--quick-open.product-card--quick-one-row .product-card__quick-btn {
+.product-card--quick-one-row .product-card__quick-btn {
   top: 44px;
 }
 
-.product-card--quick-open.product-card--quick-two-rows .product-card__quick-btn {
+.product-card--quick-two-rows .product-card__quick-btn {
   top: 60px;
 }
 
