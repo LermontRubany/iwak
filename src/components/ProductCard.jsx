@@ -1,7 +1,10 @@
-import { memo, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { memo, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { makeProductSlug } from '../utils/slug';
 import { stripBrandFromName } from '../utils/productDisplay';
+import sortSizes from '../utils/sortSizes';
+import { useCart } from '../context/CartContext';
+import { track } from '../utils/tracker';
 
 const prefetched = new Set();
 const imagesPrefetched = new Set();
@@ -40,6 +43,50 @@ function handleImgError(e, colorHex) {
 export default memo(function ProductCard({ product, priority }) {
   const cardRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { addItem } = useCart();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickAdded, setQuickAdded] = useState(false);
+  const sizes = sortSizes(product.sizes || []);
+  const productUrl = `/product/${makeProductSlug(product)}`;
+
+  const addQuickItem = (size) => {
+    addItem(product, size || 'OS');
+    setQuickAdded(true);
+    setQuickOpen(false);
+    track('catalog_quick_add_done', { productId: product.id, size: size || 'OS' });
+    window.setTimeout(() => setQuickAdded(false), 900);
+  };
+
+  const handleCardClick = () => {
+    navigate(productUrl, { state: { backgroundLocation: location } });
+  };
+
+  const handleQuickAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (quickOpen) {
+      setQuickOpen(false);
+      return;
+    }
+    track('catalog_quick_add_open', { productId: product.id });
+    if (sizes.length === 0) {
+      addQuickItem('OS');
+      return;
+    }
+    if (sizes.length === 1) {
+      addQuickItem(sizes[0]);
+      return;
+    }
+    setQuickOpen(true);
+  };
+
+  const handleSizeClick = (e, size) => {
+    e.preventDefault();
+    e.stopPropagation();
+    track('catalog_quick_add_size', { productId: product.id, size });
+    addQuickItem(size);
+  };
 
   // Mobile: prefetch when card enters viewport
   useEffect(() => {
@@ -60,11 +107,15 @@ export default memo(function ProductCard({ product, priority }) {
   }, [product]);
 
   return (
-    <Link
-      to={`/product/${makeProductSlug(product)}`}
-      state={{ backgroundLocation: location }}
-      className="product-card"
+    <article
+      className={`product-card${quickOpen ? ' product-card--quick-open' : ''}${quickAdded ? ' product-card--quick-added' : ''}`}
       ref={cardRef}
+      role="link"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') handleCardClick();
+      }}
       onMouseEnter={() => {
         prefetchProduct(product.id);
         prefetchImages(product);
@@ -110,18 +161,60 @@ export default memo(function ProductCard({ product, priority }) {
         })()}
       </div>
       <div className="product-card__info">
-        <span className="product-card__brand">{product.brand}</span>
-        <span className="product-card__name">{stripBrandFromName(product)}</span>
-        {product.originalPrice && product.originalPrice > product.price ? (
-          <span className="product-card__price-row">
-            <span className="product-card__price product-card__price--sale">₽{product.price.toLocaleString('ru-RU')}</span>
-            <span className="product-card__price--old">₽{product.originalPrice.toLocaleString('ru-RU')}</span>
-            <span className="product-card__badge">-{Math.round(100 - (product.price / product.originalPrice) * 100)}%</span>
-          </span>
-        ) : (
-          <span className="product-card__price">₽{product.price.toLocaleString('ru-RU')}</span>
-        )}
+        <div className="product-card__details">
+          <span className="product-card__brand">{product.brand}</span>
+          <span className="product-card__name">{stripBrandFromName(product)}</span>
+          {product.originalPrice && product.originalPrice > product.price ? (
+            <span className="product-card__price-row">
+              <span className="product-card__price product-card__price--sale">₽{product.price.toLocaleString('ru-RU')}</span>
+              <span className="product-card__price--old">₽{product.originalPrice.toLocaleString('ru-RU')}</span>
+              <span className="product-card__badge">-{Math.round(100 - (product.price / product.originalPrice) * 100)}%</span>
+            </span>
+          ) : (
+            <span className="product-card__price">₽{product.price.toLocaleString('ru-RU')}</span>
+          )}
+        </div>
+
+        <div className="product-card__quick" aria-hidden={!quickOpen}>
+          <span className="product-card__quick-title">Размер</span>
+          <div className="product-card__quick-sizes">
+            {sizes.map((size) => (
+              <button
+                key={size}
+                className="product-card__quick-size"
+                type="button"
+                onClick={(e) => handleSizeClick(e, size)}
+                tabIndex={quickOpen ? 0 : -1}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          className="product-card__quick-btn"
+          type="button"
+          onClick={handleQuickAdd}
+          aria-label={quickOpen ? 'Закрыть выбор размера' : 'Быстро добавить в корзину'}
+        >
+          {quickAdded ? (
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M4 9.4 7.3 12.7 14 5.8" />
+            </svg>
+          ) : quickOpen ? (
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M5 5 13 13" />
+              <path d="M13 5 5 13" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M5.2 6.4h8l-.6 6.8a1.3 1.3 0 0 1-1.3 1.2H7.1a1.3 1.3 0 0 1-1.3-1.2L5.2 6.4Z" />
+              <path d="M7.1 6.4a2.1 2.1 0 0 1 4.2 0" />
+            </svg>
+          )}
+        </button>
       </div>
-    </Link>
+    </article>
   );
 });
