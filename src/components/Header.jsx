@@ -9,6 +9,9 @@ export default function Header() {
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [onDark, setOnDark] = useState(false);
+  const [cartPulse, setCartPulse] = useState(false);
+  const [menuPulse, setMenuPulse] = useState(false);
+  const [searchPulse, setSearchPulse] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -43,6 +46,9 @@ export default function Header() {
   };
 
   const toggleMenu = () => {
+    setMenuPulse(false);
+    window.requestAnimationFrame(() => setMenuPulse(true));
+    window.setTimeout(() => setMenuPulse(false), 360);
     if (navOpen) closeMenu();
     else openMenu();
   };
@@ -76,13 +82,23 @@ export default function Header() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const handlePulse = () => {
+      setCartPulse(false);
+      window.requestAnimationFrame(() => setCartPulse(true));
+      window.setTimeout(() => setCartPulse(false), 520);
+    };
+    window.addEventListener('iwak:cart-pulse', handlePulse);
+    return () => window.removeEventListener('iwak:cart-pulse', handlePulse);
+  }, []);
+
   return (
     <>
       <header className={`site-header${onDark ? ' site-header--light' : ''}`}>
         <div className="header-left">
           {!isSearchMode && (
             <button
-              className="header-icon-btn menu-btn"
+              className={`header-icon-btn menu-btn${menuPulse ? ' header-icon-btn--tap-pulse' : ''}`}
               onClick={toggleMenu}
               aria-label={navOpen ? 'Закрыть меню' : 'Меню'}
             >
@@ -98,9 +114,15 @@ export default function Header() {
 
         <div className="header-right">
           <button
-            className="header-icon-btn"
+            className={`header-icon-btn${searchPulse ? ' header-icon-btn--tap-pulse' : ''}`}
             aria-label="Поиск"
-            onClick={() => { closeMenu(); setSearchOpen(true); }}
+            onClick={() => {
+              setSearchPulse(false);
+              window.requestAnimationFrame(() => setSearchPulse(true));
+              window.setTimeout(() => setSearchPulse(false), 360);
+              closeMenu();
+              setSearchOpen(true);
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <circle cx="10" cy="10" r="6" stroke="currentColor" strokeWidth="1.2"/>
@@ -108,7 +130,7 @@ export default function Header() {
             </svg>
           </button>
           <button
-            className="header-icon-btn cart-btn"
+            className={`header-icon-btn cart-btn${cartPulse ? ' cart-btn--pulse' : ''}`}
             aria-label="Корзина"
             onClick={() => {
               closeMenu();

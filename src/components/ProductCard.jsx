@@ -47,14 +47,17 @@ export default memo(function ProductCard({ product, priority }) {
   const { addItem } = useCart();
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickAdded, setQuickAdded] = useState(false);
+  const [quickSelectedSize, setQuickSelectedSize] = useState('');
   const sizes = sortSizes(product.sizes || []);
   const productUrl = `/product/${makeProductSlug(product)}`;
 
   const addQuickItem = (size) => {
     addItem(product, size || 'OS');
+    window.dispatchEvent(new CustomEvent('iwak:cart-pulse'));
     setQuickAdded(true);
     setQuickOpen(false);
     track('catalog_quick_add_done', { productId: product.id, size: size || 'OS' });
+    window.setTimeout(() => setQuickSelectedSize(''), 220);
     window.setTimeout(() => setQuickAdded(false), 900);
   };
 
@@ -67,6 +70,7 @@ export default memo(function ProductCard({ product, priority }) {
     e.stopPropagation();
     if (quickOpen) {
       setQuickOpen(false);
+      setQuickSelectedSize('');
       return;
     }
     track('catalog_quick_add_open', { productId: product.id });
@@ -85,7 +89,8 @@ export default memo(function ProductCard({ product, priority }) {
     e.preventDefault();
     e.stopPropagation();
     track('catalog_quick_add_size', { productId: product.id, size });
-    addQuickItem(size);
+    setQuickSelectedSize(size);
+    window.setTimeout(() => addQuickItem(size), 120);
   };
 
   // Mobile: prefetch when card enters viewport
@@ -183,7 +188,7 @@ export default memo(function ProductCard({ product, priority }) {
             {sizes.map((size) => (
               <button
                 key={size}
-                className="product-card__quick-size"
+                className={`product-card__quick-size${quickSelectedSize === size ? ' product-card__quick-size--selected' : ''}`}
                 type="button"
                 onClick={(e) => handleSizeClick(e, size)}
                 tabIndex={quickOpen ? 0 : -1}
