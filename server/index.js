@@ -22,6 +22,7 @@ import compression from 'compression';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import geoip from 'geoip-lite';
+import webpush from 'web-push';
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -206,6 +207,66 @@ function cacheSet(key, data) {
 
 function cacheInvalidate() {
   cache.clear();
+}
+
+// ── PWA push infrastructure ─────────────────
+async function ensurePwaInfrastructure() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_config (
+      id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      public_key text NOT NULL,
+      private_key text NOT NULL,
+      subject text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id bigserial PRIMARY KEY,
+      endpoint text NOT NULL UNIQUE,
+      subscription jsonb NOT NULL,
+      session_id text,
+      user_agent text,
+      device text,
+      enabled boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      last_seen_at timestamptz NOT NULL DEFAULT now(),
+      last_sent_at timestamptz,
+      error text
+    )
+  `);
+
+  const existing = await pool.query('SELECT * FROM push_config WHERE id = 1');
+  let cfg = existing.rows[0];
+  if (!cfg) {
+    const keys = webpush.generateVAPIDKeys();
+    const subject = process.env.VAPID_SUBJECT || process.env.SITE_ORIGIN || 'mailto:admin@iwak.ru';
+    const inserted = await pool.query(
+      `INSERT INTO push_config (id, public_key, private_key, subject)
+       VALUES (1, $1, $2, $3)
+       RETURNING *`,
+      [keys.publicKey, keys.privateKey, subject]
+    );
+    cfg = inserted.rows[0];
+    logger.info('PWA push VAPID keys generated');
+  }
+
+  webpush.setVapidDetails(cfg.subject, cfg.public_key, cfg.private_key);
+  return cfg;
+}
+
+const pwaReady = ensurePwaInfrastructure().catch((err) => {
+  logger.error({ err }, 'PWA push infrastructure init failed');
+  return null;
+});
+
+async function getPushConfig() {
+  const cfg = await pwaReady;
+  if (cfg) return cfg;
+  return ensurePwaInfrastructure();
 }
 
 // Раздача загруженных изображений
@@ -801,6 +862,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   'cart_add', 'cart_remove', 'buy_now', 'checkout_click',
   'size_select', 'filter_apply', 'promo_click',
   'pwa_hint_shown', 'pwa_hint_closed', 'pwa_opened', 'pwa_install_detected',
+  'pwa_push_prompt_shown', 'pwa_push_subscribed', 'pwa_push_denied',
 ]);
 
 function getClientIp(req) {
@@ -864,6 +926,126 @@ app.post('/api/events', async (req, res) => {
   } catch (err) {
     logger.error({ err }, 'POST /api/events error');
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ════════════════════════════════════════════
+// PWA PUSH — PUBLIC SUBSCRIPTION + ADMIN SEND
+// ════════════════════════════════════════════
+
+app.get('/api/push/public-key', async (_req, res) => {
+  try {
+    const cfg = await getPushConfig();
+    res.json({ publicKey: cfg.public_key });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/push/public-key error');
+    res.status(500).json({ error: 'Push пока недоступен' });
+  }
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+  const { subscription, sessionId } = req.body || {};
+  if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return res.status(400).json({ error: 'Некорректная push-подписка' });
+  }
+
+  try {
+    await getPushConfig();
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    const device = detectDevice(userAgent);
+    const sid = typeof sessionId === 'string' ? sessionId.slice(0, 80) : null;
+    const result = await pool.query(
+      `INSERT INTO push_subscriptions (endpoint, subscription, session_id, user_agent, device)
+       VALUES ($1, $2::jsonb, $3, $4, $5)
+       ON CONFLICT (endpoint) DO UPDATE SET
+         subscription = EXCLUDED.subscription,
+         session_id = COALESCE(EXCLUDED.session_id, push_subscriptions.session_id),
+         user_agent = EXCLUDED.user_agent,
+         device = EXCLUDED.device,
+         enabled = true,
+         error = NULL,
+         updated_at = now(),
+         last_seen_at = now()
+       RETURNING id`,
+      [subscription.endpoint, JSON.stringify(subscription), sid, userAgent, device]
+    );
+    res.json({ ok: true, id: result.rows[0].id });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/push/subscribe error');
+    res.status(500).json({ error: 'Не удалось сохранить push-подписку' });
+  }
+});
+
+app.get('/api/push/stats', requireAuth, async (_req, res) => {
+  try {
+    await getPushConfig();
+    const stats = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE enabled = true)::int AS active,
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE enabled = false)::int AS disabled,
+         COUNT(*) FILTER (WHERE enabled = true AND device = 'iOS')::int AS ios,
+         COUNT(*) FILTER (WHERE enabled = true AND device = 'Android')::int AS android,
+         COUNT(*) FILTER (WHERE enabled = true AND device = 'Desktop')::int AS desktop,
+         MAX(last_seen_at) AS last_seen_at,
+         MAX(last_sent_at) AS last_sent_at
+       FROM push_subscriptions`
+    );
+    res.json(stats.rows[0] || {});
+  } catch (err) {
+    logger.error({ err }, 'GET /api/push/stats error');
+    res.status(500).json({ error: 'Не удалось загрузить push-статистику' });
+  }
+});
+
+app.post('/api/push/test', requireAuth, async (req, res) => {
+  const title = String(req.body?.title || 'IWAK').slice(0, 80);
+  const body = String(req.body?.body || 'Новый дроп уже на сайте').slice(0, 180);
+  const url = String(req.body?.url || '/catalog').slice(0, 300);
+  const sendAll = req.body?.sendAll === true;
+
+  try {
+    await getPushConfig();
+    const limit = sendAll ? 500 : 1;
+    const subs = await pool.query(
+      `SELECT id, subscription
+       FROM push_subscriptions
+       WHERE enabled = true
+       ORDER BY last_seen_at DESC, id DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    const payload = JSON.stringify({ title, body, url });
+    let sent = 0;
+    let failed = 0;
+
+    for (const row of subs.rows) {
+      try {
+        await webpush.sendNotification(row.subscription, payload);
+        sent++;
+        await pool.query('UPDATE push_subscriptions SET last_sent_at = now(), error = NULL WHERE id = $1', [row.id]);
+      } catch (err) {
+        failed++;
+        const statusCode = err.statusCode || err.status;
+        if (statusCode === 404 || statusCode === 410) {
+          await pool.query(
+            'UPDATE push_subscriptions SET enabled = false, error = $2, updated_at = now() WHERE id = $1',
+            [row.id, `expired:${statusCode}`]
+          );
+        } else {
+          await pool.query(
+            'UPDATE push_subscriptions SET error = $2, updated_at = now() WHERE id = $1',
+            [row.id, String(err.message || err).slice(0, 300)]
+          );
+        }
+      }
+    }
+
+    res.json({ ok: true, selected: subs.rowCount, sent, failed });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/push/test error');
+    res.status(500).json({ error: 'Не удалось отправить push' });
   }
 });
 

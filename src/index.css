@@ -4369,12 +4369,96 @@ img {
   color: #111;
 }
 
+.pwa-push-prompt {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: max(14px, calc(14px + env(safe-area-inset-bottom, 0px)));
+  z-index: 960;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.975);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.09);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: pwaHintIn 0.34s cubic-bezier(0.2, 0.86, 0.2, 1);
+}
+
+.pwa-push-prompt__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f4f4f4;
+  color: #111;
+}
+
+.pwa-push-prompt__eyebrow {
+  margin-bottom: 8px;
+  padding-right: 36px;
+  color: #999;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.pwa-push-prompt__title {
+  padding-right: 36px;
+  color: #111;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.18;
+}
+
+.pwa-push-prompt__text {
+  margin-top: 8px;
+  color: #777;
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.pwa-push-prompt__error {
+  margin-top: 10px;
+  color: #c63d38;
+  font-size: 12px;
+}
+
+.pwa-push-prompt__action {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.pwa-push-prompt__action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 @media (min-width: 768px) {
   .pwa-install-hint {
     left: auto;
     right: 22px;
     bottom: 22px;
     width: 380px;
+  }
+
+  .pwa-push-prompt {
+    left: auto;
+    right: 22px;
+    bottom: 22px;
+    width: 360px;
   }
 }
 

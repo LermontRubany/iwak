@@ -4394,6 +4394,127 @@
 .anl-funnel__bar--cart { background: #42a5f5; }
 .anl-funnel__bar--buy  { background: #ff9800; }
 .anl-funnel__bar--checkout { background: #66bb6a; }
+
+/* ─── PWA ADMIN ─── */
+.pwa-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pwa-admin__hero,
+.pwa-admin__panel,
+.pwa-admin__meta {
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.035);
+}
+
+.pwa-admin__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+}
+
+.pwa-admin__eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #8b8b86;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.pwa-admin__hero h2,
+.pwa-admin__panel h3 {
+  margin: 0;
+  color: var(--adm-text);
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.pwa-admin__hero p,
+.pwa-admin__panel-head span {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: var(--adm-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pwa-admin__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pwa-admin__card {
+  padding: 16px 12px;
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 10px 24px rgba(17, 17, 17, 0.03);
+}
+
+.pwa-admin__card span {
+  display: block;
+  color: var(--adm-text);
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.pwa-admin__card p {
+  margin: 7px 0 0;
+  color: var(--adm-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.pwa-admin__panel {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.pwa-admin__panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pwa-admin__message {
+  color: var(--adm-text-muted);
+  font-size: 12px;
+}
+
+.pwa-admin__meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  color: var(--adm-text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 680px) {
+  .pwa-admin__hero,
+  .pwa-admin__panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pwa-admin__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .anl-funnel__val { font-size: 12px; color: var(--adm-text-muted); white-space: nowrap; }
 
 .anl-table-wrap { overflow-x: auto; margin-top: 8px; }

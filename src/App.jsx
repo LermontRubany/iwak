@@ -9,6 +9,7 @@ import { isTokenValid, tokenMinutesLeft, resetAuthGuard } from './admin/authFetc
 import Header from './components/Header';
 import PromoBanner from './components/PromoBanner';
 import PwaInstallHint from './components/PwaInstallHint';
+import PwaPushPrompt from './components/PwaPushPrompt';
 import CatalogPage from './pages/CatalogPage';
 import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
@@ -49,6 +50,7 @@ function AppRoutes() {
 
       <PromoBanner position="bottom" />
       <PwaInstallHint />
+      <PwaPushPrompt />
 
       <footer className="site-footer">
         <p>© 2026 IWAK. Все права защищены.</p>

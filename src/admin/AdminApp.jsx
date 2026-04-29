@@ -7,6 +7,7 @@ import authFetch from './authFetch';
 import AnalyticsTab from './AnalyticsTab';
 import TelegramTab from './TelegramTab';
 import PromoTab from './PromoTab';
+import PwaTab from './PwaTab';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 import { logout } from './authFetch';
@@ -29,7 +30,7 @@ export default function AdminApp() {
   const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
-  const [section, setSection] = useState('products'); // 'products' | 'analytics' | 'automation' | 'promo'
+  const [section, setSection] = useState('products'); // 'products' | 'analytics' | 'automation' | 'promo' | 'pwa'
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
@@ -619,6 +620,7 @@ export default function AdminApp() {
           <button className="adm-tab adm-tab--active">АНАЛИТИКА</button>
           <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
           <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
+          <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
         </div>
         <AnalyticsTab />
       </div>
@@ -640,6 +642,7 @@ export default function AdminApp() {
           <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
           <button className="adm-tab adm-tab--active">АВТОМАТИЗАЦИЯ</button>
           <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
+          <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
         </div>
         <TelegramTab />
       </div>
@@ -661,8 +664,31 @@ export default function AdminApp() {
           <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
           <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
           <button className="adm-tab adm-tab--active">ПРОМО</button>
+          <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
         </div>
         <PromoTab />
+      </div>
+    );
+  }
+
+  if (section === 'pwa') {
+    return (
+      <div className="adm-root">
+        <div className="adm-header">
+          <span className="adm-header__brand">IWAK ADMIN</span>
+          <div className="adm-header__right">
+            <NotificationBell />
+            <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
+          </div>
+        </div>
+        <div className="adm-tabs">
+          <button className="adm-tab" onClick={() => setSection('products')}>ТОВАРЫ</button>
+          <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
+          <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
+          <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
+          <button className="adm-tab adm-tab--active">PWA</button>
+        </div>
+        <PwaTab />
       </div>
     );
   }
@@ -682,6 +708,7 @@ export default function AdminApp() {
         <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
         <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
         <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
+        <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
       </div>
 
       <div className="adm-toolbar">
