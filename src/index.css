@@ -22,6 +22,7 @@ a:focus {
 html {
   font-size: 14px;
   overflow-x: hidden;
+  background: #fff;
 }
 
 /* скрытие полосы прокрутки везде */
@@ -42,7 +43,14 @@ body {
   -webkit-tap-highlight-color: transparent;
   -webkit-overflow-scrolling: touch;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
   -webkit-text-size-adjust: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #fff;
 }
 
 a {
@@ -1078,6 +1086,7 @@ img {
   min-height: calc(100dvh - 56px - 60px);
   animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   padding-top: calc(64px + env(safe-area-inset-top, 0px));
+  background: #fff;
 }
 
 @media (max-width: 767px) {
@@ -1221,6 +1230,7 @@ img {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1px;
+  background: #fff;
 }
 
 /* ─── Skeleton cards (loading state) ─── */
