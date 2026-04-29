@@ -5,6 +5,12 @@ const DISMISSED_KEY = 'iwak_push_prompt_dismissed';
 const SUBSCRIBED_KEY = 'iwak_push_subscribed';
 const SESSION_KEY = 'iwak_sid';
 const DISMISS_MS = 5 * 24 * 60 * 60 * 1000;
+const DEFAULT_PROMPT = {
+  eyebrow: 'IWAK DROP ALERT',
+  title: 'Дропы и скидки раньше всех',
+  text: 'Сообщим только о важном: новые поступления, скидки и редкие позиции.',
+  button: 'ВКЛЮЧИТЬ',
+};
 
 function isStandalone() {
   if (typeof window === 'undefined') return false;
@@ -29,6 +35,7 @@ export default function PwaPushPrompt() {
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const forceVisible = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('pushPrompt') === '1';
@@ -55,6 +62,12 @@ export default function PwaPushPrompt() {
         return;
       }
       if (!cancelled) {
+        fetch('/api/push/public-key')
+          .then((r) => (r.ok ? r.json() : null))
+          .then((cfg) => {
+            if (cfg?.prompt && !cancelled) setPrompt({ ...DEFAULT_PROMPT, ...cfg.prompt });
+          })
+          .catch(() => {});
         setVisible(true);
         if (!forceVisible) track('pwa_push_prompt_shown');
       }
@@ -123,12 +136,12 @@ export default function PwaPushPrompt() {
           <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
       </button>
-      <div className="pwa-push-prompt__eyebrow">IWAK DROP ALERT</div>
-      <div className="pwa-push-prompt__title">Дропы и скидки раньше всех</div>
-      <div className="pwa-push-prompt__text">Сообщим только о важном: новые поступления, скидки и редкие позиции.</div>
+      <div className="pwa-push-prompt__eyebrow">{prompt.eyebrow}</div>
+      <div className="pwa-push-prompt__title">{prompt.title}</div>
+      <div className="pwa-push-prompt__text">{prompt.text}</div>
       {error && <div className="pwa-push-prompt__error">{error}</div>}
       <button className="pwa-push-prompt__action" type="button" onClick={subscribe} disabled={busy}>
-        {busy ? 'ВКЛЮЧАЕМ...' : 'ВКЛЮЧИТЬ'}
+        {busy ? 'ВКЛЮЧАЕМ...' : prompt.button}
       </button>
     </div>
   );

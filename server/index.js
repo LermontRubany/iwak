@@ -193,6 +193,12 @@ app.use((req, _res, next) => {
 // ── In-memory cache ─────────────────────────
 const cache = new Map();
 const CACHE_TTL = 90 * 1000; // 90 seconds
+const DEFAULT_PUSH_PROMPT = {
+  eyebrow: 'IWAK DROP ALERT',
+  title: 'Дропы и скидки раньше всех',
+  text: 'Сообщим только о важном: новые поступления, скидки и редкие позиции.',
+  button: 'ВКЛЮЧИТЬ',
+};
 
 function cacheGet(key) {
   const entry = cache.get(key);
@@ -217,10 +223,19 @@ async function ensurePwaInfrastructure() {
       public_key text NOT NULL,
       private_key text NOT NULL,
       subject text NOT NULL,
+      prompt_eyebrow text NOT NULL DEFAULT 'IWAK DROP ALERT',
+      prompt_title text NOT NULL DEFAULT 'Дропы и скидки раньше всех',
+      prompt_text text NOT NULL DEFAULT 'Сообщим только о важном: новые поступления, скидки и редкие позиции.',
+      prompt_button text NOT NULL DEFAULT 'ВКЛЮЧИТЬ',
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )
   `);
+
+  await pool.query("ALTER TABLE push_config ADD COLUMN IF NOT EXISTS prompt_eyebrow text NOT NULL DEFAULT 'IWAK DROP ALERT'");
+  await pool.query("ALTER TABLE push_config ADD COLUMN IF NOT EXISTS prompt_title text NOT NULL DEFAULT 'Дропы и скидки раньше всех'");
+  await pool.query("ALTER TABLE push_config ADD COLUMN IF NOT EXISTS prompt_text text NOT NULL DEFAULT 'Сообщим только о важном: новые поступления, скидки и редкие позиции.'");
+  await pool.query("ALTER TABLE push_config ADD COLUMN IF NOT EXISTS prompt_button text NOT NULL DEFAULT 'ВКЛЮЧИТЬ'");
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -267,6 +282,15 @@ async function getPushConfig() {
   const cfg = await pwaReady;
   if (cfg) return cfg;
   return ensurePwaInfrastructure();
+}
+
+function pushPromptFromConfig(cfg) {
+  return {
+    eyebrow: cfg?.prompt_eyebrow || DEFAULT_PUSH_PROMPT.eyebrow,
+    title: cfg?.prompt_title || DEFAULT_PUSH_PROMPT.title,
+    text: cfg?.prompt_text || DEFAULT_PUSH_PROMPT.text,
+    button: cfg?.prompt_button || DEFAULT_PUSH_PROMPT.button,
+  };
 }
 
 // Раздача загруженных изображений
@@ -936,10 +960,49 @@ app.post('/api/events', async (req, res) => {
 app.get('/api/push/public-key', async (_req, res) => {
   try {
     const cfg = await getPushConfig();
-    res.json({ publicKey: cfg.public_key });
+    res.json({ publicKey: cfg.public_key, prompt: pushPromptFromConfig(cfg) });
   } catch (err) {
     logger.error({ err }, 'GET /api/push/public-key error');
     res.status(500).json({ error: 'Push пока недоступен' });
+  }
+});
+
+app.get('/api/push/config', requireAuth, async (_req, res) => {
+  try {
+    const cfg = await getPushConfig();
+    res.json({ prompt: pushPromptFromConfig(cfg) });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/push/config error');
+    res.status(500).json({ error: 'Не удалось загрузить push-настройки' });
+  }
+});
+
+app.put('/api/push/config', requireAuth, async (req, res) => {
+  const prompt = req.body?.prompt || {};
+  const clean = {
+    eyebrow: String(prompt.eyebrow || DEFAULT_PUSH_PROMPT.eyebrow).trim().slice(0, 40),
+    title: String(prompt.title || DEFAULT_PUSH_PROMPT.title).trim().slice(0, 80),
+    text: String(prompt.text || DEFAULT_PUSH_PROMPT.text).trim().slice(0, 180),
+    button: String(prompt.button || DEFAULT_PUSH_PROMPT.button).trim().slice(0, 28),
+  };
+
+  try {
+    await getPushConfig();
+    const result = await pool.query(
+      `UPDATE push_config
+       SET prompt_eyebrow = $1,
+           prompt_title = $2,
+           prompt_text = $3,
+           prompt_button = $4,
+           updated_at = now()
+       WHERE id = 1
+       RETURNING *`,
+      [clean.eyebrow, clean.title, clean.text, clean.button]
+    );
+    res.json({ prompt: pushPromptFromConfig(result.rows[0]) });
+  } catch (err) {
+    logger.error({ err }, 'PUT /api/push/config error');
+    res.status(500).json({ error: 'Не удалось сохранить push-настройки' });
   }
 });
 

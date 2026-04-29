@@ -12,19 +12,33 @@ export default function PwaTab() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [savingPrompt, setSavingPrompt] = useState(false);
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({
     title: 'IWAK',
     body: 'Новый дроп уже на сайте',
     url: '/catalog',
   });
+  const [prompt, setPrompt] = useState({
+    eyebrow: 'IWAK DROP ALERT',
+    title: 'Дропы и скидки раньше всех',
+    text: 'Сообщим только о важном: новые поступления, скидки и редкие позиции.',
+    button: 'ВКЛЮЧИТЬ',
+  });
 
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch('/api/push/stats');
-      if (!res.ok) throw new Error(res.status);
-      setStats(await res.json());
+      const [statsRes, configRes] = await Promise.all([
+        authFetch('/api/push/stats'),
+        authFetch('/api/push/config'),
+      ]);
+      if (!statsRes.ok) throw new Error(statsRes.status);
+      setStats(await statsRes.json());
+      if (configRes.ok) {
+        const cfg = await configRes.json();
+        if (cfg.prompt) setPrompt((v) => ({ ...v, ...cfg.prompt }));
+      }
     } catch {
       setMessage('Не удалось загрузить push-статистику');
     } finally {
@@ -33,6 +47,26 @@ export default function PwaTab() {
   }, []);
 
   useEffect(() => { loadStats(); }, [loadStats]);
+
+  const savePrompt = async () => {
+    setSavingPrompt(true);
+    setMessage('');
+    try {
+      const res = await authFetch('/api/push/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Ошибка сохранения');
+      if (body.prompt) setPrompt((v) => ({ ...v, ...body.prompt }));
+      setMessage('Текст плашки сохранён');
+    } catch (err) {
+      setMessage(err.message || 'Не удалось сохранить текст');
+    } finally {
+      setSavingPrompt(false);
+    }
+  };
 
   const sendTest = async () => {
     if (!window.confirm('Отправить тестовый push на последнее подписанное устройство?')) return;
@@ -87,6 +121,38 @@ export default function PwaTab() {
           <span>{Number(stats?.disabled || 0)}</span>
           <p>Отключены</p>
         </div>
+      </div>
+
+      <div className="pwa-admin__panel">
+        <div className="pwa-admin__panel-head">
+          <h3>Плашка включения уведомлений</h3>
+          <span>Этот текст видит клиент перед системным запросом iPhone/Safari</span>
+        </div>
+        <label className="adm-label">
+          Верхняя строка
+          <input className="adm-input" maxLength={40} value={prompt.eyebrow} onChange={(e) => setPrompt((v) => ({ ...v, eyebrow: e.target.value }))} />
+        </label>
+        <label className="adm-label">
+          Заголовок
+          <input className="adm-input" maxLength={80} value={prompt.title} onChange={(e) => setPrompt((v) => ({ ...v, title: e.target.value }))} />
+        </label>
+        <label className="adm-label">
+          Описание
+          <textarea className="adm-input pwa-admin__textarea" maxLength={180} value={prompt.text} onChange={(e) => setPrompt((v) => ({ ...v, text: e.target.value }))} />
+        </label>
+        <label className="adm-label">
+          Текст кнопки
+          <input className="adm-input" maxLength={28} value={prompt.button} onChange={(e) => setPrompt((v) => ({ ...v, button: e.target.value }))} />
+        </label>
+        <div className="pwa-admin__preview">
+          <span>{prompt.eyebrow}</span>
+          <strong>{prompt.title}</strong>
+          <p>{prompt.text}</p>
+          <button type="button">{prompt.button}</button>
+        </div>
+        <button className="adm-btn adm-btn--primary" type="button" onClick={savePrompt} disabled={savingPrompt}>
+          {savingPrompt ? 'СОХРАНЯЕМ...' : 'СОХРАНИТЬ ТЕКСТ'}
+        </button>
       </div>
 
       <div className="pwa-admin__panel">
