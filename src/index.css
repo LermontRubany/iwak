@@ -1531,11 +1531,11 @@ img {
 }
 
 .product-card__quick-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 25px;
+  height: 25px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.45;
+  stroke-width: 1.25;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
