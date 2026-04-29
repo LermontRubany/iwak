@@ -1375,7 +1375,7 @@ img {
 .product-card__info {
   position: relative;
   height: 96px;
-  padding: 12px 54px 12px 12px;
+  padding: 12px 58px 12px 12px;
   background: #fff;
   overflow: hidden;
 }
@@ -1383,7 +1383,7 @@ img {
 .product-card__details,
 .product-card__quick {
   position: absolute;
-  inset: 12px 54px 12px 12px;
+  inset: 12px 58px 12px 12px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1508,20 +1508,21 @@ img {
 
 .product-card__quick-btn {
   position: absolute;
-  right: 12px;
-  bottom: 14px;
+  right: 10px;
+  top: 50%;
   z-index: 2;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(17, 17, 17, 0.14);
+  border: 1px solid #111;
   border-radius: 999px;
-  background: #fff;
-  color: #111;
+  background: #111;
+  color: #fff;
   box-shadow: none;
   cursor: pointer;
+  transform: translateY(-50%);
   transition:
     border-color 0.18s ease,
     background 0.18s ease,
@@ -1530,8 +1531,8 @@ img {
 }
 
 .product-card__quick-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.45;
@@ -1540,18 +1541,18 @@ img {
 }
 
 .product-card__quick-btn:active {
-  transform: scale(0.94);
+  transform: translateY(-50%) scale(0.94);
 }
 
 .product-card--quick-open .product-card__quick-btn {
-  background: #111;
+  background: #fff;
   border-color: #111;
-  color: #fff;
+  color: #111;
   box-shadow: none;
 }
 
 .product-card--quick-added .product-card__quick-btn {
-  background: #111;
+  background: #2f7d4c;
   border-color: #111;
   color: #fff;
 }
