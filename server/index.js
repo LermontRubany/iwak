@@ -1871,11 +1871,16 @@ app.get('/product/:slug', async (req, res, next) => {
     if (result.rows.length === 0) return next();
 
     const p = result.rows[0];
-    const imgUrl = p.image ? `${SITE_ORIGIN}${p.image}` : `${SITE_ORIGIN}/og-main.jpg`;
+    const productName = String(p.name || '').trim();
+    const brandName = String(p.brand || '').trim();
+    const titleName = brandName && !productName.toLowerCase().startsWith(brandName.toLowerCase())
+      ? `${brandName} ${productName}`
+      : productName;
+    const imgUrl = `${SITE_ORIGIN}/og-image/${match[1]}`;
 
     res.send(buildOgHtml({
-      title: `${p.brand ? p.brand + ' ' : ''}${p.name} — IWAK`,
-      description: `${p.name} — купить в IWAK за ${p.price} ₽`,
+      title: `${titleName} — IWAK`,
+      description: `${productName} — купить в IWAK за ${p.price} ₽`,
       image: imgUrl,
       url: `${SITE_ORIGIN}/product/${slug}`,
     }));
