@@ -404,7 +404,14 @@ export default function ProductPage() {
 
       <div className="product-page__info" onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
         <div className="pp-title-row">
-          <span className="product-page__brand">{product.brand}</span>
+          <Link
+            className="product-page__brand"
+            to={`/catalog?brand=${encodeURIComponent(String(product.brand || '').toLowerCase())}`}
+            onClick={() => track('brand_click', { productId: product.id, brand: product.brand })}
+          >
+            {product.brand}
+            <span aria-hidden="true">›</span>
+          </Link>
           <button
             className={`pp-info-share ${copied ? 'pp-info-share--copied' : ''}`}
             onClick={handleShare}

@@ -2600,10 +2600,27 @@ img {
 }
 
 .product-page__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: inherit;
   font-size: 10px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
+  text-decoration: none;
   opacity: 0.45;
+  transition: opacity 0.18s ease;
+}
+
+.product-page__brand span {
+  margin-top: -1px;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.product-page__brand:active {
+  opacity: 0.8;
 }
 
 .pp-info-share {
