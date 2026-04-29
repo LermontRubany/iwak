@@ -59,7 +59,21 @@ async function apiFetch(url, options = {}) {
 }
 
 async function apiFetchQuiet(url, options = {}) {
-  const res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
+  const timeoutMs = options.timeoutMs || 2500;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const fetchOptions = { ...options };
+  delete fetchOptions.timeoutMs;
+  let res;
+  try {
+    res = await fetch(url, {
+      ...fetchOptions,
+      signal: fetchOptions.signal || controller.signal,
+      headers: { ...getAuthHeaders(), ...fetchOptions.headers },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) throw new Error(`Ошибка сервера (${res.status})`);
   return res.json();
 }
@@ -88,8 +102,9 @@ function writeCache(items) {
 
 export function ProductsProvider({ children }) {
   const cached = readCache();
-  const [products, setProductsRaw] = useState(cached || []);
-  const [loading, setLoading] = useState(!cached);
+  const useDemoProducts = isDemoProductsEnabled();
+  const [products, setProductsRaw] = useState(cached || (useDemoProducts ? demoProducts : []));
+  const [loading, setLoading] = useState(!cached && !useDemoProducts);
   const [bulkLoading, setBulkLoading] = useState(false);
 
   // Wrapper: sync sessionStorage on every state change
@@ -104,14 +119,20 @@ export function ProductsProvider({ children }) {
   // ── Загрузка товаров (stale-while-revalidate) ──
   const fetchProducts = useCallback(async () => {
     try {
-      if (!readCache()) setLoading(true);
-      const data = isDemoProductsEnabled()
-        ? await apiFetchQuiet('/api/products?limit=2000').catch(() => ({ items: demoProducts }))
+      const demoMode = isDemoProductsEnabled();
+      if (demoMode && !getToken()) {
+        setProducts(demoProducts);
+        setLoading(false);
+        return;
+      }
+      if (!readCache() && !demoMode) setLoading(true);
+      const data = demoMode
+        ? await apiFetchQuiet('/api/products?limit=2000', { timeoutMs: 900 }).catch(() => ({ items: demoProducts }))
         : await apiFetch('/api/products?limit=2000');
       const raw = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
       // Фильтруем невалидные элементы (защита от краша рендера)
       const items = raw.filter((p) => p && typeof p === 'object' && p.id != null);
-      setProducts(isDemoProductsEnabled() && items.length === 0 ? demoProducts : items);
+      setProducts(demoMode && items.length === 0 ? demoProducts : items);
     } catch (err) {
       // apiFetch уже вызвал notifyGlobal — здесь только fallback на кеш
       if (!readCache()) setProducts(isDemoProductsEnabled() ? demoProducts : []);
