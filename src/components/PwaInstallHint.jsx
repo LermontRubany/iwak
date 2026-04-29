@@ -4,6 +4,7 @@ import { track } from '../utils/tracker';
 const STORAGE_KEY = 'iwak_pwa_hint_dismissed';
 const OPENED_KEY = 'iwak_pwa_opened_tracked';
 const INSTALL_KEY = 'iwak_pwa_install_detected';
+const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
 
 function isIosDevice() {
   if (typeof navigator === 'undefined') return false;
@@ -36,7 +37,10 @@ export default function PwaInstallHint() {
 
     if (isStandalone()) return;
     if (!forceVisible && !isIosDevice()) return;
-    if (!forceVisible && window.localStorage.getItem(STORAGE_KEY) === '1') return;
+    if (!forceVisible) {
+      const dismissedAt = parseInt(window.localStorage.getItem(STORAGE_KEY) || '0', 10);
+      if (dismissedAt && Date.now() - dismissedAt < DISMISS_MS) return;
+    }
 
     const timer = window.setTimeout(() => {
       setVisible(true);
@@ -46,7 +50,7 @@ export default function PwaInstallHint() {
   }, [forceVisible]);
 
   const handleClose = () => {
-    window.localStorage.setItem(STORAGE_KEY, '1');
+    window.localStorage.setItem(STORAGE_KEY, String(Date.now()));
     if (!forceVisible) track('pwa_hint_closed');
     setVisible(false);
   };
