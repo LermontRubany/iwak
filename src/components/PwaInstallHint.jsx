@@ -4,7 +4,7 @@ import { track } from '../utils/tracker';
 const STORAGE_KEY = 'iwak_pwa_hint_dismissed';
 const OPENED_KEY = 'iwak_pwa_opened_tracked';
 const INSTALL_KEY = 'iwak_pwa_install_detected';
-const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
+const DISMISS_MS = 5 * 24 * 60 * 60 * 1000;
 
 function isIosDevice() {
   if (typeof navigator === 'undefined') return false;
