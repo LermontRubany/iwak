@@ -87,6 +87,40 @@
 
 .adm-logout:hover { background: rgba(255,255,255,0.1); }
 
+.adm-settings-btn {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255,255,255,0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.adm-settings-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.adm-settings-btn:active {
+  transform: scale(0.94);
+}
+
+.adm-settings-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* ─── TABS ─── */
 .adm-tabs {
   display: flex;
@@ -4581,6 +4615,116 @@
   padding: 12px 14px;
   color: var(--adm-text-muted);
   font-size: 12px;
+}
+
+/* ─── SETTINGS ADMIN ─── */
+.settings-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-admin__hero,
+.settings-admin__panel {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.settings-admin__hero span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--adm-accent);
+  margin-bottom: 8px;
+}
+
+.settings-admin__hero h2,
+.settings-admin__head h3 {
+  margin: 0;
+  color: var(--adm-text);
+}
+
+.settings-admin__hero h2 {
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.settings-admin__hero p,
+.settings-admin__head span,
+.settings-admin__notice {
+  color: var(--adm-text-muted);
+  line-height: 1.45;
+}
+
+.settings-admin__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.settings-admin__row:last-child {
+  border-bottom: 0;
+}
+
+.settings-admin__row span {
+  color: var(--adm-text-muted);
+}
+
+.settings-admin__row strong {
+  text-align: right;
+}
+
+.settings-admin__ok {
+  color: #16834a;
+}
+
+.settings-admin__warn {
+  color: #c0392b;
+}
+
+.settings-admin__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.settings-admin__notice {
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  margin-bottom: 14px;
+}
+
+.settings-admin__form {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 767px) {
+  .settings-admin__head,
+  .settings-admin__row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settings-admin__row strong {
+    text-align: left;
+  }
+
+  .settings-admin__form {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 680px) {

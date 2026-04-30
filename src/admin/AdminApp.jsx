@@ -9,6 +9,7 @@ import AnalyticsTab from './AnalyticsTab';
 import TelegramTab from './TelegramTab';
 import PromoTab from './PromoTab';
 import PwaTab from './PwaTab';
+import SettingsTab from './SettingsTab';
 import sortSizes from '../utils/sortSizes';
 import { normalizeBrand, getUniqueBrands } from '../utils/brandUtils';
 import { logout } from './authFetch';
@@ -26,12 +27,53 @@ function formatDate(dateStr) {
   return `${dd}.${mm} · ${hh}:${mi}`;
 }
 
+function AdminHeader({ onSettings, onLogout }) {
+  return (
+    <div className="adm-header">
+      <span className="adm-header__brand">IWAK ADMIN</span>
+      <div className="adm-header__right">
+        <NotificationBell />
+        <button className="adm-settings-btn" type="button" onClick={onSettings} aria-label="Настройки">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Z" />
+            <path d="M19.4 13.5a7.9 7.9 0 0 0 0-3l2-1.5-2-3.4-2.4 1a8.7 8.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6A8.7 8.7 0 0 0 7 6.6l-2.4-1-2 3.4 2 1.5a7.9 7.9 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a8.7 8.7 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a8.7 8.7 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.5Z" />
+          </svg>
+        </button>
+        <button className="adm-logout" onClick={onLogout}>ВЫЙТИ</button>
+      </div>
+    </div>
+  );
+}
+
+function AdminTabs({ section, setSection }) {
+  const tabs = [
+    ['products', 'ТОВАРЫ'],
+    ['analytics', 'АНАЛИТИКА'],
+    ['automation', 'АВТОМАТИЗАЦИЯ'],
+    ['promo', 'ПРОМО'],
+    ['pwa', 'PWA'],
+  ];
+  return (
+    <div className="adm-tabs">
+      {tabs.map(([id, label]) => (
+        <button
+          key={id}
+          className={`adm-tab${section === id ? ' adm-tab--active' : ''}`}
+          onClick={() => setSection(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminApp() {
   const { products, updateProduct, deleteProduct, bulkDelete, bulkUpdate, bulkUpdatePrices, bulkResetPrices, bulkSetFeatured, bulkUpdatePriority, reloadProducts, verifyAdminPin } = useProducts();
   const { notify } = useNotifications();
   const [view, setView] = useState('list'); // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null);
-  const [section, setSection] = useState('products'); // 'products' | 'analytics' | 'automation' | 'promo' | 'pwa'
+  const [section, setSection] = useState('products'); // 'products' | 'analytics' | 'automation' | 'promo' | 'pwa' | 'settings'
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
@@ -609,20 +651,8 @@ export default function AdminApp() {
   if (section === 'analytics') {
     return (
       <div className="adm-root">
-        <div className="adm-header">
-          <span className="adm-header__brand">IWAK ADMIN</span>
-          <div className="adm-header__right">
-            <NotificationBell />
-            <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
-          </div>
-        </div>
-        <div className="adm-tabs">
-          <button className="adm-tab" onClick={() => setSection('products')}>ТОВАРЫ</button>
-          <button className="adm-tab adm-tab--active">АНАЛИТИКА</button>
-          <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
-          <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
-          <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
-        </div>
+        <AdminHeader onSettings={() => setSection('settings')} onLogout={handleLogout} />
+        <AdminTabs section={section} setSection={setSection} />
         <AnalyticsTab />
       </div>
     );
@@ -631,20 +661,8 @@ export default function AdminApp() {
   if (section === 'automation') {
     return (
       <div className="adm-root">
-        <div className="adm-header">
-          <span className="adm-header__brand">IWAK ADMIN</span>
-          <div className="adm-header__right">
-            <NotificationBell />
-            <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
-          </div>
-        </div>
-        <div className="adm-tabs">
-          <button className="adm-tab" onClick={() => setSection('products')}>ТОВАРЫ</button>
-          <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
-          <button className="adm-tab adm-tab--active">АВТОМАТИЗАЦИЯ</button>
-          <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
-          <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
-        </div>
+        <AdminHeader onSettings={() => setSection('settings')} onLogout={handleLogout} />
+        <AdminTabs section={section} setSection={setSection} />
         <TelegramTab />
       </div>
     );
@@ -653,20 +671,8 @@ export default function AdminApp() {
   if (section === 'promo') {
     return (
       <div className="adm-root">
-        <div className="adm-header">
-          <span className="adm-header__brand">IWAK ADMIN</span>
-          <div className="adm-header__right">
-            <NotificationBell />
-            <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
-          </div>
-        </div>
-        <div className="adm-tabs">
-          <button className="adm-tab" onClick={() => setSection('products')}>ТОВАРЫ</button>
-          <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
-          <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
-          <button className="adm-tab adm-tab--active">ПРОМО</button>
-          <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
-        </div>
+        <AdminHeader onSettings={() => setSection('settings')} onLogout={handleLogout} />
+        <AdminTabs section={section} setSection={setSection} />
         <PromoTab />
       </div>
     );
@@ -675,42 +681,27 @@ export default function AdminApp() {
   if (section === 'pwa') {
     return (
       <div className="adm-root">
-        <div className="adm-header">
-          <span className="adm-header__brand">IWAK ADMIN</span>
-          <div className="adm-header__right">
-            <NotificationBell />
-            <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
-          </div>
-        </div>
-        <div className="adm-tabs">
-          <button className="adm-tab" onClick={() => setSection('products')}>ТОВАРЫ</button>
-          <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
-          <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
-          <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
-          <button className="adm-tab adm-tab--active">PWA</button>
-        </div>
+        <AdminHeader onSettings={() => setSection('settings')} onLogout={handleLogout} />
+        <AdminTabs section={section} setSection={setSection} />
         <PwaTab />
+      </div>
+    );
+  }
+
+  if (section === 'settings') {
+    return (
+      <div className="adm-root">
+        <AdminHeader onSettings={() => setSection('settings')} onLogout={handleLogout} />
+        <AdminTabs section={section} setSection={setSection} />
+        <SettingsTab />
       </div>
     );
   }
 
   return (
     <div className="adm-root">
-      <div className="adm-header">
-        <span className="adm-header__brand">IWAK ADMIN</span>
-        <div className="adm-header__right">
-          <NotificationBell />
-          <button className="adm-logout" onClick={handleLogout}>ВЫЙТИ</button>
-        </div>
-      </div>
-
-      <div className="adm-tabs">
-        <button className="adm-tab adm-tab--active">ТОВАРЫ</button>
-        <button className="adm-tab" onClick={() => setSection('analytics')}>АНАЛИТИКА</button>
-        <button className="adm-tab" onClick={() => setSection('automation')}>АВТОМАТИЗАЦИЯ</button>
-        <button className="adm-tab" onClick={() => setSection('promo')}>ПРОМО</button>
-        <button className="adm-tab" onClick={() => setSection('pwa')}>PWA</button>
-      </div>
+      <AdminHeader onSettings={() => setSection('settings')} onLogout={handleLogout} />
+      <AdminTabs section={section} setSection={setSection} />
 
       <div className="adm-toolbar">
         <input

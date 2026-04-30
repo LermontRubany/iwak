@@ -23,6 +23,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import geoip from 'geoip-lite';
 import webpush from 'web-push';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -159,6 +161,7 @@ const uploadLimiter = rateLimit({
 
 // ── Счётчик неудачных попыток авторизации (brute-force защита) ──
 const loginFailures = new Map(); // ip → { count, blockedUntil }
+const passwordResetCodes = new Map(); // adminId → { codeHash, expiresAt, attempts, email }
 
 function checkLoginBlock(ip) {
   const entry = loginFailures.get(ip);
@@ -183,6 +186,63 @@ function recordLoginFailure(ip) {
 
 function clearLoginFailures(ip) {
   loginFailures.delete(ip);
+}
+
+async function ensureAdminSecurityInfrastructure() {
+  await pool.query("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 1");
+  await pool.query("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS password_changed_at timestamptz");
+}
+
+const adminSecurityReady = ensureAdminSecurityInfrastructure().catch((err) => {
+  logger.error({ err }, 'Admin security infrastructure init failed');
+  return null;
+});
+
+function getOwnerEmail() {
+  return String(process.env.ADMIN_OWNER_EMAIL || '').trim().toLowerCase();
+}
+
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return '';
+  const [name, domain] = email.split('@');
+  const safeName = name.length <= 2 ? `${name[0] || '*'}*` : `${name.slice(0, 2)}***${name.slice(-1)}`;
+  return `${safeName}@${domain}`;
+}
+
+function isSmtpConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function createMailTransport() {
+  if (!isSmtpConfigured()) return null;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: String(process.env.SMTP_SECURE || 'true') !== 'false',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+async function sendAdminSecurityCode(email, code) {
+  const transport = createMailTransport();
+  if (!transport) throw new Error('SMTP_NOT_CONFIGURED');
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await transport.sendMail({
+    from,
+    to: email,
+    subject: 'IWAK ADMIN: код подтверждения',
+    text: `Код для смены пароля IWAK ADMIN: ${code}\n\nКод действует 10 минут. Если это были не вы, просто игнорируйте письмо.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;font-size:16px;color:#111">
+        <p>Код для смены пароля IWAK ADMIN:</p>
+        <p style="font-size:32px;letter-spacing:8px;font-weight:700">${code}</p>
+        <p style="color:#777">Код действует 10 минут. Если это были не вы, просто игнорируйте письмо.</p>
+      </div>
+    `,
+  });
 }
 // ── Request logging ─────────────────────────
 app.use((req, _res, next) => {
@@ -327,7 +387,7 @@ const upload = multer({
 });
 
 // ── JWT Auth middleware ─────────────────────
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     logger.warn({ url: req.originalUrl, ip: req.ip }, 'Auth: missing token');
@@ -335,6 +395,12 @@ function requireAuth(req, res, next) {
   }
   try {
     const payload = jwt.verify(header.slice(7), JWT_SECRET);
+    await adminSecurityReady;
+    const user = await pool.query('SELECT token_version FROM admin_users WHERE id = $1', [payload.id]);
+    if (!user.rows[0] || Number(user.rows[0].token_version || 1) !== Number(payload.tokenVersion || 1)) {
+      logger.warn({ url: req.originalUrl, ip: req.ip, adminId: payload.id }, 'Auth: token version rejected');
+      return res.status(401).json({ error: 'Сессия устарела', reason: 'token_version' });
+    }
     req.admin = payload;
     next();
   } catch (err) {
@@ -361,6 +427,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     return res.status(429).json({ error: 'Слишком много неудачных попыток. Блок на 15 минут.' });
   }
   try {
+    await adminSecurityReady;
     const result = await pool.query('SELECT * FROM admin_users WHERE login = $1', [login]);
     const user = result.rows[0];
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
@@ -370,7 +437,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
     clearLoginFailures(ip);
     logger.info({ ip, login: user.login }, 'Successful login');
-    const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, login: user.login, tokenVersion: user.token_version || 1 }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, login: user.login });
   } catch (err) {
     logger.error({ err }, 'Auth error');
@@ -387,6 +454,7 @@ app.post('/api/auth/setup', async (req, res) => {
     return res.status(400).json({ error: 'Логин и пароль (мин. 6 символов) обязательны' });
   }
   try {
+    await adminSecurityReady;
     const existing = await pool.query('SELECT count(*) FROM admin_users');
     if (parseInt(existing.rows[0].count) > 0) {
       return res.status(403).json({ error: 'Админ уже существует' });
@@ -402,6 +470,102 @@ app.post('/api/auth/setup', async (req, res) => {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ login: req.admin.login });
+});
+
+const passwordCodeLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 3,
+  message: { error: 'Слишком много запросов кода. Подождите 10 минут.' },
+});
+
+app.get('/api/admin/security', requireAuth, async (req, res) => {
+  try {
+    await adminSecurityReady;
+    const ownerEmail = getOwnerEmail();
+    const user = await pool.query('SELECT login, password_changed_at FROM admin_users WHERE id = $1', [req.admin.id]);
+    res.json({
+      login: user.rows[0]?.login || req.admin.login,
+      ownerEmailConfigured: Boolean(ownerEmail),
+      ownerEmail: maskEmail(ownerEmail),
+      smtpConfigured: isSmtpConfigured(),
+      passwordChangedAt: user.rows[0]?.password_changed_at || null,
+    });
+  } catch (err) {
+    logger.error({ err }, 'GET /api/admin/security error');
+    res.status(500).json({ error: 'Не удалось загрузить настройки доступа' });
+  }
+});
+
+app.post('/api/admin/security/password-code', requireAuth, passwordCodeLimiter, async (req, res) => {
+  const ownerEmail = getOwnerEmail();
+  if (!ownerEmail) return res.status(500).json({ error: 'Почта владельца не настроена на сервере' });
+  if (!isSmtpConfigured()) return res.status(500).json({ error: 'SMTP для отправки кода не настроен' });
+
+  try {
+    await adminSecurityReady;
+    const code = String(crypto.randomInt(0, 10000)).padStart(4, '0');
+    const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+    passwordResetCodes.set(req.admin.id, {
+      codeHash,
+      email: ownerEmail,
+      attempts: 0,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+    await sendAdminSecurityCode(ownerEmail, code);
+    logger.info({ adminId: req.admin.id, email: maskEmail(ownerEmail) }, 'Admin password change code sent');
+    res.json({ ok: true, ownerEmail: maskEmail(ownerEmail), expiresInMinutes: 10 });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/admin/security/password-code error');
+    res.status(500).json({ error: 'Не удалось отправить код подтверждения' });
+  }
+});
+
+app.post('/api/admin/security/change-password', requireAuth, async (req, res) => {
+  const { code, password } = req.body || {};
+  const normalizedCode = String(code || '').trim();
+  const newPassword = String(password || '');
+  if (!/^\d{4}$/.test(normalizedCode)) {
+    return res.status(400).json({ error: 'Введите 4-значный код' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'Пароль должен быть не короче 8 символов' });
+  }
+
+  const entry = passwordResetCodes.get(req.admin.id);
+  if (!entry || Date.now() > entry.expiresAt) {
+    passwordResetCodes.delete(req.admin.id);
+    return res.status(400).json({ error: 'Код истёк. Запросите новый.' });
+  }
+  if (entry.attempts >= 5) {
+    passwordResetCodes.delete(req.admin.id);
+    return res.status(429).json({ error: 'Слишком много неверных попыток. Запросите новый код.' });
+  }
+
+  try {
+    const ok = await bcrypt.compare(normalizedCode, entry.codeHash);
+    if (!ok) {
+      entry.attempts += 1;
+      passwordResetCodes.set(req.admin.id, entry);
+      return res.status(403).json({ error: 'Неверный код подтверждения' });
+    }
+
+    await adminSecurityReady;
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await pool.query(
+      `UPDATE admin_users
+       SET password_hash = $1,
+           password_changed_at = now(),
+           token_version = COALESCE(token_version, 1) + 1
+       WHERE id = $2`,
+      [passwordHash, req.admin.id]
+    );
+    passwordResetCodes.delete(req.admin.id);
+    logger.warn({ adminId: req.admin.id }, 'Admin password changed');
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, 'POST /api/admin/security/change-password error');
+    res.status(500).json({ error: 'Не удалось сменить пароль' });
+  }
 });
 
 // POST /api/admin/verify-pin — проверка PIN-кода на сервере (не хранится в клиенте)
