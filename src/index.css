@@ -3336,16 +3336,17 @@ img {
 }
 
 .pp-sale-card .product-card__brand {
-  display: none;
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pp-sale-card .product-card__name {
-  font-size: 12px;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: none;
 }
 
 .pp-sale-card .product-card__price,
