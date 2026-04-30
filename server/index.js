@@ -23,7 +23,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import geoip from 'geoip-lite';
 import webpush from 'web-push';
-import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
@@ -161,7 +160,7 @@ const uploadLimiter = rateLimit({
 
 // ── Счётчик неудачных попыток авторизации (brute-force защита) ──
 const loginFailures = new Map(); // ip → { count, blockedUntil }
-const passwordResetCodes = new Map(); // adminId → { codeHash, expiresAt, attempts, email }
+const passwordResetCodes = new Map(); // adminId → { codeHash, expiresAt, attempts, telegramId }
 
 function checkLoginBlock(ip) {
   const entry = loginFailures.get(ip);
@@ -198,51 +197,40 @@ const adminSecurityReady = ensureAdminSecurityInfrastructure().catch((err) => {
   return null;
 });
 
-function getOwnerEmail() {
-  return String(process.env.ADMIN_OWNER_EMAIL || '').trim().toLowerCase();
+function getOwnerTelegramId() {
+  return String(process.env.ADMIN_OWNER_TELEGRAM_ID || '').trim();
 }
 
-function maskEmail(email) {
-  if (!email || !email.includes('@')) return '';
-  const [name, domain] = email.split('@');
-  const safeName = name.length <= 2 ? `${name[0] || '*'}*` : `${name.slice(0, 2)}***${name.slice(-1)}`;
-  return `${safeName}@${domain}`;
+function maskTelegramId(id) {
+  const text = String(id || '').trim();
+  if (!text) return '';
+  if (text.length <= 4) return `${text.slice(0, 1)}***`;
+  return `${text.slice(0, 3)}***${text.slice(-2)}`;
 }
 
-function isSmtpConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+async function getTelegramBotToken() {
+  const cfg = await pool.query('SELECT bot_token FROM tg_config WHERE id = 1');
+  return cfg.rows[0]?.bot_token || '';
 }
 
-function createMailTransport() {
-  if (!isSmtpConfigured()) return null;
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: String(process.env.SMTP_SECURE || 'true') !== 'false',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
+async function sendAdminSecurityCodeTelegram(telegramId, code) {
+  const botToken = await getTelegramBotToken();
+  if (!botToken) throw new Error('TELEGRAM_BOT_NOT_CONFIGURED');
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: telegramId,
+      text: `IWAK ADMIN\n\nКод для смены пароля: ${code}\n\nКод действует 10 минут. Если это были не вы, просто игнорируйте сообщение.`,
+      disable_notification: false,
+    }),
   });
-}
-
-async function sendAdminSecurityCode(email, code) {
-  const transport = createMailTransport();
-  if (!transport) throw new Error('SMTP_NOT_CONFIGURED');
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  await transport.sendMail({
-    from,
-    to: email,
-    subject: 'IWAK ADMIN: код подтверждения',
-    text: `Код для смены пароля IWAK ADMIN: ${code}\n\nКод действует 10 минут. Если это были не вы, просто игнорируйте письмо.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;font-size:16px;color:#111">
-        <p>Код для смены пароля IWAK ADMIN:</p>
-        <p style="font-size:32px;letter-spacing:8px;font-weight:700">${code}</p>
-        <p style="color:#777">Код действует 10 минут. Если это были не вы, просто игнорируйте письмо.</p>
-      </div>
-    `,
-  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.description || 'TELEGRAM_SEND_FAILED');
+    error.telegram = data;
+    throw error;
+  }
 }
 // ── Request logging ─────────────────────────
 app.use((req, _res, next) => {
@@ -481,13 +469,14 @@ const passwordCodeLimiter = rateLimit({
 app.get('/api/admin/security', requireAuth, async (req, res) => {
   try {
     await adminSecurityReady;
-    const ownerEmail = getOwnerEmail();
+    const ownerTelegramId = getOwnerTelegramId();
+    const botToken = await getTelegramBotToken();
     const user = await pool.query('SELECT login, password_changed_at FROM admin_users WHERE id = $1', [req.admin.id]);
     res.json({
       login: user.rows[0]?.login || req.admin.login,
-      ownerEmailConfigured: Boolean(ownerEmail),
-      ownerEmail: maskEmail(ownerEmail),
-      smtpConfigured: isSmtpConfigured(),
+      ownerTelegramConfigured: Boolean(ownerTelegramId),
+      ownerTelegramId: maskTelegramId(ownerTelegramId),
+      telegramBotConfigured: Boolean(botToken),
       passwordChangedAt: user.rows[0]?.password_changed_at || null,
     });
   } catch (err) {
@@ -497,9 +486,8 @@ app.get('/api/admin/security', requireAuth, async (req, res) => {
 });
 
 app.post('/api/admin/security/password-code', requireAuth, passwordCodeLimiter, async (req, res) => {
-  const ownerEmail = getOwnerEmail();
-  if (!ownerEmail) return res.status(500).json({ error: 'Почта владельца не настроена на сервере' });
-  if (!isSmtpConfigured()) return res.status(500).json({ error: 'SMTP для отправки кода не настроен' });
+  const ownerTelegramId = getOwnerTelegramId();
+  if (!ownerTelegramId) return res.status(500).json({ error: 'Telegram ID владельца не настроен на сервере' });
 
   try {
     await adminSecurityReady;
@@ -507,16 +495,16 @@ app.post('/api/admin/security/password-code', requireAuth, passwordCodeLimiter, 
     const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
     passwordResetCodes.set(req.admin.id, {
       codeHash,
-      email: ownerEmail,
+      telegramId: ownerTelegramId,
       attempts: 0,
       expiresAt: Date.now() + 10 * 60 * 1000,
     });
-    await sendAdminSecurityCode(ownerEmail, code);
-    logger.info({ adminId: req.admin.id, email: maskEmail(ownerEmail) }, 'Admin password change code sent');
-    res.json({ ok: true, ownerEmail: maskEmail(ownerEmail), expiresInMinutes: 10 });
+    await sendAdminSecurityCodeTelegram(ownerTelegramId, code);
+    logger.info({ adminId: req.admin.id, telegramId: maskTelegramId(ownerTelegramId) }, 'Admin password change code sent via Telegram');
+    res.json({ ok: true, ownerTelegramId: maskTelegramId(ownerTelegramId), expiresInMinutes: 10 });
   } catch (err) {
     logger.error({ err }, 'POST /api/admin/security/password-code error');
-    res.status(500).json({ error: 'Не удалось отправить код подтверждения' });
+    res.status(500).json({ error: 'Не удалось отправить код в Telegram' });
   }
 });
 

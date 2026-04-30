@@ -37,7 +37,7 @@ export default function SettingsTab() {
         return;
       }
       setCodeSent(true);
-      notifyGlobal('success', `Код отправлен на ${data.ownerEmail || security?.ownerEmail || 'почту'}`);
+      notifyGlobal('success', `Код отправлен в Telegram ${data.ownerTelegramId || security?.ownerTelegramId || ''}`);
     } catch {
       notifyGlobal('error', 'Ошибка отправки кода');
     } finally {
@@ -83,14 +83,14 @@ export default function SettingsTab() {
 
   if (loading) return <div className="adm-body settings-admin">Загрузка…</div>;
 
-  const blocked = !security?.ownerEmailConfigured || !security?.smtpConfigured;
+  const blocked = !security?.ownerTelegramConfigured || !security?.telegramBotConfigured;
 
   return (
     <div className="adm-body settings-admin">
       <div className="settings-admin__hero">
         <span>НАСТРОЙКИ</span>
         <h2>Доступ к админке</h2>
-        <p>Смена пароля проходит через 4-значный код на владельческую почту.</p>
+        <p>Смена пароля проходит через 4-значный код в личный Telegram владельца.</p>
       </div>
 
       <div className="settings-admin__panel">
@@ -99,13 +99,13 @@ export default function SettingsTab() {
           <strong>{security?.login || 'admin'}</strong>
         </div>
         <div className="settings-admin__row">
-          <span>Почта владельца</span>
-          <strong>{security?.ownerEmail || 'не настроена'}</strong>
+          <span>Telegram владельца</span>
+          <strong>{security?.ownerTelegramId || 'не настроен'}</strong>
         </div>
         <div className="settings-admin__row">
-          <span>Отправка писем</span>
-          <strong className={security?.smtpConfigured ? 'settings-admin__ok' : 'settings-admin__warn'}>
-            {security?.smtpConfigured ? 'готова' : 'нужна SMTP-настройка'}
+          <span>Telegram-бот</span>
+          <strong className={security?.telegramBotConfigured ? 'settings-admin__ok' : 'settings-admin__warn'}>
+            {security?.telegramBotConfigured ? 'готов' : 'не подключен'}
           </strong>
         </div>
         {security?.passwordChangedAt ? (
@@ -129,7 +129,7 @@ export default function SettingsTab() {
 
         {blocked ? (
           <div className="settings-admin__notice">
-            Для работы нужно указать на сервере `ADMIN_OWNER_EMAIL` и SMTP-данные отправителя.
+            Для работы нужно указать на сервере `ADMIN_OWNER_TELEGRAM_ID` и подключить Telegram-бота в разделе автоматизации.
           </div>
         ) : null}
 
