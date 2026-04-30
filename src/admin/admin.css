@@ -126,10 +126,19 @@
   display: flex;
   background: var(--adm-surface);
   border-bottom: 1px solid var(--adm-border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.adm-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .adm-tab {
   flex: 1;
+  min-width: 0;
   padding: 12px 0;
   background: none;
   border: none;
@@ -142,6 +151,22 @@
   cursor: pointer;
   touch-action: manipulation;
   transition: color 0.15s, border-color 0.15s;
+}
+
+@media (max-width: 680px) {
+  .adm-tabs {
+    padding: 0 10px;
+    gap: 22px;
+  }
+
+  .adm-tab {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 12px 0 11px;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
 }
 
 .adm-tab--active {
