@@ -3322,8 +3322,17 @@ img {
 }
 
 .pp-sale-card .product-card__info {
-  padding: 7px 2px 0;
+  height: 76px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.pp-sale-card .product-card__details {
+  inset: 7px 0 0 0;
+  display: grid;
+  grid-template-rows: 18px 34px;
   gap: 4px;
+  align-content: start;
 }
 
 .pp-sale-card .product-card__brand {
@@ -3341,23 +3350,37 @@ img {
 
 .pp-sale-card .product-card__price,
 .pp-sale-card .product-card__price--sale {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  line-height: 18px;
 }
 
 .pp-sale-card .product-card__price-row {
   order: -1;
   margin-top: 0;
   gap: 4px;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow: hidden;
 }
 
 .pp-sale-card .product-card__price--old {
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 18px;
+  white-space: nowrap;
 }
 
 .pp-sale-card .product-card__badge {
-  font-size: 10px;
-  padding: 0 4px;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.pp-sale-card .product-card__quick-btn {
+  display: none;
 }
 
 .pp-sale-more {
