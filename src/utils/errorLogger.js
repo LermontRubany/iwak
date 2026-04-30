@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'iwak_error_logs';
+const CLEANUP_KEY = 'iwak_error_logs_cleanup_product_refresh_v1';
 const MAX_LOGS = 100;
 
 /**
@@ -97,7 +98,23 @@ export function logError({ url, method, status, message, stack }) {
  */
 export function getErrorLogs() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const logs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (!localStorage.getItem(CLEANUP_KEY)) {
+      const cleaned = logs.filter((log) => {
+        const isProductRefreshNoise =
+          log?.method === 'GET' &&
+          log?.status == null &&
+          log?.url === '/api/products?limit=2000' &&
+          String(log?.message || '').includes('Failed to fetch');
+        return !isProductRefreshNoise;
+      });
+      localStorage.setItem(CLEANUP_KEY, '1');
+      if (cleaned.length !== logs.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        return cleaned;
+      }
+    }
+    return logs;
   } catch {
     return [];
   }
