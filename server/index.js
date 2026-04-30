@@ -213,8 +213,12 @@ async function getTelegramBotToken() {
   return cfg.rows[0]?.bot_token || '';
 }
 
+async function getAdminSecurityBotToken() {
+  return String(process.env.ADMIN_SECURITY_BOT_TOKEN || '').trim() || await getTelegramBotToken();
+}
+
 async function sendAdminSecurityCodeTelegram(telegramId, code) {
-  const botToken = await getTelegramBotToken();
+  const botToken = await getAdminSecurityBotToken();
   if (!botToken) throw new Error('TELEGRAM_BOT_NOT_CONFIGURED');
   const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
@@ -470,7 +474,7 @@ app.get('/api/admin/security', requireAuth, async (req, res) => {
   try {
     await adminSecurityReady;
     const ownerTelegramId = getOwnerTelegramId();
-    const botToken = await getTelegramBotToken();
+    const botToken = await getAdminSecurityBotToken();
     const user = await pool.query('SELECT login, password_changed_at FROM admin_users WHERE id = $1', [req.admin.id]);
     res.json({
       login: user.rows[0]?.login || req.admin.login,
