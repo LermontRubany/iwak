@@ -18,6 +18,21 @@ function setCache(data) {
   try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
 
+function isHexColor(value) {
+  return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function applyCatalogTheme(theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const saleColor = isHexColor(theme?.saleColor) ? theme.saleColor : '#d32f2f';
+  const badgeBg = isHexColor(theme?.badgeBg) ? theme.badgeBg : saleColor;
+  const badgeText = isHexColor(theme?.badgeText) ? theme.badgeText : '#ffffff';
+  root.style.setProperty('--iwak-sale-color', saleColor);
+  root.style.setProperty('--iwak-sale-badge-bg', badgeBg);
+  root.style.setProperty('--iwak-sale-badge-text', badgeText);
+}
+
 export default function PromoBanner({ position = 'bottom' }) {
   const [cfg, setCfg] = useState(getCached);
   const fetchedRef = useRef(false);
@@ -48,6 +63,10 @@ export default function PromoBanner({ position = 'bottom' }) {
       window.removeEventListener('focus', onFocus);
     };
   }, [refetch]);
+
+  useEffect(() => {
+    applyCatalogTheme(cfg?.catalogTheme);
+  }, [cfg]);
 
   if (!cfg || !cfg.enabled || !cfg.text) return null;
 

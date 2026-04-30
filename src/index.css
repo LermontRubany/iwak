@@ -1438,7 +1438,10 @@ img {
 }
 
 .product-card__details {
-  gap: 2px;
+  display: grid;
+  grid-template-rows: 14px 36px 22px;
+  align-content: start;
+  gap: 0;
 }
 
 .product-card--quick-open .product-card__details {
@@ -1461,10 +1464,14 @@ img {
 
 .product-card__brand {
   font-size: 10px;
+  line-height: 14px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #111;
   font-weight: 400;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .product-card__name {
@@ -1481,7 +1488,7 @@ img {
 .product-card__price {
   font-size: 13px;
   font-weight: 400;
-  margin-top: 6px;
+  margin-top: 5px;
   color: #111;
   letter-spacing: 0.01em;
 }
@@ -1490,14 +1497,14 @@ img {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 5px;
   flex-wrap: wrap;
 }
 
 .product-card__price--sale {
   font-size: 13px;
   font-weight: 600;
-  color: #d32f2f;
+  color: var(--iwak-sale-color, #d32f2f);
 }
 
 .product-card__price--old {
@@ -1509,8 +1516,8 @@ img {
 .product-card__badge {
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
-  background: #d32f2f;
+  color: var(--iwak-sale-badge-text, #fff);
+  background: var(--iwak-sale-badge-bg, #d32f2f);
   padding: 1px 5px;
   border-radius: 3px;
   line-height: 1.4;

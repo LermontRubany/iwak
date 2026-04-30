@@ -16,6 +16,11 @@ const DEFAULTS = {
   link: '',
   pages: [],
   position: 'bottom',
+  catalogTheme: {
+    saleColor: '#d32f2f',
+    badgeBg: '#d32f2f',
+    badgeText: '#ffffff',
+  },
 };
 
 const PAGE_OPTIONS = [
@@ -91,16 +96,37 @@ const STYLE_PRESETS = [
   { id: 'sale', label: 'Sale', backgroundColor: '#0f766e', textColor: '#ffffff' },
 ];
 
+const CATALOG_THEME_PRESETS = [
+  { id: 'classic-red', label: 'Red', saleColor: '#d32f2f', badgeBg: '#d32f2f', badgeText: '#ffffff' },
+  { id: 'deep-red', label: 'Deep', saleColor: '#b91c1c', badgeBg: '#b91c1c', badgeText: '#ffffff' },
+  { id: 'graphite', label: 'Graphite', saleColor: '#111111', badgeBg: '#111111', badgeText: '#ffffff' },
+  { id: 'green', label: 'Green', saleColor: '#16834a', badgeBg: '#16834a', badgeText: '#ffffff' },
+];
+
 const clamp = (value, min, max, fallback) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, n));
 };
 
+const normalizeHex = (value, fallback) => {
+  const text = String(value || '').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(text) ? text : fallback;
+};
+
 function cleanConfig(cfg) {
+  const catalogTheme = {
+    ...DEFAULTS.catalogTheme,
+    ...(cfg.catalogTheme && typeof cfg.catalogTheme === 'object' ? cfg.catalogTheme : {}),
+  };
   return {
     ...DEFAULTS,
     ...cfg,
+    catalogTheme: {
+      saleColor: normalizeHex(catalogTheme.saleColor, DEFAULTS.catalogTheme.saleColor),
+      badgeBg: normalizeHex(catalogTheme.badgeBg, DEFAULTS.catalogTheme.badgeBg),
+      badgeText: normalizeHex(catalogTheme.badgeText, DEFAULTS.catalogTheme.badgeText),
+    },
     text: String(cfg.text || '').trim(),
     emoji: String(cfg.emoji || '').trim().slice(0, 4),
     link: String(cfg.link || '').trim(),
@@ -161,6 +187,22 @@ export default function PromoTab() {
 
   const upd = (key, val) => setCfg(prev => ({ ...prev, [key]: val }));
   const mergeCfg = (patch) => setCfg(prev => ({ ...prev, ...patch }));
+  const updCatalogTheme = (key, val) => setCfg(prev => ({
+    ...prev,
+    catalogTheme: {
+      ...DEFAULTS.catalogTheme,
+      ...(prev.catalogTheme || {}),
+      [key]: val,
+    },
+  }));
+  const mergeCatalogTheme = (patch) => setCfg(prev => ({
+    ...prev,
+    catalogTheme: {
+      ...DEFAULTS.catalogTheme,
+      ...(prev.catalogTheme || {}),
+      ...patch,
+    },
+  }));
 
   const togglePage = (pageVal) => {
     setCfg(prev => {
@@ -198,6 +240,10 @@ export default function PromoTab() {
     lineHeight: 1.4,
     margin: '0 auto',
     boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
+  };
+  const catalogTheme = {
+    ...DEFAULTS.catalogTheme,
+    ...(cfg.catalogTheme || {}),
   };
 
   return (
@@ -382,6 +428,70 @@ export default function PromoTab() {
               </div>
             </div>
           ) : null}
+        </div>
+
+        <div className="promo-tab__block">
+          <div className="promo-tab__block-head">
+            <span>Цвета скидок в каталоге</span>
+            <small>Цена со скидкой и плашка процента на карточках</small>
+          </div>
+
+          <div className="promo-tab__style-row">
+            {CATALOG_THEME_PRESETS.map(preset => (
+              <button
+                key={preset.id}
+                type="button"
+                className="promo-tab__style-swatch"
+                onClick={() => mergeCatalogTheme({
+                  saleColor: preset.saleColor,
+                  badgeBg: preset.badgeBg,
+                  badgeText: preset.badgeText,
+                })}
+                title={preset.label}
+              >
+                <span style={{ background: preset.badgeBg, color: preset.badgeText }}>-%</span>
+                {preset.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="promo-tab__row">
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Цена со скидкой</label>
+              <div className="promo-tab__color-wrap">
+                <input type="color" value={catalogTheme.saleColor} onChange={e => updCatalogTheme('saleColor', e.target.value)} />
+                <input type="text" className="adm-input promo-tab__input promo-tab__input--sm"
+                  value={catalogTheme.saleColor} onChange={e => updCatalogTheme('saleColor', e.target.value)} />
+              </div>
+            </div>
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Плашка скидки</label>
+              <div className="promo-tab__color-wrap">
+                <input type="color" value={catalogTheme.badgeBg} onChange={e => updCatalogTheme('badgeBg', e.target.value)} />
+                <input type="text" className="adm-input promo-tab__input promo-tab__input--sm"
+                  value={catalogTheme.badgeBg} onChange={e => updCatalogTheme('badgeBg', e.target.value)} />
+              </div>
+            </div>
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Текст плашки</label>
+              <div className="promo-tab__color-wrap">
+                <input type="color" value={catalogTheme.badgeText} onChange={e => updCatalogTheme('badgeText', e.target.value)} />
+                <input type="text" className="adm-input promo-tab__input promo-tab__input--sm"
+                  value={catalogTheme.badgeText} onChange={e => updCatalogTheme('badgeText', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          <div className="promo-tab__catalog-preview">
+            <span className="promo-tab__catalog-price" style={{ color: catalogTheme.saleColor }}>₽3 990</span>
+            <span className="promo-tab__catalog-old">₽5 500</span>
+            <span
+              className="promo-tab__catalog-badge"
+              style={{ background: catalogTheme.badgeBg, color: catalogTheme.badgeText }}
+            >
+              -27%
+            </span>
+          </div>
         </div>
 
         <div className="promo-tab__actions">

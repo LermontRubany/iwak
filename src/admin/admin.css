@@ -3867,6 +3867,39 @@
   font-weight: 800;
 }
 
+.promo-tab__catalog-preview {
+  margin-top: 14px;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid var(--adm-border);
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.promo-tab__catalog-price {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.promo-tab__catalog-old {
+  font-size: 14px;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.promo-tab__catalog-badge {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
 .promo-tab__advanced {
   border-top: 1px solid var(--adm-border);
   padding-top: 12px;
