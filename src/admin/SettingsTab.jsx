@@ -48,7 +48,7 @@ export default function SettingsTab() {
   const changePassword = async () => {
     if (saving) return;
     if (!/^\d{4}$/.test(form.code.trim())) {
-      notifyGlobal('error', 'Введите 4 цифры из письма');
+      notifyGlobal('error', 'Введите 4 цифры из Telegram');
       return;
     }
     if (form.password.length < 8) {

@@ -34,24 +34,27 @@ function handleUnauthorized(url, method) {
 }
 
 async function apiFetch(url, options = {}) {
+  const { silentNetworkError = false, ...requestOptions } = options;
   let res;
   try {
-    res = await fetch(url, { ...options, headers: { ...getAuthHeaders(), ...options.headers } });
+    res = await fetch(url, { ...requestOptions, headers: { ...getAuthHeaders(), ...requestOptions.headers } });
   } catch (e) {
     const msg = friendlyErrorMessage(null, e.message);
-    logError({ url, method: options.method || 'GET', status: null, message: e.message, stack: e.stack });
-    notifyGlobal('error', msg);
+    if (!silentNetworkError) {
+      logError({ url, method: requestOptions.method || 'GET', status: null, message: e.message, stack: e.stack });
+      notifyGlobal('error', msg);
+    }
     throw new Error(msg);
   }
   if (!res.ok) {
     if (res.status === 401) {
-      handleUnauthorized(url, options.method || 'GET');
+      handleUnauthorized(url, requestOptions.method || 'GET');
       throw new Error('Сессия истекла');
     }
     const body = await res.json().catch(() => ({}));
     const raw = body.error || `Ошибка сервера (${res.status})`;
     const msg = body.error || friendlyErrorMessage(res.status, raw);
-    logError({ url, method: options.method || 'GET', status: res.status, message: raw });
+    logError({ url, method: requestOptions.method || 'GET', status: res.status, message: raw });
     notifyGlobal('error', msg);
     throw new Error(msg);
   }
@@ -130,19 +133,20 @@ export function ProductsProvider({ children }) {
         setLoading(false);
         return;
       }
-      if (!readCache() && !demoMode) setLoading(true);
+      const hasCache = Boolean(readCache());
+      if (!hasCache && !demoMode) setLoading(true);
       const endpoint = window.location.pathname.startsWith('/adminpanel')
         ? '/api/products?limit=2000'
         : '/api/catalog-products?limit=2000';
       const data = demoMode
         ? await apiFetchQuiet(endpoint, { timeoutMs: 900 }).catch(() => ({ items: demoProducts }))
-        : await apiFetch(endpoint);
+        : await apiFetch(endpoint, { silentNetworkError: hasCache });
       const raw = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
       // Фильтруем невалидные элементы (защита от краша рендера)
       const items = raw.filter((p) => p && typeof p === 'object' && p.id != null);
       setProducts(demoMode && items.length === 0 ? demoProducts : items);
     } catch (err) {
-      // apiFetch уже вызвал notifyGlobal — здесь только fallback на кеш
+      // apiFetch уже вызвал notifyGlobal, кроме тихого фонового обновления с кешем.
       if (!readCache()) setProducts(isDemoProductsEnabled() ? demoProducts : []);
     } finally {
       setLoading(false);
