@@ -23,9 +23,9 @@ function AppRoutes() {
   const isProduct = location.pathname.startsWith('/product/');
   const isCart = location.pathname === '/cart';
   const isOverlayRoute = isProduct || isCart;
-  const baseLocation = backgroundLocation || (isOverlayRoute
-    ? { ...location, pathname: '/catalog', search: '' }
-    : location);
+  const hasOverlayBackground = Boolean(backgroundLocation) && isOverlayRoute;
+  const isDirectOverlayEntry = isOverlayRoute && !hasOverlayBackground;
+  const baseLocation = hasOverlayBackground ? backgroundLocation : location;
 
   useEffect(() => {
     if (!location.pathname.startsWith('/catalog')) return undefined;
@@ -38,15 +38,18 @@ function AppRoutes() {
 
   return (
     <>
-      <Header />
-
-      <main className="main-content">
-        <PromoBanner position="top" />
-        <Routes location={baseLocation}>
-          <Route path="/catalog" element={<CatalogPage />} />
-          <Route path="/" element={<Navigate to="/catalog" replace />} />
-        </Routes>
-      </main>
+      {!isDirectOverlayEntry && (
+        <>
+          <Header />
+          <main className="main-content">
+            <PromoBanner position="top" />
+            <Routes location={baseLocation}>
+              <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/" element={<Navigate to="/catalog" replace />} />
+            </Routes>
+          </main>
+        </>
+      )}
 
       {/* ProductPage: manages its own .overlay wrapper */}
       {isProduct && (
@@ -64,13 +67,16 @@ function AppRoutes() {
         </Suspense>
       )}
 
-      <PromoBanner position="bottom" />
-      <PwaInstallHint />
-      <PwaPushPrompt />
-
-      <footer className="site-footer">
-        <p>© 2026 IWAK. Все права защищены.</p>
-      </footer>
+      {!isDirectOverlayEntry && (
+        <>
+          <PromoBanner position="bottom" />
+          <PwaInstallHint />
+          <PwaPushPrompt />
+          <footer className="site-footer">
+            <p>© 2026 IWAK. Все права защищены.</p>
+          </footer>
+        </>
+      )}
     </>
   );
 }
