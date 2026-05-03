@@ -3,6 +3,7 @@ import { track } from '../utils/tracker';
 
 const CACHE_KEY = 'iwak_promo_cfg';
 const CACHE_TTL = 5 * 60 * 1000;
+const IWAK_SELECT_MAX_CARDS = 20;
 const DEFAULT_SELECT_PALETTE = {
   titleColor: '#ffffff',
   subtitleColor: 'rgba(255,255,255,0.80)',
@@ -171,7 +172,7 @@ export default function IwakSelectRail({ hidden = false }) {
     const raw = Array.isArray(select?.cards) ? select.cards : [];
     return raw
       .filter((card) => card && card.active !== false && card.title && card.link)
-      .slice(0, 10);
+      .slice(0, IWAK_SELECT_MAX_CARDS);
   }, [select]);
   const palette = useMemo(() => {
     const raw = select?.palette && typeof select.palette === 'object' ? select.palette : {};

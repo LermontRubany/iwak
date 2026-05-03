@@ -129,6 +129,7 @@ const PROMO_ALLOWED_TYPES = [
   'image/heif',
 ];
 const PROMO_MAX_ORIGINAL_SIZE = 25 * 1024 * 1024;
+const IWAK_SELECT_MAX_CARDS = 20;
 
 const clamp = (value, min, max, fallback) => {
   const n = Number(value);
@@ -158,7 +159,7 @@ function cleanConfig(cfg) {
       titleColor: normalizeHex(rawPalette.titleColor, DEFAULTS.iwakSelect.palette.titleColor),
       subtitleColor: normalizeHex(rawPalette.subtitleColor, DEFAULTS.iwakSelect.palette.subtitleColor),
     },
-    cards: rawCards.slice(0, 8).map((card, idx) => ({
+    cards: rawCards.slice(0, IWAK_SELECT_MAX_CARDS).map((card, idx) => ({
       id: String(card.id || `select-${idx}-${Date.now()}`),
       active: card.active !== false,
       featured: Boolean(card.featured),
@@ -300,7 +301,7 @@ export default function PromoTab() {
       titleColor: '',
       subtitleColor: '',
     });
-    return { ...prev, iwakSelect: { ...select, cards: cards.slice(0, 8) } };
+    return { ...prev, iwakSelect: { ...select, cards: cards.slice(0, IWAK_SELECT_MAX_CARDS) } };
   });
 
   const removeSelectCard = (idx) => setCfg(prev => {
@@ -791,7 +792,7 @@ export default function PromoTab() {
             ))}
           </div>
 
-          <button type="button" className="adm-btn adm-btn--ghost" onClick={addSelectCard} disabled={(iwakSelect.cards || []).length >= 8}>
+          <button type="button" className="adm-btn adm-btn--ghost" onClick={addSelectCard} disabled={(iwakSelect.cards || []).length >= IWAK_SELECT_MAX_CARDS}>
             + Добавить карточку
           </button>
         </div>
