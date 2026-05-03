@@ -363,7 +363,7 @@ const authLimiter = rateLimit({
 });
 
 // ── File upload (multer) ────────────────────
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const upload = multer({
@@ -373,7 +373,7 @@ const upload = multer({
     if (ALLOWED_MIME.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Недопустимый тип файла: ${file.mimetype}. Разрешены: JPEG, PNG, WebP, AVIF.`));
+      cb(new Error(`Недопустимый тип файла: ${file.mimetype}. Разрешены: JPEG, PNG, WebP, AVIF, HEIC.`));
     }
   },
 });
@@ -1018,7 +1018,7 @@ app.post('/api/upload', requireAuth, uploadLimiter, upload.single('image'), asyn
   try {
     // Проверка magic bytes через sharp.metadata() — отклоняет не-изображения до обработки
     const meta = await sharp(req.file.buffer).metadata();
-    const ALLOWED_FORMATS = ['jpeg', 'png', 'webp', 'avif', 'gif'];
+    const ALLOWED_FORMATS = ['jpeg', 'png', 'webp', 'avif', 'gif', 'heif'];
     if (!ALLOWED_FORMATS.includes(meta.format)) {
       logger.warn({ ip: req.ip, format: meta.format }, 'Upload rejected: invalid image format');
       return res.status(415).json({ success: false, error: 'Недопустимый формат файла' });

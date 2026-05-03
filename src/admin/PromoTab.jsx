@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import imageCompression from 'browser-image-compression';
 import authFetch from './authFetch';
 import { notifyGlobal } from '../context/NotificationsContext';
 
@@ -118,6 +119,16 @@ const CATALOG_THEME_PRESETS = [
   { id: 'graphite', label: 'Graphite', saleColor: '#111111', badgeBg: '#111111', badgeText: '#ffffff' },
   { id: 'green', label: 'Green', saleColor: '#16834a', badgeBg: '#16834a', badgeText: '#ffffff' },
 ];
+
+const PROMO_ALLOWED_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+];
+const PROMO_MAX_ORIGINAL_SIZE = 25 * 1024 * 1024;
 
 const clamp = (value, min, max, fallback) => {
   const n = Number(value);
@@ -310,13 +321,41 @@ export default function PromoTab() {
 
   const uploadSelectImage = async (idx, file) => {
     if (!file) return;
+    if (!String(file.type || '').startsWith('image/')) {
+      notifyGlobal('error', 'Нужен файл изображения');
+      return;
+    }
+    if (file.size > PROMO_MAX_ORIGINAL_SIZE) {
+      notifyGlobal('error', 'Файл слишком большой (макс. 25 МБ)');
+      return;
+    }
+    if (!PROMO_ALLOWED_TYPES.includes(file.type)) {
+      notifyGlobal('error', 'Формат не поддерживается (JPEG, PNG, WebP, AVIF, HEIC)');
+      return;
+    }
+
+    let fileToUpload = file;
+    try {
+      fileToUpload = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+        initialQuality: 0.82,
+        fileType: 'image/jpeg',
+      });
+    } catch {
+      // Fallback: upload original
+    }
+
     const form = new FormData();
-    form.append('image', file);
+    form.append('image', fileToUpload);
     try {
       const res = await authFetch('/api/upload', { method: 'POST', body: form });
-      const data = await res.json().catch(() => ({}));
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch {}
       if (!res.ok || !data.path) {
-        notifyGlobal('error', data.error || 'Не удалось загрузить картинку');
+        notifyGlobal('error', data.error || text || `Не удалось загрузить картинку (${res.status})`);
         return;
       }
       updSelectCard(idx, { image: data.path });
