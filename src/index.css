@@ -1719,6 +1719,9 @@ img {
   user-select: none;
   -webkit-user-select: none;
   will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
 }
 
 .iwak-select__story:active,
@@ -1756,6 +1759,9 @@ img {
   display: block;
   pointer-events: none;
   -webkit-user-drag: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .iwak-select__story-media span {

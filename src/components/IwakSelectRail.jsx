@@ -90,9 +90,7 @@ function getStoryPresentation(rawOffset, stageWidth = 390) {
     : Math.max(0.58, 0.8 - Math.min(abs - 1, 1.4) * 0.2);
   const opacity = abs > 2.65 ? 0 : Math.max(0.58, 1 - Math.max(0, abs - 0.15) * 0.16);
   const zIndex = Math.max(1, 20 - Math.round(abs * 4));
-  const brightness = Math.max(0.72, 1 - Math.max(0, abs - 0.1) * 0.12);
-
-  return { abs, x, y, scale, opacity, zIndex, brightness };
+  return { abs, x, y, scale, opacity, zIndex };
 }
 
 function getInitialStoryStyle(rawOffset) {
@@ -104,7 +102,6 @@ function getInitialStoryStyle(rawOffset) {
     '--story-scale': p.scale,
     opacity: p.opacity,
     zIndex: p.zIndex,
-    filter: `brightness(${p.brightness}) saturate(${Math.max(0.9, 1 - p.abs * 0.025)})`,
     pointerEvents: p.abs > 2.4 ? 'none' : undefined,
   };
 }
@@ -222,7 +219,6 @@ export default function IwakSelectRail({ hidden = false }) {
       node.style.setProperty('--story-scale', String(p.scale));
       node.style.opacity = visible ? String(p.opacity) : '0';
       node.style.zIndex = visible ? String(p.zIndex) : '1';
-      node.style.filter = dragging ? '' : `brightness(${p.brightness}) saturate(${Math.max(0.9, 1 - p.abs * 0.025)})`;
       node.style.pointerEvents = p.abs > 2.4 ? 'none' : '';
     });
   }, [getCircularOffset, getFluidOffset]);
@@ -453,7 +449,14 @@ export default function IwakSelectRail({ hidden = false }) {
             <>
               <span className="iwak-select__story-media">
                 {image ? (
-                  <img src={image} alt="" loading={index < 6 ? 'eager' : 'lazy'} decoding="async" draggable="false" />
+                  <img
+                    src={image}
+                    alt=""
+                    loading={index < 12 ? 'eager' : 'lazy'}
+                    fetchPriority={index < 4 ? 'high' : undefined}
+                    decoding="async"
+                    draggable="false"
+                  />
                 ) : (
                   <span>{getInitials(title)}</span>
                 )}
