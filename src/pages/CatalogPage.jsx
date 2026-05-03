@@ -5,6 +5,7 @@ import { track } from '../utils/tracker';
 import ProductCard from '../components/ProductCard';
 import FilterPanel from '../components/FilterPanel';
 import MiniPlayer from '../components/MiniPlayer';
+import IwakSelectRail from '../components/IwakSelectRail';
 import { normalizeBrand, formatBrand, getUniqueBrands } from '../utils/brandUtils';
 import {
   parseFiltersFromURL, buildFilterParams, buildCanonicalURL,
@@ -427,6 +428,8 @@ export default function CatalogPage() {
           )}
         </div>
       )}
+
+      <IwakSelectRail hidden={Boolean(query) || activeCount > 0} />
 
       <div className="product-grid">
         {loading ? (

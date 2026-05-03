@@ -21,6 +21,22 @@ const DEFAULTS = {
     badgeBg: '#d32f2f',
     badgeText: '#ffffff',
   },
+  iwakSelect: {
+    enabled: false,
+    title: 'IWAK SELECT',
+    subtitle: 'сейчас по скидке',
+    palette: {
+      titleColor: '#ffffff',
+      subtitleColor: '#cccccc',
+    },
+    cards: [
+      { id: 'sale-heat', active: true, featured: true, title: 'SALE HEAT', subtitle: 'все скидки', meta: 'до -46%', cta: 'смотреть', link: '/catalog?sale=true', image: '' },
+      { id: 'all-black', active: true, featured: false, title: 'ALL BLACK', subtitle: 'чёрные пары', meta: 'sale', cta: 'смотреть', link: '/catalog?sale=true&q=black', image: '' },
+      { id: 'street-fit', active: true, featured: false, title: 'STREET FIT', subtitle: 'кроссовки', meta: 'sale', cta: 'смотреть', link: '/catalog?sale=true&category=кроссовки', image: '' },
+      { id: 'vans-classic', active: true, featured: false, title: 'VANS CLASSIC', subtitle: 'vans sale', meta: 'sale', cta: 'смотреть', link: '/catalog?sale=true&brand=vans', image: '' },
+      { id: 'for-her', active: true, featured: false, title: 'FOR HER', subtitle: 'женский sale', meta: 'sale', cta: 'смотреть', link: '/catalog?sale=true&gender=womens', image: '' },
+    ],
+  },
 };
 
 const PAGE_OPTIONS = [
@@ -119,6 +135,35 @@ function cleanConfig(cfg) {
     ...DEFAULTS.catalogTheme,
     ...(cfg.catalogTheme && typeof cfg.catalogTheme === 'object' ? cfg.catalogTheme : {}),
   };
+  const rawSelect = cfg.iwakSelect && typeof cfg.iwakSelect === 'object' ? cfg.iwakSelect : {};
+  const rawCards = Array.isArray(rawSelect.cards) ? rawSelect.cards : [];
+  const rawPalette = rawSelect.palette && typeof rawSelect.palette === 'object' ? rawSelect.palette : {};
+  const iwakSelect = {
+    ...DEFAULTS.iwakSelect,
+    ...rawSelect,
+    title: String(rawSelect.title || DEFAULTS.iwakSelect.title).trim().slice(0, 32),
+    subtitle: String(rawSelect.subtitle || DEFAULTS.iwakSelect.subtitle).trim().slice(0, 60),
+    palette: {
+      titleColor: normalizeHex(rawPalette.titleColor, DEFAULTS.iwakSelect.palette.titleColor),
+      subtitleColor: normalizeHex(rawPalette.subtitleColor, DEFAULTS.iwakSelect.palette.subtitleColor),
+    },
+    cards: rawCards.slice(0, 8).map((card, idx) => ({
+      id: String(card.id || `select-${idx}-${Date.now()}`),
+      active: card.active !== false,
+      featured: Boolean(card.featured),
+      title: String(card.title || '').trim().slice(0, 28),
+      subtitle: String(card.subtitle || '').trim().slice(0, 34),
+      meta: String(card.meta || '').trim().slice(0, 24),
+      cta: String(card.cta || 'смотреть').trim().slice(0, 18),
+      link: String(card.link || '/catalog').trim(),
+      image: String(card.image || '').trim(),
+      titleColor: normalizeHex(card.titleColor, ''),
+      subtitleColor: normalizeHex(card.subtitleColor, ''),
+    })).filter((card) => card.title && card.link),
+  };
+  if (iwakSelect.cards.length > 0 && !iwakSelect.cards.some((card) => card.featured)) {
+    iwakSelect.cards[0].featured = true;
+  }
   return {
     ...DEFAULTS,
     ...cfg,
@@ -127,6 +172,7 @@ function cleanConfig(cfg) {
       badgeBg: normalizeHex(catalogTheme.badgeBg, DEFAULTS.catalogTheme.badgeBg),
       badgeText: normalizeHex(catalogTheme.badgeText, DEFAULTS.catalogTheme.badgeText),
     },
+    iwakSelect,
     text: String(cfg.text || '').trim(),
     emoji: String(cfg.emoji || '').trim().slice(0, 4),
     link: String(cfg.link || '').trim(),
@@ -195,6 +241,90 @@ export default function PromoTab() {
       [key]: val,
     },
   }));
+
+  const updSelect = (key, val) => setCfg(prev => ({
+    ...prev,
+    iwakSelect: {
+      ...DEFAULTS.iwakSelect,
+      ...(prev.iwakSelect || {}),
+      [key]: val,
+    },
+  }));
+  const updSelectPalette = (key, val) => setCfg(prev => ({
+    ...prev,
+    iwakSelect: {
+      ...DEFAULTS.iwakSelect,
+      ...(prev.iwakSelect || {}),
+      palette: {
+        ...DEFAULTS.iwakSelect.palette,
+        ...((prev.iwakSelect && prev.iwakSelect.palette) || {}),
+        [key]: val,
+      },
+    },
+  }));
+
+  const updSelectCard = (idx, patch) => setCfg(prev => {
+    const select = { ...DEFAULTS.iwakSelect, ...(prev.iwakSelect || {}) };
+    const cards = [...(Array.isArray(select.cards) ? select.cards : [])];
+    cards[idx] = { ...cards[idx], ...patch };
+    if (patch.featured) {
+      cards.forEach((card, cardIdx) => { if (cardIdx !== idx) card.featured = false; });
+    }
+    return { ...prev, iwakSelect: { ...select, cards } };
+  });
+
+  const addSelectCard = () => setCfg(prev => {
+    const select = { ...DEFAULTS.iwakSelect, ...(prev.iwakSelect || {}) };
+    const cards = Array.isArray(select.cards) ? [...select.cards] : [];
+    cards.push({
+      id: `select-${Date.now()}`,
+      active: true,
+      featured: cards.length === 0,
+      title: 'NEW SELECT',
+      subtitle: 'подборка',
+      meta: 'sale',
+      cta: 'смотреть',
+      link: '/catalog',
+      image: '',
+      titleColor: '',
+      subtitleColor: '',
+    });
+    return { ...prev, iwakSelect: { ...select, cards: cards.slice(0, 8) } };
+  });
+
+  const removeSelectCard = (idx) => setCfg(prev => {
+    const select = { ...DEFAULTS.iwakSelect, ...(prev.iwakSelect || {}) };
+    let cards = (Array.isArray(select.cards) ? select.cards : []).filter((_, cardIdx) => cardIdx !== idx);
+    if (cards.length > 0 && !cards.some(card => card.featured)) cards = cards.map((card, cardIdx) => ({ ...card, featured: cardIdx === 0 }));
+    return { ...prev, iwakSelect: { ...select, cards } };
+  });
+
+  const moveSelectCard = (idx, dir) => setCfg(prev => {
+    const select = { ...DEFAULTS.iwakSelect, ...(prev.iwakSelect || {}) };
+    const cards = [...(Array.isArray(select.cards) ? select.cards : [])];
+    const nextIdx = idx + dir;
+    if (nextIdx < 0 || nextIdx >= cards.length) return prev;
+    [cards[idx], cards[nextIdx]] = [cards[nextIdx], cards[idx]];
+    return { ...prev, iwakSelect: { ...select, cards } };
+  });
+
+  const uploadSelectImage = async (idx, file) => {
+    if (!file) return;
+    const form = new FormData();
+    form.append('image', file);
+    try {
+      const res = await authFetch('/api/upload', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.path) {
+        notifyGlobal('error', data.error || 'Не удалось загрузить картинку');
+        return;
+      }
+      updSelectCard(idx, { image: data.path });
+      notifyGlobal('success', 'Картинка добавлена');
+    } catch {
+      notifyGlobal('error', 'Ошибка загрузки картинки');
+    }
+  };
   const mergeCatalogTheme = (patch) => setCfg(prev => ({
     ...prev,
     catalogTheme: {
@@ -244,6 +374,15 @@ export default function PromoTab() {
   const catalogTheme = {
     ...DEFAULTS.catalogTheme,
     ...(cfg.catalogTheme || {}),
+  };
+  const iwakSelect = {
+    ...DEFAULTS.iwakSelect,
+    ...(cfg.iwakSelect || {}),
+    palette: {
+      ...DEFAULTS.iwakSelect.palette,
+      ...((cfg.iwakSelect && cfg.iwakSelect.palette) || {}),
+    },
+    cards: Array.isArray(cfg.iwakSelect?.cards) ? cfg.iwakSelect.cards : DEFAULTS.iwakSelect.cards,
   };
 
   return (
@@ -492,6 +631,130 @@ export default function PromoTab() {
               -27%
             </span>
           </div>
+        </div>
+
+        <div className="promo-tab__block promo-tab__select">
+          <div className="promo-tab__block-head promo-tab__block-head--row">
+            <div>
+              <span>IWAK SELECT</span>
+              <small>Витрина подборок на главной каталога</small>
+            </div>
+            <label className="promo-tab__switch">
+              <input type="checkbox" checked={Boolean(iwakSelect.enabled)} onChange={e => updSelect('enabled', e.target.checked)} />
+              <span>{iwakSelect.enabled ? 'Вкл' : 'Выкл'}</span>
+            </label>
+          </div>
+
+          <div className="promo-tab__row">
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Заголовок</label>
+              <input className="adm-input promo-tab__input" value={iwakSelect.title} onChange={e => updSelect('title', e.target.value)} />
+            </div>
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Подпись</label>
+              <input className="adm-input promo-tab__input" value={iwakSelect.subtitle} onChange={e => updSelect('subtitle', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="promo-tab__row">
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Цвет названия (глобально)</label>
+              <div className="promo-tab__color-wrap">
+                <input type="color" value={normalizeHex(iwakSelect.palette?.titleColor, DEFAULTS.iwakSelect.palette.titleColor)} onChange={e => updSelectPalette('titleColor', e.target.value)} />
+                <input type="text" className="adm-input promo-tab__input promo-tab__input--sm"
+                  value={iwakSelect.palette?.titleColor || DEFAULTS.iwakSelect.palette.titleColor}
+                  onChange={e => updSelectPalette('titleColor', e.target.value)} />
+              </div>
+            </div>
+            <div className="promo-tab__field">
+              <label className="promo-tab__label">Цвет подписи (глобально)</label>
+              <div className="promo-tab__color-wrap">
+                <input type="color" value={normalizeHex(iwakSelect.palette?.subtitleColor, '#cccccc')} onChange={e => updSelectPalette('subtitleColor', e.target.value)} />
+                <input type="text" className="adm-input promo-tab__input promo-tab__input--sm"
+                  value={iwakSelect.palette?.subtitleColor || '#cccccc'}
+                  onChange={e => updSelectPalette('subtitleColor', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          <div className="promo-tab__select-preview">
+            <div className="iwak-select-mini">
+              <span>{iwakSelect.title || 'IWAK SELECT'}</span>
+              <small>{iwakSelect.subtitle || 'сейчас по скидке'}</small>
+              <div className="iwak-select-mini__cards">
+                {(iwakSelect.cards || []).filter(card => card.active !== false).slice(0, 5).map((card) => (
+                  <div key={card.id} className={`iwak-select-mini__card${card.featured ? ' iwak-select-mini__card--main' : ''}`}>
+                    {card.image ? <img src={card.image} alt="" /> : null}
+                    <b style={{ color: card.titleColor || iwakSelect.palette?.titleColor || '#fff' }}>{card.title}</b>
+                    <em style={{ color: card.subtitleColor || iwakSelect.palette?.subtitleColor || 'rgba(255,255,255,0.82)' }}>{card.meta || card.subtitle}</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="promo-tab__select-list">
+            {(iwakSelect.cards || []).map((card, idx) => (
+              <div className="promo-tab__select-card" key={card.id || idx}>
+                <div className="promo-tab__select-card-media">
+                  {card.image ? <img src={card.image} alt="" /> : <span>авто</span>}
+                  <label className="promo-tab__select-upload">
+                    <input type="file" accept="image/*" onChange={(e) => uploadSelectImage(idx, e.target.files?.[0])} />
+                    Фото
+                  </label>
+                </div>
+                <div className="promo-tab__select-card-form">
+                  <div className="promo-tab__row">
+                    <div className="promo-tab__field">
+                      <label className="promo-tab__label">Название</label>
+                      <input className="adm-input promo-tab__input" value={card.title || ''} onChange={e => updSelectCard(idx, { title: e.target.value })} />
+                    </div>
+                    <div className="promo-tab__field">
+                      <label className="promo-tab__label">Подпись</label>
+                      <input className="adm-input promo-tab__input" value={card.subtitle || ''} onChange={e => updSelectCard(idx, { subtitle: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="promo-tab__row">
+                    <div className="promo-tab__field">
+                      <label className="promo-tab__label">Акцент</label>
+                      <input className="adm-input promo-tab__input" value={card.meta || ''} onChange={e => updSelectCard(idx, { meta: e.target.value })} placeholder="до -46%" />
+                    </div>
+                    <div className="promo-tab__field">
+                      <label className="promo-tab__label">Ссылка</label>
+                      <input className="adm-input promo-tab__input" value={card.link || ''} onChange={e => updSelectCard(idx, { link: e.target.value })} placeholder="/catalog?sale=true" />
+                    </div>
+                  </div>
+                  <div className="promo-tab__row">
+                    <div className="promo-tab__field">
+                      <label className="promo-tab__label">Цвет названия (карточка)</label>
+                      <div className="promo-tab__color-wrap">
+                        <input type="color" value={normalizeHex(card.titleColor, iwakSelect.palette?.titleColor || '#ffffff')} onChange={e => updSelectCard(idx, { titleColor: e.target.value })} />
+                        <input className="adm-input promo-tab__input promo-tab__input--sm" value={card.titleColor || ''} onChange={e => updSelectCard(idx, { titleColor: e.target.value })} placeholder="HEX или пусто = глобально" />
+                      </div>
+                    </div>
+                    <div className="promo-tab__field">
+                      <label className="promo-tab__label">Цвет подписи (карточка)</label>
+                      <div className="promo-tab__color-wrap">
+                        <input type="color" value={normalizeHex(card.subtitleColor, iwakSelect.palette?.subtitleColor || '#cccccc')} onChange={e => updSelectCard(idx, { subtitleColor: e.target.value })} />
+                        <input className="adm-input promo-tab__input promo-tab__input--sm" value={card.subtitleColor || ''} onChange={e => updSelectCard(idx, { subtitleColor: e.target.value })} placeholder="HEX или пусто = глобально" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="promo-tab__select-actions">
+                    <label><input type="checkbox" checked={card.active !== false} onChange={e => updSelectCard(idx, { active: e.target.checked })} /> Активна</label>
+                    <label><input type="checkbox" checked={Boolean(card.featured)} onChange={e => updSelectCard(idx, { featured: e.target.checked })} /> Главная</label>
+                    <button type="button" className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => moveSelectCard(idx, -1)}>↑</button>
+                    <button type="button" className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => moveSelectCard(idx, 1)}>↓</button>
+                    <button type="button" className="adm-btn adm-btn--ghost adm-btn--sm" onClick={() => removeSelectCard(idx)}>Удалить</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button type="button" className="adm-btn adm-btn--ghost" onClick={addSelectCard} disabled={(iwakSelect.cards || []).length >= 8}>
+            + Добавить карточку
+          </button>
         </div>
 
         <div className="promo-tab__actions">
